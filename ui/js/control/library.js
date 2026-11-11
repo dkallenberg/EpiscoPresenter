@@ -133,7 +133,7 @@ async function showPreview(id) {
 }
 
 async function add(ids) {
-  if (!app.service) return toast("Open or start a service first (New / Open… / Example).", "warn");
+  if (!app.service) return toast("Open a service first (☰ Services).", "warn");
   const added = await call("library_add", { ids, after: insertionPoint() });
   if (added?.length) {
     app.select(added[0]);
@@ -186,6 +186,9 @@ export function openPropers() {
   const results = el("div.propers-results");
   let parsed = null;
 
+  const remember = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  const recall = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+
   const find = async () => {
     parsed = await call("parse_propers", { text: text.value });
     if (!parsed) return;
@@ -193,36 +196,102 @@ export function openPropers() {
       results.replaceChildren(el("p.muted", {}, "No collect or scripture citations found in that text."));
       return;
     }
-    // Default: everything shared, plus the first track's choices; not alternatives.
-    const firstVariant = parsed.items.find((i) => i.variant)?.variant ?? null;
-    results.replaceChildren(
-      parsed.day ? el("div.propers-day", {}, el("strong", {}, parsed.day)) : null,
-      ...parsed.items.map((item, i) => {
-        const checked = !item.alternative && (!item.variant || item.variant === firstVariant);
-        const kind = el(
-          "select",
-          { onchange: (e) => (item.kind = e.target.value), disabled: item.kind === "collect" },
-          Object.entries(KIND_LABELS)
-            .filter(([k]) => (item.kind === "collect") === (k === "collect"))
-            .map(([k, l]) => el("option", { value: k, selected: k === item.kind }, l)),
-        );
-        return el(
-          "label.propers-row",
+    const variantsOf = (pred) => [...new Set(parsed.items.filter(pred).map((i) => i.variant).filter(Boolean))];
+    const rites = variantsOf((i) => i.kind === "collect");
+    const tracks = variantsOf((i) => i.kind !== "collect");
+    const choice = {
+      rite: rites.includes(recall("propers.rite", "Rite II")) ? recall("propers.rite", "Rite II") : rites.at(-1),
+      track: tracks.includes(recall("propers.track", "Track 1")) ? recall("propers.track", "Track 1") : tracks[0],
+    };
+    const boxes = [];
+    const applyChoice = () =>
+      boxes.forEach(({ item, box }) => {
+        const pick = item.kind === "collect" ? choice.rite : choice.track;
+        box.checked = !item.alternative && (!item.variant || item.variant === pick);
+      });
+    const picker = (label, options, key, store) =>
+      options.length > 1
+        ? el(
+            "label.field.inline",
+            {},
+            el("span", {}, label),
+            el(
+              "select",
+              {
+                onchange: (e) => {
+                  choice[key] = e.target.value;
+                  remember(store, e.target.value);
+                  applyChoice();
+                },
+              },
+              options.map((o) => el("option", { value: o, selected: o === choice[key] }, o)),
+            ),
+          )
+        : null;
+
+    const rows = parsed.items.map((item, i) => {
+      const box = el("input", { type: "checkbox", dataset: { index: i } });
+      boxes.push({ item, box });
+      const kind = el(
+        "select",
+        { onchange: (e) => (item.kind = e.target.value), disabled: item.kind === "collect" },
+        Object.entries(KIND_LABELS)
+          .filter(([k]) => (item.kind === "collect") === (k === "collect"))
+          .map(([k, l]) => el("option", { value: k, selected: k === item.kind }, l)),
+      );
+      const row = el(
+        "label.propers-row",
+        {},
+        box,
+        kind,
+        el("span.propers-what", {}, item.kind === "collect" ? `${item.text.slice(0, 90)}…` : item.citation),
+        item.variant ? el("span.badge", {}, item.variant) : null,
+        item.alternative ? el("span.badge", {}, "or") : null,
+      );
+      if (item.kind !== "psalm" || !item.verses?.length) return row;
+      // Psalm: verses become slides; optional antiphon.
+      const antiphon = el("input.antiphon", {
+        placeholder: "Antiphon (optional): sung by all at the start and end",
+        oninput: (e) => (item.antiphon = e.target.value.trim() || null),
+      });
+      const every = el(
+        "select",
+        { onchange: (e) => (item.antiphon_every = Number(e.target.value)) },
+        [[0, "start & end"], [2, "+ every 2 verses"], [4, "+ every 4 verses"], [6, "+ every 6 verses"]].map(([v, l]) =>
+          el("option", { value: v }, l),
+        ),
+      );
+      return el(
+        "div.propers-psalm",
+        {},
+        row,
+        el(
+          "div.propers-psalm-opts",
           {},
-          el("input", { type: "checkbox", checked, dataset: { index: i } }),
-          kind,
-          el("span.propers-what", {}, item.kind === "collect" ? `${item.text.slice(0, 90)}…` : item.citation),
-          item.variant ? el("span.badge", {}, item.variant) : null,
-          item.alternative ? el("span.badge", {}, "or") : null,
-        );
-      }),
+          el("span.muted.small", {}, `${item.verses.length} verses → ${Math.ceil(item.verses.length / 2)} slides, choir plain / congregation bold`),
+          antiphon,
+          every,
+        ),
+      );
+    });
+    applyChoice();
+    results.replaceChildren(
+      el(
+        "div.propers-top",
+        {},
+        parsed.day ? el("strong", {}, parsed.day) : el("span"),
+        el("span.spacer"),
+        picker("Collect", rites, "rite", "propers.rite"),
+        picker("Readings", tracks, "track", "propers.track"),
+      ),
+      ...rows,
     );
   };
 
   const close = () => overlay.remove();
   const addChosen = async () => {
     if (!parsed) return;
-    if (!app.service) return toast("Open or start a service first (New / Open… / Example).", "warn");
+    if (!app.service) return toast("Open a service first (☰ Services).", "warn");
     const chosen = [...results.querySelectorAll("input[type=checkbox]")]
       .filter((c) => c.checked)
       .map((c) => parsed.items[Number(c.dataset.index)]);

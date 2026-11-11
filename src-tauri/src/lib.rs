@@ -81,6 +81,7 @@ pub fn run() {
             library::library_folder,
             library::parse_propers,
             library::add_propers,
+            library::psalm_arrange,
             services::liturgical_info,
             services::services_list,
             services::service_create,

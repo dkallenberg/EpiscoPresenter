@@ -145,7 +145,14 @@ function render(c) {
   if (c.content.kind === "announcements") {
     root.replaceChildren(header(c), announcementsPanel(c), looks);
   } else {
-    root.replaceChildren(header(c), el("div#live-banner.live-banner", { hidden: true }), looks, metaForm(c), blockList());
+    root.replaceChildren(
+      header(c),
+      el("div#live-banner.live-banner", { hidden: true }),
+      looks,
+      metaForm(c),
+      c.category === "psalm" ? psalmPanel(c) : null,
+      blockList(),
+    );
   }
   refreshLooks(c);
   renderStatus();
@@ -307,6 +314,55 @@ function metaForm(c) {
   return el("div.meta-form", {}, el("div.meta-grid", {}, fields), planRow);
 }
 
+// ----- psalm layout -----
+
+const extraOf = (doc, key) => doc.meta.extra?.find(([k]) => k === key)?.[1];
+
+/** Antiphon and verses-per-slide for a psalm; rebuilds its slides. */
+function psalmPanel(c) {
+  const verses = ed.doc.blocks.filter((b) => b.kind === "paragraph" && /^\d/.test(b.role ?? "")).length;
+  const antiphon = el("input", { value: extraOf(ed.doc, "antiphon") ?? "", placeholder: "Antiphon (sung by all), or leave empty", disabled: app.readonly });
+  const every = el(
+    "select",
+    { disabled: app.readonly },
+    [[0, "Start & end"], [2, "+ every 2 verses"], [4, "+ every 4 verses"], [6, "+ every 6 verses"]].map(([v, l]) =>
+      el("option", { value: v, selected: String(v) === (extraOf(ed.doc, "antiphon_every") ?? "0") }, l),
+    ),
+  );
+  const per = el(
+    "select",
+    { disabled: app.readonly },
+    [1, 2, 3, 4].map((n) => el("option", { value: n, selected: String(n) === (extraOf(ed.doc, "verses_per_slide") ?? "2") }, `${n} verse${n > 1 ? "s" : ""} per slide`)),
+  );
+  const apply = async () => {
+    await flush(true);
+    await call("psalm_arrange", {
+      id: c.id,
+      options: { antiphon: antiphon.value.trim() || null, antiphon_every: Number(every.value), verses_per_slide: Number(per.value) },
+    });
+  };
+  return el(
+    "details.section",
+    { open: true },
+    el("summary", {}, "Psalm layout", el("span.muted.small", {}, ` · ${verses} verses, choir plain / congregation bold`)),
+    verses
+      ? el(
+          "div.psalm-panel",
+          {},
+          field("Antiphon", antiphon),
+          field("Repeat", every),
+          field("Slides", per),
+          el("button.primary", { disabled: app.readonly, onclick: apply }, "Apply"),
+        )
+      : el("p.muted.small", {}, "Number the verses ([1], [2], …) to arrange them automatically, or import the psalm with Import propers."),
+    el(
+      "p.muted.small",
+      {},
+      "Apply rebuilds the slides from the numbered verses. Chant images (♪ Music) move to the antiphon slides.",
+    ),
+  );
+}
+
 // ----- blocks -----
 
 function blockList() {
@@ -422,7 +478,10 @@ function blockRow(b, i, paraIndex) {
     row.classList.add(paraIndex % 2 ? "odd" : "even");
     applyRoleStyle(row, b.role);
     const roles = app.vocab.roles.map((r) => [r.role, r.role]);
-    if (b.role && !roles.some(([r]) => r === b.role)) roles.push([b.role, `${b.role} (custom)`]);
+    if (b.role && !roles.some(([r]) => r === b.role)) {
+      // A number is a verse number (psalms, hymns), not a speaker.
+      roles.push([b.role, /^\d/.test(b.role) ? `Verse ${b.role}` : `${b.role} (custom)`]);
+    }
     const roleSel = select([["", "— Text —"], ...roles], b.role, (val) => {
       setField(b, "role", val);
       applyRoleStyle(row, b.role);

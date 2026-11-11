@@ -5,10 +5,15 @@
 //! finds what matters for the screens without depending on the page's exact
 //! layout:
 //!
-//! * the day's name ("The Twenty-Fourth Sunday after Pentecost"),
-//! * the collect: the paragraph after a "Collect" heading, up to "Amen.",
-//! * every scripture citation, labelled by the nearest heading above it
-//!   ("First Reading", "Psalm", "Epistle", "Gospel", "Track 1", …).
+//! * the day's name ("Twenty-fifth Sunday after Pentecost"),
+//! * the collect, once per form when the page gives both ("Rite I:",
+//!   "Rite II:"),
+//! * the scripture citations from heading lines such as
+//!   "Old Testament: Judges 4:1-7" (citations inside reading texts are
+//!   ignored), with the track they belong to ("Track 1", "Track 2"),
+//! * the psalm's verses (the psalter is from the 1979 BCP), which become
+//!   slides with the verses alternating between choir (plain) and
+//!   congregation (bold), and an optional antiphon.
 //!
 //! The operator ticks which items to add; [`build_document`] turns each into
 //! an `.ewm` document in the house style (title slide + responses).
@@ -63,6 +68,22 @@ pub struct ProperItem {
     /// True if the page offered this as an alternative ("or …").
     #[serde(default)]
     pub alternative: bool,
+    /// Psalm verses found on the page.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verses: Vec<PsalmVerse>,
+    /// Psalm antiphon to add (chosen in the import dialog).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub antiphon: Option<String>,
+    /// Repeat the antiphon after every N verses (0: only at start and end).
+    #[serde(default)]
+    pub antiphon_every: u32,
+}
+
+/// One psalm verse: its number and its lines (half-verses).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PsalmVerse {
+    pub number: String,
+    pub lines: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -220,169 +241,302 @@ fn clean_citation(c: &str) -> String {
     s
 }
 
-fn heading_kind(line: &str) -> Option<Option<ProperKind>> {
-    let l = line.to_ascii_lowercase();
-    let l = l.trim_end_matches(':').trim();
-    if l.len() > 60 {
+/// What a heading label names ("Old Testament", "Psalm", "Epistle", …).
+fn label_kind(label: &str) -> Option<ProperKind> {
+    let l = label.trim().trim_end_matches(':').trim().to_ascii_lowercase();
+    if l.is_empty() || l.len() > 40 {
         return None;
     }
-    let k = if l.contains("collect") {
-        Some(ProperKind::Collect)
-    } else if l.contains("gospel") {
-        Some(ProperKind::Gospel)
-    } else if l.starts_with("psalm") && citation_at(&normalize(line)).is_none() || l == "psalm" || l == "the psalm" {
-        Some(ProperKind::Psalm)
+    Some(if l.contains("gospel") {
+        ProperKind::Gospel
+    } else if l == "psalm" || l == "the psalm" || l == "psalms" {
+        ProperKind::Psalm
     } else if l.contains("first reading")
         || l.contains("old testament")
         || l.contains("hebrew bible")
         || l.contains("first lesson")
         || l == "reading 1"
     {
-        Some(ProperKind::FirstReading)
+        ProperKind::FirstReading
     } else if l.contains("second reading")
         || l.contains("epistle")
         || l.contains("new testament")
         || l.contains("second lesson")
         || l == "reading 2"
     {
-        Some(ProperKind::SecondReading)
-    } else if l.starts_with("track") || l.starts_with("year ") || l == "or" {
-        // A variant heading; handled by the caller.
-        return Some(None);
+        ProperKind::SecondReading
+    } else if l == "reading" || l == "lesson" || l == "the reading" {
+        ProperKind::Reading
     } else {
         return None;
-    };
-    Some(k)
+    })
 }
 
-fn looks_like_day(line: &str) -> bool {
-    let l = line.to_ascii_lowercase();
-    line.len() < 90
-        && (l.contains("sunday") || l.contains(" day") || l.starts_with("proper ") || l.contains("eve of"))
+fn is_collect_heading(line: &str) -> bool {
+    let l = line.trim().trim_end_matches(':').trim().to_ascii_lowercase();
+    l.len() < 40 && (l == "collect" || l.starts_with("the collect") || l.starts_with("collect of the day"))
+}
+
+/// "Rite I:" / "Rite II:" (and spelled-out forms) under the collect.
+fn rite_heading(line: &str) -> Option<&'static str> {
+    match line.trim().trim_end_matches(':').trim().to_ascii_lowercase().as_str() {
+        "rite i" | "rite one" | "traditional" => Some("Rite I"),
+        "rite ii" | "rite two" | "contemporary" => Some("Rite II"),
+        _ => None,
+    }
+}
+
+/// "Track 1", "Track 2", "Year A" …
+fn variant_heading(line: &str) -> Option<String> {
+    let t = line.trim().trim_end_matches(':').trim();
+    let l = t.to_ascii_lowercase();
+    ((l.starts_with("track ") || l.starts_with("year ")) && t.len() <= 12).then(|| t.to_string())
+}
+
+/// Removes markdown links (`[text](url)` → `text`) left by copying a page.
+fn strip_links(line: &str) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    while let Some(open) = rest.find('[') {
+        let after = &rest[open + 1..];
+        match after.find("](").and_then(|m| after[m + 2..].find(')').map(|c| (m, m + 2 + c))) {
+            Some((mid, close)) => {
+                out.push_str(&rest[..open]);
+                out.push_str(&after[..mid]);
+                rest = &after[close + 1..];
+            }
+            None => {
+                out.push_str(&rest[..=open]);
+                rest = after;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// The day's name from a heading, without breadcrumb numbers or the site's
+/// "The Lectionary - " prefix.
+fn day_name(line: &str) -> Option<String> {
+    let mut t = line.trim();
+    if let Some(rest) = t.split_once(". ").filter(|(n, _)| n.chars().all(|c| c.is_ascii_digit())).map(|(_, r)| r) {
+        t = rest;
+    }
+    for prefix in ["The Lectionary - ", "The Lectionary: "] {
+        t = t.strip_prefix(prefix).unwrap_or(t);
+    }
+    let l = t.to_ascii_lowercase();
+    let is_day = t.len() < 90
+        && (l.contains("sunday") || l.contains(" day") || l.ends_with(" eve") || l.contains("eve of"))
         && !l.contains("collect")
+        && !l.contains("lectionary");
+    is_day.then(|| t.trim_end_matches(':').to_string())
 }
 
-/// Extracts the day, the collect and the scripture citations.
+/// If `s` consists only of citations (joined by "or", "and", commas or
+/// semicolons), returns them with whether each was offered as an
+/// alternative. Prose, which merely mentions a citation, returns `None`.
+fn citation_list(s: &str) -> Option<Vec<(String, bool)>> {
+    let mut out = Vec::new();
+    let mut rest = s.trim();
+    let mut alternative = false;
+    while !rest.is_empty() {
+        let lower = rest.to_ascii_lowercase();
+        if let Some(r) = lower.strip_prefix("or ").map(|_| &rest[3..]) {
+            alternative = true;
+            rest = r.trim_start();
+            continue;
+        }
+        if lower.starts_with("and ") {
+            rest = rest[4..].trim_start();
+            continue;
+        }
+        if rest.starts_with([',', ';', '.']) {
+            rest = rest[1..].trim_start();
+            continue;
+        }
+        let len = citation_at(rest)?;
+        out.push((clean_citation(&rest[..len]), alternative));
+        alternative = false;
+        rest = rest[len..].trim_start();
+    }
+    (!out.is_empty()).then_some(out)
+}
+
+/// Extracts the day, the collect(s), citations and psalm verses.
 pub fn parse(text: &str) -> Propers {
-    let lines: Vec<String> = text.lines().map(normalize).filter(|l| !l.is_empty()).collect();
+    // (indented?, normalised text) per line, links stripped.
+    let lines: Vec<(bool, String)> =
+        text.lines().map(|raw| (raw.starts_with([' ', '\t']), normalize(&strip_links(raw)))).collect();
     let mut out = Propers::default();
     let mut current: Option<ProperKind> = None;
     let mut variant: Option<String> = None;
     let mut i = 0;
     while i < lines.len() {
-        let line = &lines[i];
-        if out.day.is_none() && looks_like_day(line) && citation_at(line).is_none() {
-            out.day = Some(line.trim_end_matches(':').to_string());
+        let line = &lines[i].1;
+        if line.is_empty() {
             i += 1;
             continue;
         }
-        if let Some(k) = heading_kind(line) {
-            match k {
-                Some(ProperKind::Collect) => {
-                    // Collect text: following lines up to and including "Amen."
-                    let mut body = Vec::new();
-                    let mut j = i + 1;
-                    while j < lines.len() {
-                        let l = &lines[j];
-                        if heading_kind(l).is_some() && body.is_empty() {
-                            break;
-                        }
-                        body.push(l.clone());
-                        j += 1;
-                        if l.trim_end().ends_with("Amen.") || l.trim_end().ends_with("Amen") {
-                            break;
-                        }
-                    }
-                    let joined = body.join(" ");
-                    let text = joined.trim().trim_end_matches("Amen.").trim_end_matches("Amen").trim().to_string();
-                    if !text.is_empty() && out.items.iter().all(|it| it.kind != ProperKind::Collect || it.text != text)
-                    {
-                        out.items.push(ProperItem {
-                            kind: ProperKind::Collect,
-                            citation: String::new(),
-                            text,
-                            variant: variant.clone(),
-                            alternative: false,
-                        });
-                    }
-                    i = j;
-                    continue;
-                }
-                Some(kind) => {
-                    current = Some(kind);
-                    // A heading may carry its citation on the same line:
-                    // "Gospel: Matthew 25:1-13".
-                    if let Some((_, rest)) = line.split_once(':') {
-                        scan_citations(&normalize(rest), current, &variant, &mut out);
-                    }
-                }
-                None => {
-                    let l = line.to_ascii_lowercase();
-                    if l.starts_with("track") || l.starts_with("year ") {
-                        variant = Some(line.trim_end_matches(':').to_string());
-                        // A new track starts its own sequence of readings.
-                        current = None;
-                    }
-                }
+        if out.day.is_none() {
+            if let Some(day) = day_name(line) {
+                out.day = Some(day);
+                i += 1;
+                continue;
             }
+        }
+        if is_collect_heading(line) {
+            i = parse_collects(&lines, i + 1, &mut out);
+            continue;
+        }
+        if let Some(v) = variant_heading(line) {
+            variant = Some(v);
+            current = None;
             i += 1;
             continue;
         }
-        scan_citations(line, current, &variant, &mut out);
+        // "Label: citation(s)", a bare "Label", or a line of citations.
+        let (kind, citations) = match line.split_once(':') {
+            Some((label, rest)) if label_kind(label).is_some() => (label_kind(label), citation_list(rest)),
+            _ if label_kind(line).is_some() => {
+                current = label_kind(line);
+                i += 1;
+                continue;
+            }
+            _ => (None, citation_list(line)),
+        };
+        let Some(citations) = citations else {
+            i += 1; // prose (a reading's text, page furniture …)
+            continue;
+        };
+        if kind.is_some() {
+            current = kind;
+        }
+        let first_new = out.items.len();
+        for (citation, alternative) in citations {
+            push_citation(&mut out, citation, alternative, current, &variant);
+        }
         i += 1;
+        // A psalm heading is followed by the psalm's verses.
+        if let Some(item) = out.items.get_mut(first_new).filter(|it| it.kind == ProperKind::Psalm) {
+            let (verses, next) = parse_verses(&lines, i);
+            item.verses = verses;
+            i = next;
+        }
     }
     out
 }
 
-fn scan_citations(line: &str, current: Option<ProperKind>, variant: &Option<String>, out: &mut Propers) {
-    let mut pos = 0;
-    let mut previous_end = 0;
-    while pos < line.len() {
-        if !line.is_char_boundary(pos) {
-            pos += 1;
+/// Collect paragraphs after a "Collect" heading, one per rite if given.
+fn parse_collects(lines: &[(bool, String)], mut j: usize, out: &mut Propers) -> usize {
+    let mut rite: Option<&str> = None;
+    let mut body: Vec<&str> = Vec::new();
+    while j < lines.len() {
+        let line = lines[j].1.as_str();
+        if line.is_empty() {
+            j += 1;
             continue;
         }
-        let at_word_start = pos == 0 || line.as_bytes()[pos - 1] == b' ' || line.as_bytes()[pos - 1] == b'(';
-        if at_word_start {
-            if let Some(len) = citation_at(&line[pos..]) {
-                let citation = clean_citation(&line[pos..pos + len]);
-                let between = line[previous_end..pos].to_ascii_lowercase();
-                let alternative = between.contains(" or") || between.trim() == "or";
-                let previous =
-                    out.items.iter().rev().find(|it| it.kind != ProperKind::Collect && it.variant == *variant);
-                let kind = if citation.starts_with("Psalm") {
-                    ProperKind::Psalm
-                } else if ["Matthew", "Mark", "Luke", "John "].iter().any(|g| citation.starts_with(g)) {
-                    ProperKind::Gospel
-                } else if let Some(prev) = previous.filter(|_| alternative) {
-                    // "A or B": same slot as the reading before it.
-                    prev.kind
-                } else {
-                    match current {
-                        Some(k @ (ProperKind::FirstReading | ProperKind::SecondReading)) => k,
-                        // Lectionary order: a reading before the psalm is the
-                        // first reading, after it the second.
-                        _ if previous.is_some_and(|p| p.kind == ProperKind::Psalm) => ProperKind::SecondReading,
-                        _ if previous.is_none() => ProperKind::FirstReading,
-                        _ => ProperKind::Reading,
-                    }
-                };
-                // Tracks only distinguish the first reading and psalm; the
-                // epistle and Gospel are shared by both.
-                let variant = match kind {
-                    ProperKind::SecondReading | ProperKind::Gospel => None,
-                    _ => variant.clone(),
-                };
-                let dup = out.items.iter().any(|it| it.citation == citation && it.variant == variant);
-                if !dup {
-                    out.items.push(ProperItem { kind, citation, text: String::new(), variant, alternative });
-                }
-                pos += len;
-                previous_end = pos;
-                continue;
+        if let Some(r) = rite_heading(line) {
+            rite = Some(r);
+            body.clear();
+            j += 1;
+            continue;
+        }
+        if body.is_empty()
+            && (variant_heading(line).is_some() || line.split_once(':').is_some_and(|(l, _)| label_kind(l).is_some()))
+        {
+            break;
+        }
+        body.push(line);
+        j += 1;
+        if line.ends_with("Amen.") || line.ends_with("Amen") {
+            let joined = body.join(" ");
+            let text = joined.trim_end_matches("Amen.").trim_end_matches("Amen").trim().to_string();
+            out.items.push(ProperItem {
+                kind: ProperKind::Collect,
+                citation: String::new(),
+                text,
+                variant: rite.map(String::from),
+                alternative: false,
+                verses: Vec::new(),
+                antiphon: None,
+                antiphon_every: 0,
+            });
+            body.clear();
+            // Another form may follow ("Rite II:"); otherwise we are done.
+            let next = lines[j..].iter().find(|(_, l)| !l.is_empty());
+            if !next.is_some_and(|(_, l)| rite_heading(l).is_some()) {
+                break;
             }
         }
-        pos += 1;
+    }
+    j
+}
+
+/// Psalm verses: "1 To you I lift up my eyes, *" starts a verse; indented
+/// lines continue it. Square brackets marking optional verses are removed.
+fn parse_verses(lines: &[(bool, String)], mut j: usize) -> (Vec<PsalmVerse>, usize) {
+    let mut verses: Vec<PsalmVerse> = Vec::new();
+    while j < lines.len() {
+        let (indented, line) = &lines[j];
+        let clean = |s: &str| s.replace(['[', ']'], "").trim().to_string();
+        let number: String = line.chars().take_while(|c| c.is_ascii_digit()).collect();
+        let starts_verse = !*indented && !number.is_empty() && line[number.len()..].starts_with(' ');
+        if starts_verse {
+            verses.push(PsalmVerse { number: number.clone(), lines: vec![clean(&line[number.len()..])] });
+        } else if *indented && !line.is_empty() && !verses.is_empty() {
+            verses.last_mut().expect("checked").lines.push(clean(line));
+        } else {
+            break;
+        }
+        j += 1;
+    }
+    (verses, j)
+}
+
+fn push_citation(
+    out: &mut Propers,
+    citation: String,
+    alternative: bool,
+    current: Option<ProperKind>,
+    variant: &Option<String>,
+) {
+    let previous = out.items.iter().rev().find(|it| it.kind != ProperKind::Collect && it.variant == *variant);
+    let kind = if citation.starts_with("Psalm") {
+        ProperKind::Psalm
+    } else if ["Matthew", "Mark", "Luke", "John "].iter().any(|g| citation.starts_with(g)) {
+        ProperKind::Gospel
+    } else if let Some(prev) = previous.filter(|_| alternative) {
+        // "A or B": same slot as the reading before it.
+        prev.kind
+    } else {
+        match current {
+            Some(k @ (ProperKind::FirstReading | ProperKind::SecondReading | ProperKind::Reading)) => k,
+            // Lectionary order: a reading before the psalm is the first
+            // reading, after it the second.
+            _ if previous.is_some_and(|p| p.kind == ProperKind::Psalm) => ProperKind::SecondReading,
+            _ if previous.is_none() => ProperKind::FirstReading,
+            _ => ProperKind::Reading,
+        }
+    };
+    // Tracks only distinguish the first reading and psalm; the epistle and
+    // Gospel are shared by both.
+    let variant = match kind {
+        ProperKind::SecondReading | ProperKind::Gospel => None,
+        _ => variant.clone(),
+    };
+    if !out.items.iter().any(|it| it.citation == citation && it.variant == variant) {
+        out.items.push(ProperItem {
+            kind,
+            citation,
+            text: String::new(),
+            variant,
+            alternative,
+            verses: Vec::new(),
+            antiphon: None,
+            antiphon_every: 0,
+        });
     }
 }
 
@@ -413,6 +567,14 @@ pub fn build_document(item: &ProperItem, day: Option<&str>) -> LiturgyDocument {
             }
             blocks.push(Block::speech(Role::Celebrant, [item.text.clone()]));
             blocks.push(Block::Paragraph { role: Some(Role::People), lines: vec![bold("Amen.")] });
+        }
+        ProperKind::Psalm if !item.verses.is_empty() => {
+            let opts = PsalmOptions {
+                antiphon: item.antiphon.clone().filter(|a| !a.trim().is_empty()),
+                antiphon_every: item.antiphon_every,
+                verses_per_slide: 2,
+            };
+            return psalm_document(&item.citation, Some(&item.citation), &item.verses, &opts, &[]);
         }
         ProperKind::Psalm => {
             meta.title = item.citation.clone();
@@ -458,6 +620,149 @@ pub fn build_document(item: &ProperItem, day: Option<&str>) -> LiturgyDocument {
         }
     }
     LiturgyDocument { meta, blocks }
+}
+
+// ---------------------------------------------------------------------------
+// Psalms
+// ---------------------------------------------------------------------------
+
+/// How a psalm is laid out on slides.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PsalmOptions {
+    /// Antiphon text (sung by all), shown before and after the psalm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub antiphon: Option<String>,
+    /// Also repeat the antiphon after every N verses (0: start and end only).
+    #[serde(default)]
+    pub antiphon_every: u32,
+    /// Verses per slide.
+    #[serde(default = "two")]
+    pub verses_per_slide: u32,
+}
+
+fn two() -> u32 {
+    2
+}
+
+impl Default for PsalmOptions {
+    fn default() -> Self {
+        PsalmOptions { antiphon: None, antiphon_every: 0, verses_per_slide: 2 }
+    }
+}
+
+const ANTIPHON: &str = "Antiphon";
+
+/// A psalm's slides. Verses alternate between the choir (plain) and the
+/// congregation (bold), starting with the choir; each shows its verse
+/// number but no role label. The antiphon, if any, is bold and shown at the
+/// start, at the end, and after every `antiphon_every` verses. `images`
+/// (e.g. the antiphon's chant) go on the antiphon slides, or before the
+/// verses when there is no antiphon.
+pub fn psalm_document(
+    title: &str,
+    citation: Option<&str>,
+    verses: &[PsalmVerse],
+    opts: &PsalmOptions,
+    images: &[Block],
+) -> LiturgyDocument {
+    let mut meta = FrontMatter {
+        title: title.to_string(),
+        category: Some(ElementCategory::Psalm),
+        citation: citation.map(String::from),
+        ..Default::default()
+    };
+    let antiphon = opts.antiphon.as_deref().map(str::trim).filter(|a| !a.is_empty());
+    if let Some(a) = antiphon {
+        meta.extra.push(("antiphon".into(), a.replace('\n', " / ")));
+        if opts.antiphon_every > 0 {
+            meta.extra.push(("antiphon_every".into(), opts.antiphon_every.to_string()));
+        }
+    }
+    if opts.verses_per_slide != 2 {
+        meta.extra.push(("verses_per_slide".into(), opts.verses_per_slide.to_string()));
+    }
+
+    let section = citation.unwrap_or(title).to_string();
+    let antiphon_blocks = |blocks: &mut Vec<Block>| {
+        if let Some(a) = antiphon {
+            blocks.push(Block::Heading { level: 1, text: ANTIPHON.into() });
+            blocks.extend(images.iter().cloned());
+            let lines = a.split(['\n', '/']).map(str::trim).filter(|l| !l.is_empty()).map(bold).collect();
+            blocks.push(Block::Paragraph { role: None, lines });
+        }
+    };
+
+    let mut blocks = Vec::new();
+    antiphon_blocks(&mut blocks);
+    blocks.push(Block::Heading { level: 1, text: section.clone() });
+    if antiphon.is_none() {
+        blocks.extend(images.iter().cloned());
+    }
+    let per = opts.verses_per_slide.max(1) as usize;
+    let every = opts.antiphon_every as usize;
+    let mut on_slide = 0;
+    for (i, verse) in verses.iter().enumerate() {
+        if i > 0 && antiphon.is_some() && every > 0 && i % every == 0 {
+            antiphon_blocks(&mut blocks);
+            blocks.push(Block::Heading { level: 1, text: section.clone() });
+            on_slide = 0;
+        } else if on_slide == per {
+            blocks.push(Block::SlideBreak);
+            on_slide = 0;
+        }
+        let congregation = i % 2 == 1;
+        let lines =
+            verse.lines.iter().map(|l| if congregation { bold(l) } else { vec![Span::plain(l.clone())] }).collect();
+        blocks.push(Block::Paragraph { role: Some(Role::Custom(verse.number.clone())), lines });
+        on_slide += 1;
+    }
+    if !verses.is_empty() {
+        antiphon_blocks(&mut blocks);
+    }
+    LiturgyDocument { meta, blocks }
+}
+
+fn is_verse_number(role: &Role) -> bool {
+    matches!(role, Role::Custom(n) if n.chars().next().is_some_and(|c| c.is_ascii_digit()))
+}
+
+/// The verses of a psalm document (numbered paragraphs), in order.
+pub fn psalm_verses(doc: &LiturgyDocument) -> Vec<PsalmVerse> {
+    doc.blocks
+        .iter()
+        .filter_map(|b| match b {
+            Block::Paragraph { role: Some(role), lines } if is_verse_number(role) => Some(PsalmVerse {
+                number: role.label().to_string(),
+                lines: lines.iter().map(|l| crate::document::line_plain_text(l)).collect(),
+            }),
+            _ => None,
+        })
+        .collect()
+}
+
+/// The layout a psalm document was built with (from its front matter).
+pub fn psalm_options(doc: &LiturgyDocument) -> PsalmOptions {
+    let num = |k: &str| doc.meta.extra(k).and_then(|v| v.parse().ok());
+    PsalmOptions {
+        antiphon: doc.meta.extra("antiphon").map(String::from),
+        antiphon_every: num("antiphon_every").unwrap_or(0),
+        verses_per_slide: num("verses_per_slide").unwrap_or(2),
+    }
+}
+
+/// Rebuilds a psalm document's slides with new options (antiphon, how often
+/// it repeats, verses per slide), keeping its verses, title, citation and
+/// any images (which move to the antiphon slides).
+pub fn rearrange_psalm(doc: &LiturgyDocument, opts: &PsalmOptions) -> LiturgyDocument {
+    let images: Vec<Block> = doc.blocks.iter().filter(|b| matches!(b, Block::Image { .. })).cloned().collect();
+    let mut out = psalm_document(&doc.meta.title, doc.meta.citation.as_deref(), &psalm_verses(doc), opts, &images);
+    // Keep the rest of the front matter (season, colour, background …).
+    let mut meta = doc.meta.clone();
+    meta.extra.retain(|(k, _)| !matches!(k.as_str(), "antiphon" | "antiphon_every" | "verses_per_slide"));
+    meta.extra.append(&mut out.meta.extra);
+    meta.category = Some(ElementCategory::Psalm);
+    out.meta = meta;
+    out
 }
 
 #[cfg(test)]
@@ -515,19 +820,113 @@ Matthew 25:1–13
     }
 
     #[test]
-    fn citation_on_the_heading_line_and_inline_text() {
-        let p = parse("Gospel: John 11:32-44\nFirst Reading: Isaiah 25:6-9\nsee also 1 John 3:1-3.");
+    fn citations_only_from_headings_never_from_prose() {
+        let p =
+            parse("Gospel: John 11:32-44\nFirst Reading: Isaiah 25:6-9\nAs we read in 1 John 3:1-3, love one another.");
         let c: Vec<&str> = p.items.iter().map(|i| i.citation.as_str()).collect();
-        assert_eq!(c, vec!["John 11:32-44", "Isaiah 25:6-9", "1 John 3:1-3"]);
+        assert_eq!(c, vec!["John 11:32-44", "Isaiah 25:6-9"]);
         assert_eq!(p.items[0].kind, ProperKind::Gospel);
         assert_eq!(p.items[1].kind, ProperKind::FirstReading);
-        assert_ne!(p.items[2].kind, ProperKind::Gospel, "1 John is not a Gospel");
+        assert_eq!(citation_list("Psalm 23 and the readings"), None);
+        assert_eq!(citation_list("Psalm 90:1-8, (9-11), 12").unwrap()[0].0, "Psalm 90:1-8, (9-11), 12");
+        assert_eq!(strip_links("[Track 1](https://x.org/#)"), "Track 1");
+    }
+
+    /// The lectionary page as copied from a browser (reading texts replaced
+    /// by placeholders; the psalms and collects are the 1979 BCP's).
+    const SITE: &str = include_str!("../tests/fixtures/lectionary-proper-28a.txt");
+
+    #[test]
+    fn parses_the_lectionary_site() {
+        let p = parse(SITE);
+        assert_eq!(p.day.as_deref(), Some("Twenty-fifth Sunday after Pentecost"));
+        let summary: Vec<(ProperKind, &str, Option<&str>, usize)> = p
+            .items
+            .iter()
+            .map(|i| {
+                (
+                    i.kind,
+                    if i.citation.is_empty() { &i.text[..14] } else { i.citation.as_str() },
+                    i.variant.as_deref(),
+                    i.verses.len(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            summary,
+            vec![
+                (ProperKind::Collect, "Blessed Lord, ", Some("Rite I"), 0),
+                (ProperKind::Collect, "Blessed Lord, ", Some("Rite II"), 0),
+                (ProperKind::FirstReading, "Judges 4:1-7", Some("Track 1"), 0),
+                (ProperKind::Psalm, "Psalm 123", Some("Track 1"), 5),
+                (ProperKind::FirstReading, "Zephaniah 1:7, 12-18", Some("Track 2"), 0),
+                (ProperKind::Psalm, "Psalm 90:1-8, (9-11), 12", Some("Track 2"), 12),
+                (ProperKind::SecondReading, "1 Thessalonians 5:1-11", None, 0),
+                (ProperKind::Gospel, "Matthew 25:14-30", None, 0),
+            ]
+        );
+        assert!(p.items[1].text.starts_with("Blessed Lord, who caused all holy Scriptures"));
+        assert!(p.items[1].text.ends_with("for ever and ever."));
+        assert!(p.items[0].text.contains("who hast caused"));
+
+        let ps123 = &p.items[3].verses;
+        assert_eq!(
+            ps123[0],
+            PsalmVerse {
+                number: "1".into(),
+                lines: vec!["To you I lift up my eyes, *".into(), "to you enthroned in the heavens.".into()]
+            }
+        );
+        let ps90 = &p.items[5].verses;
+        assert_eq!(ps90[1].lines.len(), 3, "multi-line verse");
+        assert_eq!(ps90[8].lines[0], "When you are angry, all our days are gone; *", "optional-verse brackets removed");
+        assert_eq!(ps90[9].lines.len(), 4);
+        assert_eq!(ps90.last().unwrap().number, "12");
     }
 
     #[test]
-    fn words_after_a_number_are_not_part_of_a_citation() {
-        let p = parse("Psalm 23 and the readings for today");
-        assert_eq!(p.items[0].citation, "Psalm 23");
+    fn psalm_slides_alternate_choir_and_congregation() {
+        let p = parse(SITE);
+        let mut psalm = p.items[3].clone();
+        let doc = build_document(&psalm, None);
+        let slides = doc.slides();
+        assert_eq!(slides.len(), 3, "5 verses, two per slide");
+        assert_eq!(slides[0].heading.as_deref(), Some("Psalm 123"));
+        let verse = |s: usize, b: usize| match &slides[s].blocks[b] {
+            Block::Paragraph { role, lines } => (role.clone(), lines[0][0].bold),
+            other => panic!("{other:?}"),
+        };
+        // Verse numbers as labels, no Choir/Congregation roles; even verses bold.
+        assert_eq!(verse(0, 0), (Some(Role::Custom("1".into())), false));
+        assert_eq!(verse(0, 1), (Some(Role::Custom("2".into())), true));
+        assert_eq!(verse(1, 0), (Some(Role::Custom("3".into())), false));
+        assert_eq!(verse(2, 0), (Some(Role::Custom("5".into())), false));
+
+        // With an antiphon at start, end and after every 2 verses.
+        psalm.antiphon = Some("Our eyes look to the Lord our God.".into());
+        psalm.antiphon_every = 2;
+        let doc = build_document(&psalm, None);
+        let slides = doc.slides();
+        let headings: Vec<&str> = slides.iter().map(|s| s.heading.as_deref().unwrap_or("")).collect();
+        assert_eq!(
+            headings,
+            vec!["Antiphon", "Psalm 123", "Antiphon", "Psalm 123", "Antiphon", "Psalm 123", "Antiphon"]
+        );
+        let antiphon = &slides[0].blocks[0];
+        assert_eq!(antiphon.role(), None, "the antiphon has no role label");
+        assert_eq!(antiphon.plain_text(), "Our eyes look to the Lord our God.");
+
+        // Round-trips through .ewm, and can be rearranged later.
+        let reparsed = crate::ewm::parse(&crate::ewm::to_string(&doc)).unwrap();
+        assert!(reparsed.warnings.is_empty(), "{:?}", reparsed.warnings);
+        assert_eq!(reparsed.document, doc);
+        assert_eq!(psalm_options(&doc).antiphon.as_deref(), Some("Our eyes look to the Lord our God."));
+        assert_eq!(psalm_options(&doc).antiphon_every, 2);
+        let plain = rearrange_psalm(&doc, &PsalmOptions::default());
+        assert_eq!(plain.slides().len(), 3);
+        assert_eq!(psalm_verses(&plain), p.items[3].verses);
+        let three = rearrange_psalm(&doc, &PsalmOptions { verses_per_slide: 3, ..PsalmOptions::default() });
+        assert_eq!(three.slides().len(), 2);
     }
 
     #[test]

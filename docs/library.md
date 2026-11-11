@@ -27,31 +27,54 @@ Service**.
 Please proofread the built-in texts against your prayer book before relying
 on them in worship.
 
-## Import propers (readings and collect)
+## Import propers (readings, collect and psalm)
 
 The lectionary site (lectionary.episcopalchurch.org) blocks automated access,
 so the app does not download from it. Instead:
 
 1. Open the day's page in your web browser.
 2. Select all (⌘A) and copy (⌘C).
-3. In the app, open **+ Add → Import propers…** (or **Import propers…** in the
-   Library tab), paste (⌘V), and click **Find readings & collect**.
+3. In the app, select the cue the items should follow (usually the
+   Salutation), open **+ Add → Import propers…**, paste (⌘V), and click
+   **Find readings & collect**.
 
-The app finds the day's name, the collect (up to its "Amen.") and every
-scripture citation. In the season after Pentecost the page lists two tracks.
-The first track's reading and psalm are ticked, the other track and any "or"
-alternatives are not, and the epistle and Gospel are shared. Change the ticks
-or the type of an item, then click **Add to service**. The items go after the
-selected cue:
+The app reads the page's structure:
+
+* **The collect.** The page gives **Rite I** and **Rite II**. The **Collect**
+  selector at the top chooses which one is ticked (Rite II by default, and the
+  app remembers your choice).
+* **The readings.** In the season after Pentecost, the **Readings** selector
+  chooses **Track 1** or **Track 2** (remembered too). The epistle and Gospel
+  belong to both tracks. Scripture references are taken only from the
+  headings ("Old Testament: Judges 4:1-7"), never from the reading texts.
+* **The psalm**, with all its verses. Optionally type an **antiphon**, and
+  choose whether it repeats only at the start and end or also every 2, 4 or 6
+  verses.
+
+Change any tick or item type, then click **Add to service**:
 
 | Item | Becomes |
 | --- | --- |
 | Collect | Collect of the Day: the day's name as heading, the collect, People: **Amen.** |
 | First / Second Reading | title slide ("The First Reading" + citation), then Reader: *The word of the Lord.* People: **Thanks be to God.** |
-| Psalm | title slide with the citation, and a placeholder slide for the verses |
+| Psalm | verses two per slide, with the verse numbers at the left. Verses alternate choir (plain) and congregation (**bold**), starting with the choir, with no "choir"/"congregation" labels. The antiphon, if any, is bold on its own slides. |
 | Gospel | title slide, both Gospel acclamations, naming the evangelist |
 
-Reading texts are not imported, since the screens show only citations and
-responses. Paste psalm verses into the psalm item's editor.
+Reading texts are not imported: the screens show only citations and
+responses, and the NRSV text is copyrighted. The collects and psalms are from
+the 1979 Book of Common Prayer.
 
-Copying works from any page that lists the readings, not only that site.
+### Psalm layout (after importing)
+
+Select the psalm and open the **Editor**. The **Psalm layout** panel sets the
+**antiphon**, how often it **repeats**, and **verses per slide** (1–4).
+**Apply** rebuilds the slides from the numbered verses. A chant image added
+with **♪ Music** moves to the antiphon slides. You can also edit the verses
+directly; a verse is a block whose role is its number (`[1]`, `[2]` … in the
+`.ewm` file).
+
+To check how the app reads a pasted page, save it as a text file and run:
+
+```bash
+cargo run -p episco-core --example propers_dump -- page.txt
+```

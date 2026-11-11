@@ -243,3 +243,17 @@ pub fn add_propers(
     let docs = items.iter().map(|i| propers::build_document(i, day.as_deref())).collect();
     insert_documents(&engine, docs, after)
 }
+
+/// Rebuilds a psalm cue's slides: antiphon (start, end, every N verses),
+/// verses per slide. Verses alternate plain (choir) and bold (congregation).
+#[tauri::command]
+pub fn psalm_arrange(engine: State<'_, Engine>, id: String, options: propers::PsalmOptions) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
+        if propers::psalm_verses(doc).is_empty() {
+            return Err("this item has no numbered verses ([1], [2], …) to arrange".to_string());
+        }
+        let arranged = propers::rearrange_psalm(doc, &options);
+        s.set_document(&id, arranged).map_err(|e| e.to_string())
+    })
+}
