@@ -86,7 +86,8 @@ document.addEventListener("keydown", (e) => {
 // ---------- top bar ----------
 function renderTopbar() {
   const s = app.service;
-  $("service-title").textContent = s ? s.title || "Untitled service" : "";
+  const isTemplate = /[\\/]templates[\\/][^\\/]+[\\/]service\.toml$/.test(s?.plan_path ?? "");
+  $("service-title").textContent = s ? `${isTemplate ? "Template: " : ""}${s.title || "Untitled service"}` : "";
   const status = $("save-status");
   status.hidden = !s || app.readonly;
   if (s) {

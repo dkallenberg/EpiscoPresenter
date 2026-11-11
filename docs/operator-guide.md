@@ -27,7 +27,7 @@ slave). A stage message, when one is active, is shown here on every node.
   * a **background thumbnail**: the sanctuary look, with the stream look
     inset at the corner (hover for the names).
 * **Click** selects a cue (for the editor and slide grid), **double-click** puts
-  it on air, **drag** reorders. Hover a row for ↑ ↓ ✕.
+  it on air, **drag** a row up or down to reorder (a gold line shows where it will go). Hover a row for ↑ ↓ ✕.
 * **+ Add** inserts after the selected cue: an item from the **Library**,
   **Import propers** (readings and collect pasted from the lectionary page),
   existing `.ewm` files (several at once), or a new item from a template.

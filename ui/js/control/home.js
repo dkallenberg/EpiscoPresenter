@@ -14,6 +14,17 @@ const SWATCH = {
 };
 
 let services = [];
+let templates = [];
+const SEASONS = [
+  ["Advent", "Advent"],
+  ["Christmas", "Christmas"],
+  ["Epiphany", "Epiphany"],
+  ["Lent", "Lent"],
+  ["HolyWeek", "Holy Week"],
+  ["Easter", "Easter"],
+  ["Pentecost", "After Pentecost"],
+];
+const seasonLabel = (k) => SEASONS.find(([v]) => v === k)?.[1] ?? k;
 let shownAtStart = false;
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -57,7 +68,9 @@ export async function showHome() {
   const home = document.getElementById("home");
   home.hidden = false;
   home.replaceChildren(el("p.muted.home-loading", {}, "Loading services…"));
-  services = (await call("services_list")) ?? [];
+  [services, templates] = await Promise.all([call("services_list"), call("templates_list")]);
+  services ??= [];
+  templates ??= [];
   render();
 }
 
@@ -65,13 +78,153 @@ export function hideHome() {
   document.getElementById("home").hidden = true;
 }
 
+/** "Start from": by season, the standard order, a template, or a copy. */
 function templateSelect() {
   const copies = [...services].filter((s) => s.date).reverse().slice(0, 12);
+  const seasonal = templates.some((t) => t.seasons.length);
   return el(
     "select",
     {},
+    seasonal ? el("option", { value: "auto", selected: true }, "By season (your templates, else the standard order)") : null,
     el("option", { value: "" }, "Standard order (from the Library)"),
-    copies.map((s) => el("option", { value: s.path }, `Copy of ${s.title} — ${formatDate(s.date, { month: "short", day: "numeric", year: "numeric" })}`)),
+    templates.length
+      ? el(
+          "optgroup",
+          { label: "Templates" },
+          templates.map((t) => el("option", { value: t.path }, `${t.name}${t.seasons.length ? ` — ${t.seasons.map(seasonLabel).join(", ")}` : ""}`)),
+        )
+      : null,
+    copies.length
+      ? el(
+          "optgroup",
+          { label: "Copy of a service" },
+          copies.map((s) => el("option", { value: s.path }, `${s.title} — ${formatDate(s.date, { month: "short", day: "numeric", year: "numeric" })}`)),
+        )
+      : null,
+  );
+}
+
+/** The template and options to send for a "Start from" choice. */
+function startFrom(select, opts) {
+  const v = select.value;
+  return { template: v && v !== "auto" ? v : null, options: { ...opts, by_season: v === "auto" } };
+}
+
+// ---------- templates ----------
+
+/** Name and seasons for a template (new or existing). Resolves to {name, seasons} or null. */
+function templateDialog(title, initial = { name: "", seasons: [] }) {
+  return new Promise((resolve) => {
+    const name = el("input", { value: initial.name, placeholder: "e.g. Lent, Rite I" });
+    const boxes = SEASONS.map(([v, l]) => {
+      const box = el("input", { type: "checkbox", value: v, checked: initial.seasons.includes(v) });
+      return el("label.toggle", {}, box, l);
+    });
+    const done = (v) => {
+      overlay.remove();
+      resolve(v);
+    };
+    const ok = () => {
+      if (!name.value.trim()) return toast("Name the template", "warn");
+      done({ name: name.value.trim(), seasons: boxes.map((b) => b.querySelector("input")).filter((b) => b.checked).map((b) => b.value) });
+    };
+    const overlay = el(
+      "div.modal-overlay",
+      { onmousedown: (e) => e.target === overlay && done(null) },
+      el(
+        "div.modal",
+        {},
+        el("h3", {}, title),
+        el("label.field", {}, el("span", {}, "Name"), name),
+        el("div.field", {}, el("span", {}, "Use automatically for"), el("div.season-boxes", {}, boxes)),
+        el(
+          "p.muted.small",
+          {},
+          "New and scheduled services started “By season” use this template on Sundays in the ticked seasons. Leave all unticked to choose it by name only.",
+        ),
+        el("div.modal-actions", {}, el("button", { onclick: () => done(null) }, "Cancel"), el("button.primary", { onclick: ok }, "Save")),
+      ),
+    );
+    document.body.append(overlay);
+    name.focus();
+    name.addEventListener("keydown", (e) => e.key === "Enter" && ok());
+  });
+}
+
+/** Saves the open service's order (without its propers) as a template. */
+export async function saveAsTemplate() {
+  if (!app.service) return toast("Open a service first", "warn");
+  templates = (await call("templates_list")) ?? templates;
+  const v = await templateDialog("Save order as a template");
+  if (!v) return;
+  const existing = templates.find((t) => t.name.toLowerCase() === v.name.toLowerCase());
+  if (existing) {
+    const ok = await call("confirm", { title: "Replace template", message: `Replace the template “${existing.name}” with this order?`, okLabel: "Replace" });
+    if (!ok) return;
+  }
+  const path = await call("template_save", v);
+  if (path) {
+    toast(`Saved the template “${v.name}”`);
+    if (!document.getElementById("home").hidden) showHome();
+  }
+}
+
+async function editTemplate(t) {
+  const v = await templateDialog("Template", t);
+  if (!v) return;
+  if ((await call("template_update", { path: t.path, ...v })) !== undefined) showHome();
+}
+
+async function deleteTemplate(t) {
+  const ok = await call("confirm", { title: "Delete template", message: `Delete the template “${t.name}”? Services made from it are not affected.`, okLabel: "Delete" });
+  if (!ok) return;
+  if ((await call("template_delete", { path: t.path })) !== undefined) showHome();
+}
+
+async function openTemplate(t) {
+  if ((await call("template_open", { path: t.path })) !== undefined) {
+    hideHome();
+    toast(`Editing the template “${t.name}”. Changes save automatically.`);
+  }
+}
+
+function templatesCard() {
+  const rows = templates.map((t) =>
+    el(
+      "div.tpl-row",
+      {},
+      el(
+        "div.tpl-main",
+        {},
+        el("strong", {}, t.name),
+        el(
+          "div.muted.small",
+          {},
+          [t.seasons.length ? t.seasons.map(seasonLabel).join(", ") : "Any season (choose by name)", t.rite === "I" ? "Rite I" : "Rite II", `${t.cues} items`].join(" · "),
+        ),
+      ),
+      el("button.small", { onclick: () => openTemplate(t), title: "Open the template to change its order or texts" }, "Edit order"),
+      el("button.small", { onclick: () => editTemplate(t), title: "Rename, or change its seasons" }, "Name & seasons"),
+      el("button.small.danger-btn", { onclick: () => deleteTemplate(t) }, "Delete"),
+    ),
+  );
+  return el(
+    "div.home-card.tpl-card",
+    {},
+    el(
+      "div.tpl-head",
+      {},
+      el("h3", {}, "Service order templates"),
+      el("span.spacer"),
+      el("button.small", { disabled: !app.service, title: app.service ? "Save the open service's order (without its readings) as a template" : "Open a service first", onclick: saveAsTemplate }, "Save open service as template…"),
+    ),
+    templates.length
+      ? el("div.tpl-list", {}, rows)
+      : el(
+          "p.muted.small",
+          {},
+          "Arrange a service the way you like it for a season (hymn slots, prayers, rite), then save it here as a named template, e.g. “Lent” or “Easter, Rite I”. New services can start from it, or pick it automatically by season.",
+        ),
   );
 }
 
@@ -123,8 +276,7 @@ function render() {
     const plan = await call("service_create", {
       date: date.value,
       title: title.value || null,
-      template: newTemplate.value || null,
-      options: newOpts.value(),
+      ...startFrom(newTemplate, newOpts.value()),
     });
     if (plan) {
       hideHome();
@@ -140,8 +292,7 @@ function render() {
     const made = await call("services_schedule", {
       from: now,
       weeks: Number(weeks.value),
-      template: schedTemplate.value || null,
-      options: schedOpts.value(),
+      ...startFrom(schedTemplate, schedOpts.value()),
     });
     if (made === undefined) return;
     toast(made.length ? `Scheduled ${made.length} service${made.length === 1 ? "" : "s"}` : "Those Sundays already have services");
@@ -189,6 +340,7 @@ function render() {
           el("div.home-card-actions", {}, el("button.primary", { onclick: schedule }, "Schedule")),
         ),
       ),
+      templatesCard(),
       el("h2", {}, "Upcoming"),
       upcoming.length
         ? el("div.svc-list", {}, upcoming.map(row))

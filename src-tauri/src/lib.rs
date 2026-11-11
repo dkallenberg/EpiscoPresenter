@@ -106,6 +106,11 @@ pub fn run() {
             services::services_schedule,
             services::service_delete,
             services::service_keep,
+            services::templates_list,
+            services::template_save,
+            services::template_update,
+            services::template_delete,
+            services::template_open,
         ])
         .run(tauri::generate_context!())
         .expect("error while running EpiscoPresenter");

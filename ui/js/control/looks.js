@@ -9,6 +9,7 @@
 import { activeSlide } from "/js/bridge.js";
 import { BUILTIN_LABELS } from "/js/backgrounds.js";
 import { backgroundCss, mountStage, renderOutput } from "/js/render.js";
+import { saveAsTemplate } from "/js/control/home.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
 export const OUTPUTS = [
@@ -301,7 +302,14 @@ export function openServiceSettings() {
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
       row("Announcements deck (published Google Slides URL)", f.deck),
       el("div.look-row", {}, row("Stream key colour (lower thirds)", f.key), row("Custom colour", f.customKey)),
-      el("div.modal-actions", {}, el("button", { onclick: close }, "Cancel"), el("button.primary", { onclick: save }, "Save")),
+      el(
+        "div.modal-actions",
+        {},
+        el("button", { title: "Save this service's order (without its readings) as a named template for new services", onclick: () => { close(); saveAsTemplate(); } }, "Save order as template…"),
+        el("span.spacer"),
+        el("button", { onclick: close }, "Cancel"),
+        el("button.primary", { onclick: save }, "Save"),
+      ),
     ),
   );
   document.body.append(overlay);

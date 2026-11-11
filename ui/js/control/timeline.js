@@ -49,43 +49,76 @@ export function initTimeline() {
   });
   document.addEventListener("click", () => (menu.hidden = true));
 
-  // Drag-and-drop reordering (event delegation on the list).
-  let dragId = null;
-  list.addEventListener("dragstart", (e) => {
+  // Drag to reorder. Pointer events rather than HTML5 drag-and-drop, which
+  // the app's webviews do not deliver reliably; the list is not redrawn
+  // while a drag is in progress (the on-air state changes constantly).
+  let drag = null; // { id, row, startY, active, target, after }
+  const clearMarks = () =>
+    list.querySelectorAll(".dragging, .drop-before, .drop-after").forEach((n) => n.classList.remove("dragging", "drop-before", "drop-after"));
+  list.addEventListener("pointerdown", (e) => {
     const row = e.target.closest(".cue[data-id]");
-    if (!row || app.readonly) return e.preventDefault();
-    dragId = row.dataset.id;
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", dragId);
-    row.classList.add("dragging");
+    if (!row || app.readonly || e.button !== 0 || e.target.closest("button")) return;
+    drag = { id: row.dataset.id, row, startY: e.clientY, active: false, target: null, after: false, pointer: e.pointerId };
   });
-  list.addEventListener("dragend", () => {
-    dragId = null;
-    list.querySelectorAll(".dragging, .drop-before, .drop-after").forEach((n) =>
-      n.classList.remove("dragging", "drop-before", "drop-after"),
-    );
-  });
-  list.addEventListener("dragover", (e) => {
-    const row = e.target.closest(".cue[data-id]");
-    if (!dragId || !row) return;
+  window.addEventListener("pointermove", (e) => {
+    if (!drag || e.pointerId !== drag.pointer) return;
+    if (!drag.active) {
+      if (Math.abs(e.clientY - drag.startY) < 6) return;
+      drag.active = true;
+      drag.row.classList.add("dragging");
+      document.body.classList.add("reordering");
+    }
     e.preventDefault();
-    const after = e.offsetY > row.offsetHeight / 2;
+    // Scroll the list when dragging near its edges.
+    const box = list.getBoundingClientRect();
+    if (e.clientY < box.top + 30) list.scrollTop -= 12;
+    else if (e.clientY > box.bottom - 30) list.scrollTop += 12;
+    const over = document.elementFromPoint(box.left + box.width / 2, e.clientY)?.closest(".cue[data-id]");
     list.querySelectorAll(".drop-before, .drop-after").forEach((n) => n.classList.remove("drop-before", "drop-after"));
-    row.classList.add(after ? "drop-after" : "drop-before");
+    if (!over || !list.contains(over)) {
+      drag.target = null;
+      return;
+    }
+    const r = over.getBoundingClientRect();
+    drag.target = over.dataset.id;
+    drag.after = e.clientY > r.top + r.height / 2;
+    over.classList.add(drag.after ? "drop-after" : "drop-before");
   });
-  list.addEventListener("drop", (e) => {
-    const row = e.target.closest(".cue[data-id]");
-    if (!dragId || !row) return;
-    e.preventDefault();
-    const cues = app.service.cues;
-    const from = cues.findIndex((c) => c.id === dragId);
-    let to = cues.findIndex((c) => c.id === row.dataset.id) + (row.classList.contains("drop-after") ? 1 : 0);
-    if (from < to) to -= 1; // removing the dragged cue shifts later indexes
-    if (from !== to) call("move_cue", { id: dragId, to });
-  });
+  const endDrag = (e) => {
+    if (!drag || (e && e.pointerId !== drag.pointer)) return;
+    const d = drag;
+    drag = null;
+    clearMarks();
+    document.body.classList.remove("reordering");
+    if (d.active) {
+      // The click that ends a drag must not also select or go live.
+      const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+      window.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() => window.removeEventListener("click", swallow, { capture: true }), 0);
+      const cues = app.service?.cues ?? [];
+      const from = cues.findIndex((c) => c.id === d.id);
+      if (d.target && from >= 0) {
+        let to = cues.findIndex((c) => c.id === d.target) + (d.after ? 1 : 0);
+        if (from < to) to -= 1; // removing the dragged cue shifts later indexes
+        if (to !== from) call("move_cue", { id: d.id, to });
+      }
+    }
+    if (pending) {
+      pending = false;
+      render(list);
+    }
+  };
+  window.addEventListener("pointerup", endDrag);
+  window.addEventListener("pointercancel", endDrag);
+  let pending = false;
 
   app.on((what) => {
-    if (what !== "link") render(list);
+    if (what === "link") return;
+    if (drag?.active) {
+      pending = true;
+      return;
+    }
+    render(list);
   });
 }
 
@@ -194,7 +227,6 @@ function cueRow(cue, i, active, count) {
     "li.cue" + (onAir ? ".on-air" : "") + (app.selectedId === cue.id ? ".selected" : ""),
     {
       dataset: { id: cue.id },
-      draggable: !app.readonly,
       onclick: () => app.select(cue.id),
       ondblclick: () => send({ type: "go_to", cue: i, slide: 0 }),
     },

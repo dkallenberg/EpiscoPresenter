@@ -42,9 +42,12 @@ New and scheduled services start from either:
   Advent and Lent), Salutation, **the propers**, Sermon, Nicene Creed,
   Confession, Absolution, Peace, Offertory Hymn, Great Thanksgiving, Sanctus,
   Lord's Prayer, Breaking of the Bread, (Prayer of Humble Access in Rite I),
-  Invitation, Communion Hymn, Postcommunion Prayer, Closing Hymn, Dismissal and
-  the post-service announcements loop. Hymn slots hold a note until you fill
+  Invitation, Communion Hymn, Postcommunion Prayer, Welcome & Announcements,
+  Closing Hymn, Dismissal and the post-service announcements loop. Hymn slots hold a note until you fill
   them.
+* **A template** you saved (see below), or **By season**, which uses the
+  template kept for each date's season and the standard order where there is
+  none. Scheduling across a change of season uses each season's template.
 * **Copy of** an existing service: everything except its propers, with its
   own copies of the texts and its custom backgrounds kept. The new day's
   propers are added in the same place.
@@ -54,6 +57,26 @@ the Collect of the Day, the first reading and psalm (of the chosen track),
 the second reading and the Gospel, with the psalm's verses from the Prayer
 Book. To choose a holy day or different readings instead, use
 **Library → Propers…** (see [library.md](library.md#propers)).
+
+## Service order templates
+
+A template is a named order of service, e.g. *Lent, Rite I* or *Easter*.
+Arrange a service the way you want it for a season (items, hymn slots,
+backgrounds, rite), then save it:
+
+* **Services → Save open service as template…** (or **⚙ Service → Save order
+  as template…**). Name it and tick the seasons to **use it automatically
+  for** (Advent, Christmas, Epiphany, Lent, Holy Week, Easter, After
+  Pentecost), or none to choose it by name only. The template keeps the
+  order and texts but not the day's propers or date. Saving under an
+  existing name replaces that template.
+* The **Service order templates** card on the Services screen lists them:
+  **Edit order** opens a template like a service (the top bar shows
+  *Template:*; changes save automatically), **Name & seasons** renames it or
+  changes its seasons, **Delete** removes it (services made from it are not
+  affected).
+
+Templates live in the app data folder under `templates/`.
 
 ## Autosave
 

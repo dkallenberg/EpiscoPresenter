@@ -183,11 +183,11 @@ fn standard_cues(day: &LiturgicalDay, rite: Rite) -> Vec<Cue> {
     };
     // The Prayer of Humble Access is a Rite I custom.
     let humble_access = (rite == Rite::One).then(|| lib("humble-access", None)).flatten();
+    let welcome = Some(Cue::announcements("", AnnouncementMode::SinglePass, CueOverrides::default())).map(|mut c| {
+        c.overrides.title = Some("Welcome & Announcements".into());
+        c
+    });
     [
-        Some(Cue::announcements("", AnnouncementMode::SinglePass, CueOverrides::default())).map(|mut c| {
-            c.overrides.title = Some("Welcome & Announcements".into());
-            c
-        }),
         hymn("Entrance Hymn"),
         lib(acclamation, None),
         lib("collect-for-purity", None),
@@ -207,6 +207,8 @@ fn standard_cues(day: &LiturgicalDay, rite: Rite) -> Vec<Cue> {
         lib("invitation", None),
         hymn("Communion Hymn"),
         lib("postcommunion-eternal-god", None),
+        // Announcements come after Communion, before the closing hymn.
+        welcome,
         hymn("Closing Hymn"),
         lib("dismissal-go-forth", None),
         Some(Cue::announcements("", AnnouncementMode::Loop, CueOverrides::default())),
@@ -255,6 +257,10 @@ pub struct ServiceOptions {
     /// Add the day's propers from the lectionary (default true).
     #[serde(default)]
     pub propers: Option<bool>,
+    /// With no `template`: use the saved template for the date's season,
+    /// if there is one, else the standard order.
+    #[serde(default)]
+    pub by_season: bool,
 }
 
 /// Propers are specific to a day and are not carried into a copy.
@@ -316,7 +322,11 @@ fn create(
     template: Option<&Path>,
     opts: ServiceOptions,
 ) -> CmdResult<PathBuf> {
-    let template = match template {
+    let seasonal = match template {
+        None if opts.by_season => season_template(app, liturgical_day(date).season),
+        _ => None,
+    };
+    let template = match template.or(seasonal.as_deref()) {
         Some(path) => Some(Service::load_plan(path).map_err(|e| e.to_string())?.service),
         None => None,
     };
@@ -374,6 +384,159 @@ pub fn services_schedule(
         created.push(create(&app, date, None, template.as_deref(), options)?);
     }
     Ok(created)
+}
+
+// ---- service order templates ---------------------------------------------
+
+/// Named orders of service to start new services from, e.g. "Lent, Rite I",
+/// each optionally used automatically for some seasons. A template is a
+/// service folder in `<app data>/templates/` (plan and texts, without
+/// propers) with a `template.json` naming it.
+pub fn templates_dir(app: &AppHandle) -> CmdResult<PathBuf> {
+    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("templates"))
+}
+
+const TEMPLATE_META: &str = "template.json";
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+struct TemplateMeta {
+    name: String,
+    #[serde(default)]
+    seasons: Vec<Season>,
+}
+
+#[derive(Serialize)]
+pub struct TemplateInfo {
+    /// The template's plan file.
+    path: PathBuf,
+    name: String,
+    seasons: Vec<Season>,
+    cues: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rite: Option<Rite>,
+}
+
+fn read_meta(folder: &Path) -> Option<TemplateMeta> {
+    serde_json::from_str(&std::fs::read_to_string(folder.join(TEMPLATE_META)).ok()?).ok()
+}
+
+fn write_meta(folder: &Path, meta: &TemplateMeta) -> CmdResult<()> {
+    let json = serde_json::to_string_pretty(meta).map_err(|e| e.to_string())?;
+    std::fs::write(folder.join(TEMPLATE_META), json).map_err(|e| format!("could not save the template: {e}"))
+}
+
+/// A template folder, checked to be inside the templates folder.
+fn template_folder(app: &AppHandle, plan: &Path) -> CmdResult<PathBuf> {
+    let dir = templates_dir(app)?.canonicalize().map_err(|e| e.to_string())?;
+    let folder = plan.parent().ok_or("bad path")?.canonicalize().map_err(|e| e.to_string())?;
+    if folder.parent() != Some(dir.as_path()) {
+        return Err("not a service order template".into());
+    }
+    Ok(folder)
+}
+
+/// The saved templates, by name.
+#[tauri::command]
+pub fn templates_list(app: AppHandle) -> CmdResult<Vec<TemplateInfo>> {
+    let mut out = Vec::new();
+    let Ok(entries) = std::fs::read_dir(templates_dir(&app)?) else { return Ok(out) };
+    for entry in entries.flatten() {
+        let folder = entry.path();
+        let plan = folder.join(PLAN_FILE);
+        let (Some(meta), true) = (read_meta(&folder), plan.is_file()) else { continue };
+        match Service::load_plan(&plan) {
+            Ok(Loaded { service, .. }) => out.push(TemplateInfo {
+                path: plan,
+                name: meta.name,
+                seasons: meta.seasons,
+                cues: service.cues.len(),
+                rite: service.rite,
+            }),
+            Err(e) => tracing::warn!("skipping template {}: {e}", plan.display()),
+        }
+    }
+    out.sort_by_key(|t| t.name.to_lowercase());
+    Ok(out)
+}
+
+/// The first template (by name) kept for `season`.
+fn season_template(app: &AppHandle, season: Season) -> Option<PathBuf> {
+    templates_list(app.clone()).ok()?.into_iter().find(|t| t.seasons.contains(&season)).map(|t| t.path)
+}
+
+/// A service turned into a template: its order and texts without the day's
+/// propers, date or file.
+fn as_template(service: &Service, name: &str) -> Service {
+    let mut t = service.clone();
+    t.cues.retain(|c| !is_proper(c));
+    for cue in &mut t.cues {
+        if let episco_core::CueContent::Liturgy { source, .. } = &mut cue.content {
+            *source = None;
+        }
+        cue.modified = true;
+    }
+    t.title = name.to_string();
+    t.date = None;
+    t.plan_path = None;
+    t.modified = true;
+    t
+}
+
+/// Saves the open service's order as a named template (without its
+/// propers). Saving under an existing template's name replaces it.
+#[tauri::command]
+pub fn template_save(
+    app: AppHandle,
+    engine: State<'_, Engine>,
+    name: String,
+    seasons: Vec<Season>,
+) -> CmdResult<PathBuf> {
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("name the template".into());
+    }
+    let service = engine.service().ok_or("open a service first")?;
+    let dir = templates_dir(&app)?;
+    let slug = slug_file_name(&name, "x").trim_end_matches(".x").to_string();
+    let folder = dir.join(&slug);
+    if folder.exists() {
+        // Replace: a fresh folder, so texts no longer used do not linger.
+        std::fs::remove_dir_all(&folder).map_err(|e| format!("could not replace the template: {e}"))?;
+    }
+    let plan = folder.join(PLAN_FILE);
+    let mut template = as_template(&service, &name);
+    template.save_to(&plan).map_err(|e| e.to_string())?;
+    write_meta(&folder, &TemplateMeta { name, seasons })?;
+    Ok(plan)
+}
+
+/// Renames a template and sets the seasons it is used for.
+#[tauri::command]
+pub fn template_update(app: AppHandle, path: PathBuf, name: String, seasons: Vec<Season>) -> CmdResult<()> {
+    let folder = template_folder(&app, &path)?;
+    let name = name.trim().to_string();
+    if name.is_empty() {
+        return Err("name the template".into());
+    }
+    write_meta(&folder, &TemplateMeta { name, seasons })
+}
+
+/// Deletes a template.
+#[tauri::command]
+pub fn template_delete(app: AppHandle, engine: State<'_, Engine>, path: PathBuf) -> CmdResult<()> {
+    let folder = template_folder(&app, &path)?;
+    if engine.service().and_then(|s| s.plan_path.clone()).is_some_and(|p| p.starts_with(&folder)) {
+        engine.load_service(None)?;
+    }
+    std::fs::remove_dir_all(&folder).map_err(|e| format!("could not delete the template: {e}"))
+}
+
+/// Opens a template to edit its order like a service (it saves itself).
+#[tauri::command]
+pub fn template_open(app: AppHandle, engine: State<'_, Engine>, path: PathBuf) -> CmdResult<()> {
+    template_folder(&app, &path)?;
+    let Loaded { service, .. } = Service::load_plan(&path).map_err(|e| e.to_string())?;
+    engine.load_service(Some(service))
 }
 
 /// Deletes a service folder (only inside the app's services folder).
@@ -447,6 +610,10 @@ mod tests {
         let ordinary = build("2026-11-15".parse().unwrap(), Some("  ".into()), None, ServiceOptions::default());
         assert_eq!(ordinary.title, "The Twenty-Fifth Sunday after Pentecost", "blank title falls back to the day");
         assert!(ordinary.cues.len() > 15);
+        let t = titles(&ordinary);
+        let post = t.iter().position(|x| x.starts_with("Postcommunion")).unwrap();
+        assert_eq!(t[post + 1], "Welcome & Announcements", "announcements follow the Postcommunion Prayer");
+        assert_eq!(t[0], "Entrance Hymn");
         assert!(ordinary.cues.iter().all(|c| c.source().is_none()));
     }
 
@@ -501,8 +668,13 @@ mod tests {
         assert_eq!(propers::psalm_verses(psalm.document().unwrap()).len(), 5);
 
         // Rite I, Track 2.
-        let opts =
-            ServiceOptions { rite: Some(Rite::One), track: Some(2), bible: Some(BibleVersion::Nrsv), propers: None };
+        let opts = ServiceOptions {
+            rite: Some(Rite::One),
+            track: Some(2),
+            bible: Some(BibleVersion::Nrsv),
+            propers: None,
+            by_season: false,
+        };
         let s = build("2026-11-15".parse().unwrap(), None, None, opts);
         let t = titles(&s);
         assert!(t.contains(&"Prayer of Humble Access"));
@@ -537,5 +709,23 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!((back.rite, back.track, back.bible), (Some(Rite::One), Some(2), Some(BibleVersion::Nrsv)));
         assert_eq!(back.cues.len(), s.cues.len());
+    }
+
+    #[test]
+    fn templates_keep_the_order_without_propers() {
+        let s = build("2026-11-15".parse().unwrap(), None, None, ServiceOptions::default());
+        assert!(titles(&s).contains(&"Collect of the Day"));
+        let t = as_template(&s, "Ordinary Time");
+        assert_eq!(t.title, "Ordinary Time");
+        assert!(t.date.is_none());
+        assert!(!titles(&t).contains(&"Collect of the Day") && !titles(&t).iter().any(|x| x.starts_with("Psalm")));
+        assert!(t.cues.iter().all(|c| c.source().is_none()));
+
+        // A service from the template gets the new day's propers in place.
+        let lent = build("2027-03-14".parse().unwrap(), None, Some(t), ServiceOptions::default());
+        let titles = titles(&lent);
+        let sermon = titles.iter().position(|x| *x == "The Sermon").unwrap();
+        assert_eq!(titles[sermon - 1], "The Holy Gospel");
+        assert_eq!(lent.title, "The Fifth Sunday in Lent");
     }
 }
