@@ -334,32 +334,41 @@ function psalmPanel(c) {
     { disabled: app.readonly },
     [1, 2, 3, 4].map((n) => el("option", { value: n, selected: String(n) === (extraOf(ed.doc, "verses_per_slide") ?? "2") }, `${n} verse${n > 1 ? "s" : ""} per slide`)),
   );
+  const paste = el("textarea.psalm-paste", {
+    placeholder: verses
+      ? "To replace the verses, paste the psalm here (lines starting 1, 2, 3 …)."
+      : "Paste the psalm's verses here, e.g. copied from the lectionary page:\n1 To you I lift up my eyes, *\n    to you enthroned in the heavens.\n2 As the eyes of servants …",
+    disabled: app.readonly,
+  });
   const apply = async () => {
     await flush(true);
-    await call("psalm_arrange", {
+    const n = await call("psalm_arrange", {
       id: c.id,
       options: { antiphon: antiphon.value.trim() || null, antiphon_every: Number(every.value), verses_per_slide: Number(per.value) },
+      versesText: paste.value.trim() || null,
     });
+    if (n) toast(`Arranged ${n} verses`);
   };
   return el(
     "details.section",
     { open: true },
-    el("summary", {}, "Psalm layout", el("span.muted.small", {}, ` · ${verses} verses, choir plain / congregation bold`)),
-    verses
-      ? el(
-          "div.psalm-panel",
-          {},
-          field("Antiphon", antiphon),
-          field("Repeat", every),
-          field("Slides", per),
-          el("button.primary", { disabled: app.readonly, onclick: apply }, "Apply"),
-        )
-      : el("p.muted.small", {}, "Number the verses ([1], [2], …) to arrange them automatically, or import the psalm with Import propers."),
     el(
-      "p.muted.small",
+      "summary",
       {},
-      "Apply rebuilds the slides from the numbered verses. Chant images (♪ Music) move to the antiphon slides.",
+      "Psalm layout",
+      el("span.muted.small", {}, verses ? ` · ${verses} verses, choir plain / congregation bold` : " · no verses yet"),
     ),
+    verses ? null : el("p.warn-note", {}, "This psalm has no verses yet. Paste them below and click Apply."),
+    paste,
+    el(
+      "div.psalm-panel",
+      {},
+      field("Antiphon", antiphon),
+      field("Repeat", every),
+      field("Slides", per),
+      el("button.primary", { disabled: app.readonly, onclick: apply }, "Apply"),
+    ),
+    el("p.muted.small", {}, "Apply rebuilds the slides from the verses. Chant images (♪ Music) move to the antiphon slides."),
   );
 }
 

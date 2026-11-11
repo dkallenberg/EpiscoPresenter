@@ -474,21 +474,66 @@ fn parse_collects(lines: &[(bool, String)], mut j: usize, out: &mut Propers) -> 
     j
 }
 
-/// Psalm verses: "1 To you I lift up my eyes, *" starts a verse; indented
-/// lines continue it. Square brackets marking optional verses are removed.
+/// True for a line that ends a psalm: the next heading, track, collect or
+/// citation line, or the page's "Printable …" / "Download …" furniture.
+fn ends_psalm(line: &str) -> bool {
+    let l = line.to_ascii_lowercase();
+    variant_heading(line).is_some()
+        || is_collect_heading(line)
+        || rite_heading(line).is_some()
+        || line.split_once(':').is_some_and(|(label, _)| label_kind(label).is_some())
+        || label_kind(line).is_some()
+        || citation_list(line).is_some()
+        || l.starts_with("printable")
+        || l.starts_with("download")
+}
+
+/// Splits "12 So teach us…", "12So teach us…" or "12" into number and text.
+fn verse_start(line: &str) -> Option<(&str, &str)> {
+    let digits = line.chars().take_while(|c| c.is_ascii_digit()).count();
+    if digits == 0 || digits > 3 {
+        return None;
+    }
+    let (number, rest) = line.split_at(digits);
+    let rest_trim = rest.trim_start();
+    // The text must start like psalm text, not like "1:3" or "1,000".
+    let ok = rest.is_empty()
+        || rest.starts_with(' ')
+        || rest_trim
+            .starts_with(|c: char| c.is_alphabetic() || matches!(c, '[' | '"' | '\u{201c}' | '\u{2018}' | '\''));
+    ok.then_some((number, rest_trim))
+}
+
+/// Psalm verses after a psalm heading. A line starting with a number starts
+/// a verse ("1 To you…", also "1To you…" or a number on its own line, as
+/// browsers copy superscript verse numbers); other lines continue the verse,
+/// whether or not they are indented. Blank lines are skipped. Square
+/// brackets marking optional verses are removed.
 fn parse_verses(lines: &[(bool, String)], mut j: usize) -> (Vec<PsalmVerse>, usize) {
+    let clean = |s: &str| s.replace(['[', ']'], "").trim().to_string();
     let mut verses: Vec<PsalmVerse> = Vec::new();
+    let mut pending: Option<String> = None; // a number on a line of its own
     while j < lines.len() {
-        let (indented, line) = &lines[j];
-        let clean = |s: &str| s.replace(['[', ']'], "").trim().to_string();
-        let number: String = line.chars().take_while(|c| c.is_ascii_digit()).collect();
-        let starts_verse = !*indented && !number.is_empty() && line[number.len()..].starts_with(' ');
-        if starts_verse {
-            verses.push(PsalmVerse { number: number.clone(), lines: vec![clean(&line[number.len()..])] });
-        } else if *indented && !line.is_empty() && !verses.is_empty() {
-            verses.last_mut().expect("checked").lines.push(clean(line));
-        } else {
+        let line = lines[j].1.as_str();
+        if line.is_empty() {
+            j += 1;
+            continue;
+        }
+        if ends_psalm(line) {
             break;
+        }
+        if let Some((number, text)) = verse_start(line) {
+            if text.is_empty() {
+                pending = Some(number.to_string());
+            } else {
+                verses.push(PsalmVerse { number: number.to_string(), lines: vec![clean(text)] });
+            }
+        } else if let Some(number) = pending.take() {
+            verses.push(PsalmVerse { number, lines: vec![clean(line)] });
+        } else if let Some(last) = verses.last_mut().filter(|_| line.chars().count() <= 160) {
+            last.lines.push(clean(line));
+        } else {
+            break; // prose before any verse, or a long paragraph: not psalm text
         }
         j += 1;
     }
@@ -726,6 +771,15 @@ fn is_verse_number(role: &Role) -> bool {
     matches!(role, Role::Custom(n) if n.chars().next().is_some_and(|c| c.is_ascii_digit()))
 }
 
+/// Psalm verses from pasted text (e.g. just the psalm, copied from the
+/// lectionary page). A leading "Psalm 123" line is skipped.
+pub fn parse_psalm_text(text: &str) -> Vec<PsalmVerse> {
+    let lines: Vec<(bool, String)> =
+        text.lines().map(|raw| (raw.starts_with([' ', '\t']), normalize(&strip_links(raw)))).collect();
+    let start = lines.iter().position(|(_, l)| !l.is_empty() && verse_start(l).is_some()).unwrap_or(lines.len());
+    parse_verses(&lines, start).0
+}
+
 /// The verses of a psalm document (numbered paragraphs), in order.
 pub fn psalm_verses(doc: &LiturgyDocument) -> Vec<PsalmVerse> {
     doc.blocks
@@ -882,6 +936,46 @@ Matthew 25:1–13
         assert_eq!(ps90[8].lines[0], "When you are angry, all our days are gone; *", "optional-verse brackets removed");
         assert_eq!(ps90[9].lines.len(), 4);
         assert_eq!(ps90.last().unwrap().number, "12");
+    }
+
+    #[test]
+    fn psalm_verses_survive_how_browsers_copy_them() {
+        let expected = vec![
+            PsalmVerse {
+                number: "1".into(),
+                lines: vec!["To you I lift up my eyes, *".into(), "to you enthroned in the heavens.".into()],
+            },
+            PsalmVerse {
+                number: "2".into(),
+                lines: vec![
+                    "As the eyes of servants look to the hand of their masters, *".into(),
+                    "and the eyes of a maid to the hand of her mistress,".into(),
+                ],
+            },
+        ];
+        let pages = [
+            // Blank lines everywhere (Safari / Chrome copying block elements).
+            "Psalm: Psalm 123\n\n1 To you I lift up my eyes, *\n\n       to you enthroned in the heavens.\n\n2 As the eyes of servants look to the hand of their masters, *\n\n       and the eyes of a maid to the hand of her mistress,\n\nEpistle: 1 Thessalonians 5:1-11",
+            // Non-breaking-space indentation.
+            "Psalm: Psalm 123\n1 To you I lift up my eyes, *\n\u{a0}\u{a0}\u{a0}to you enthroned in the heavens.\n2 As the eyes of servants look to the hand of their masters, *\n\u{a0}\u{a0}\u{a0}and the eyes of a maid to the hand of her mistress,\nGospel: Matthew 25:14-30",
+            // No indentation; numbers glued to the text; tabs.
+            "Psalm: Psalm 123\n1To you I lift up my eyes, *\nto you enthroned in the heavens.\n2\tAs the eyes of servants look to the hand of their masters, *\n\tand the eyes of a maid to the hand of her mistress,\n[Track 2](https://lectionary.episcopalchurch.org/#)",
+            // Verse numbers on their own lines.
+            "Psalm: Psalm 123\n1\nTo you I lift up my eyes, *\nto you enthroned in the heavens.\n2\nAs the eyes of servants look to the hand of their masters, *\nand the eyes of a maid to the hand of her mistress,\nPrintable Lectionary Readings",
+        ];
+        for page in pages {
+            let p = parse(page);
+            let psalm = p.items.iter().find(|i| i.kind == ProperKind::Psalm).expect("psalm found");
+            assert_eq!(psalm.verses, expected, "{page:?}");
+        }
+    }
+
+    #[test]
+    fn pasting_just_the_verses() {
+        let v = parse_psalm_text("Psalm 123\n1 To you I lift up my eyes, *\n   to you enthroned in the heavens.\n2 As the eyes of servants *\n   and the eyes of a maid,\n");
+        assert_eq!(v.len(), 2);
+        assert_eq!(v[1].lines, vec!["As the eyes of servants *", "and the eyes of a maid,"]);
+        assert!(parse_psalm_text("nothing here").is_empty());
     }
 
     #[test]

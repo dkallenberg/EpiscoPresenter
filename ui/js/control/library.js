@@ -248,7 +248,19 @@ export function openPropers() {
         item.variant ? el("span.badge", {}, item.variant) : null,
         item.alternative ? el("span.badge", {}, "or") : null,
       );
-      if (item.kind !== "psalm" || !item.verses?.length) return row;
+      if (item.kind === "psalm" && !item.verses?.length) {
+        return el(
+          "div.propers-psalm",
+          {},
+          row,
+          el(
+            "p.warn-note.propers-psalm-opts",
+            {},
+            "No verses were found for this psalm in the pasted text. It will be added as a title slide; open it in the Editor and paste the verses into Psalm layout.",
+          ),
+        );
+      }
+      if (item.kind !== "psalm") return row;
       // Psalm: verses become slides; optional antiphon.
       const antiphon = el("input.antiphon", {
         placeholder: "Antiphon (optional): sung by all at the start and end",

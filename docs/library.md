@@ -73,6 +73,14 @@ with **♪ Music** moves to the antiphon slides. You can also edit the verses
 directly; a verse is a block whose role is its number (`[1]`, `[2]` … in the
 `.ewm` file).
 
+**Psalm with no verses?** If the import dialog says no verses were found (or a
+psalm was imported with an older version and shows only its title), paste
+the verses into the **Paste verses** box in the Psalm layout panel and click
+**Apply**. Copy them from the lectionary page or anywhere else: each verse
+starts with its number (`1`, `2`, …); blank lines, line breaks inside a
+verse, and numbers on their own line are all fine. Pasting again replaces
+the verses.
+
 To check how the app reads a pasted page, save it as a text file and run:
 
 ```bash

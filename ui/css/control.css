@@ -343,3 +343,6 @@ details.past > summary { cursor: pointer; color: var(--muted); margin-bottom: 8p
 .propers-psalm { border: 1px solid var(--line); border-radius: 8px; padding-bottom: 6px; }
 .propers-psalm-opts { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 0 8px 0 34px; }
 .psalm-panel { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: end; }
+
+.warn-note { margin: 4px 0; padding: 6px 10px; border-radius: 6px; background: #3d2f0c; color: #ffe39a; border: 1px solid #6b5310; font-size: 12px; }
+.psalm-paste { width: 100%; min-height: 70px; resize: vertical; font-size: 13px; margin: 6px 0; }

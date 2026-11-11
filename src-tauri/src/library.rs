@@ -246,14 +246,45 @@ pub fn add_propers(
 
 /// Rebuilds a psalm cue's slides: antiphon (start, end, every N verses),
 /// verses per slide. Verses alternate plain (choir) and bold (congregation).
+/// With `verses_text`, the verses are replaced by those pasted.
 #[tauri::command]
-pub fn psalm_arrange(engine: State<'_, Engine>, id: String, options: propers::PsalmOptions) -> CmdResult<()> {
+pub fn psalm_arrange(
+    engine: State<'_, Engine>,
+    id: String,
+    options: propers::PsalmOptions,
+    verses_text: Option<String>,
+) -> CmdResult<usize> {
     engine.edit_service(|s| {
         let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
-        if propers::psalm_verses(doc).is_empty() {
-            return Err("this item has no numbered verses ([1], [2], …) to arrange".to_string());
+        let pasted = verses_text.as_deref().map(str::trim).filter(|t| !t.is_empty());
+        let verses = match pasted {
+            Some(text) => {
+                let v = propers::parse_psalm_text(text);
+                if v.is_empty() {
+                    return Err(
+                        "no numbered verses found in the pasted text (lines should start with 1, 2, 3 …)".to_string()
+                    );
+                }
+                v
+            }
+            None => propers::psalm_verses(doc),
+        };
+        if verses.is_empty() {
+            return Err("this psalm has no verses yet: paste them into “Paste verses” first".to_string());
         }
-        let arranged = propers::rearrange_psalm(doc, &options);
-        s.set_document(&id, arranged).map_err(|e| e.to_string())
+        let images: Vec<episco_core::Block> =
+            doc.blocks.iter().filter(|b| matches!(b, episco_core::Block::Image { .. })).cloned().collect();
+        let title = doc.meta.title.clone();
+        let citation = doc.meta.citation.clone().or_else(|| Some(title.clone()));
+        let mut arranged = propers::psalm_document(&title, citation.as_deref(), &verses, &options, &images);
+        // Keep the rest of the front matter (season, colour, background …).
+        let mut meta = doc.meta.clone();
+        meta.extra.retain(|(k, _)| !matches!(k.as_str(), "antiphon" | "antiphon_every" | "verses_per_slide"));
+        meta.extra.append(&mut arranged.meta.extra);
+        meta.category = Some(episco_core::ElementCategory::Psalm);
+        arranged.meta = meta;
+        let count = verses.len();
+        s.set_document(&id, arranged).map_err(|e| e.to_string())?;
+        Ok(count)
     })
 }
