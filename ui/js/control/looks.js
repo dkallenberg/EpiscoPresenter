@@ -296,6 +296,13 @@ export function openServiceSettings() {
         : "This doesn't look like a Google Slides link (docs.google.com/presentation/…).";
   };
   f.deck.addEventListener("input", checkDeck);
+  const refreshDeck = async () => {
+    const url = f.deck.value.trim();
+    if (!parseDeck(url)) return toast("Paste the Google Slides link first.", "warn");
+    const file = await call("deck_fetch", { url, refresh: true });
+    if (file) toast("Slides downloaded");
+    else if (file === null) toast("This kind of link (Publish to web) can't be downloaded: use the deck's sharing link instead.", "warn");
+  };
   checkDeck();
 
   const close = () => overlay.remove();
@@ -331,7 +338,13 @@ export function openServiceSettings() {
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
       row("Announcements deck (Google Slides link)", f.deck),
       deckNote,
-      el("div.look-row", {}, row("Slides in the deck", f.deckSlides), el("p.muted.small.deck-help", {}, "With the count, a single-pass Announcements item steps through the slides with Next / Prev. Without it, the deck plays itself every 9 seconds.")),
+      el(
+        "div.look-row",
+        {},
+        row("Slides in the deck", f.deckSlides),
+        el("div.deck-refresh", {}, el("button.small", { onclick: refreshDeck, title: "Download the deck again after changing it in Google Slides" }, "↻ Refresh slides")),
+        el("p.muted.small.deck-help", {}, "Found automatically when the deck downloads. A single-pass Announcements item steps through every slide; click any slide to show it."),
+      ),
       el("div.look-row", {}, row("Stream key colour (lower thirds)", f.key), row("Custom colour", f.customKey)),
       el(
         "div.modal-actions",

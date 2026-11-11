@@ -10,6 +10,7 @@
 
 mod autosave;
 mod commands;
+mod deck;
 mod engine;
 mod library;
 mod media;
@@ -53,6 +54,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_node_config,
             windows::outputs_status,
+            deck::deck_fetch,
+            deck::deck_local,
+            deck::deck_set_slides,
             windows::output_show,
             windows::output_close,
             windows::output_set_fullscreen,

@@ -3,6 +3,7 @@
 import { send } from "/js/bridge.js";
 import { openPropers } from "/js/control/library.js";
 import { backgroundName } from "/js/control/looks.js";
+import { load as loadDeck, loopSlide, onDeckChange, pageCount, slideImage } from "/js/deckpdf.js";
 import { backgroundCss } from "/js/render.js";
 import { app, call, el, reportWarnings, slideCount, titleCase } from "/js/control/util.js";
 
@@ -113,6 +114,7 @@ export function initTimeline() {
   window.addEventListener("pointercancel", endDrag);
   let pending = false;
 
+  onDeckChange(() => !drag?.active && render(list));
   app.on((what) => {
     if (what === "link") return;
     if (drag?.active) {
@@ -164,18 +166,48 @@ function render(list) {
   list.querySelector(".cue.on-air")?.scrollIntoView({ block: "nearest" });
 }
 
+/** A thumbnail of the deck: slide `n`, or the slide a loop shows now. */
+function deckThumb(n = null) {
+  const url = app.service?.announcements_deck;
+  const thumb = el("span.cue-thumb.deck-thumb");
+  if (!url) {
+    thumb.style.background = "#222";
+    return thumb;
+  }
+  const img = el("img", { alt: "" });
+  thumb.append(img);
+  const show = (k) => slideImage(url, k, 160).then((u) => u && (img.src = u));
+  loadDeck(url).then((pages) => {
+    if (!pages) return (thumb.textContent = "▤");
+    if (n) return show(Math.min(n, pages));
+    let current = 0;
+    const timer = setInterval(() => {
+      if (!img.isConnected) return clearInterval(timer);
+      const k = loopSlide(pages);
+      if (k !== current) show((current = k));
+    }, 1000);
+    show((current = loopSlide(pages)));
+  });
+  return thumb;
+}
+
 function preServiceRow(service, active) {
   const deck = Boolean(service.announcements_deck);
   const live = !active;
+  const pages = deck ? pageCount(service.announcements_deck) : 0;
   return el(
     "li.cue.pre-service" + (live ? ".on-air" : ""),
-    { title: deck ? service.announcements_deck : "No announcements deck configured", ondblclick: () => send({ type: "reset" }) },
+    {
+      title: deck ? service.announcements_deck : "No announcements deck: set its Google Slides link in ⚙ Service",
+      ondblclick: () => send({ type: "reset" }),
+    },
     el("span.cue-num", {}, "–"),
+    deckThumb(),
     el(
       "div.cue-body",
       {},
-      el("div.cue-title", {}, "Pre-Service"),
-      el("div.cue-meta", {}, "Announcements loop · 9 s"),
+      el("div.cue-title", {}, el("span.cue-icon", {}, ICONS.announcements), "Pre-Service"),
+      el("div.cue-meta", {}, deck ? `Announcements loop · 9 s${pages ? ` · ${pages} slides` : ""}` : "No deck set"),
     ),
     el(
       "div.cue-icons",
@@ -206,7 +238,7 @@ function cueRow(cue, i, active, count) {
       : el("span.badge.count", { title: `${n} slide${n === 1 ? "" : "s"}` }, `${cue.content.slides.length}`),
   );
   // Background thumbnails: sanctuary, with the stream look inset.
-  const thumb = el(
+  const thumb = isAnn ? deckThumb(mode === "loop" ? null : (onAir ? active.slide : 0) + 1) : el(
     "span.cue-thumb",
     {
       title: `${cue.color ?? "No colour"}\nSanctuary: ${backgroundName(cue.sanctuary.background)} · ${cue.sanctuary.layout.replace(/_/g, " ")}\nStream: ${backgroundName(cue.stream.background)} · ${cue.stream.layout.replace(/_/g, " ")}`,

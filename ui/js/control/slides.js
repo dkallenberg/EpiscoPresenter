@@ -3,6 +3,7 @@
 // changes just move the on-air highlight.
 
 import { send } from "/js/bridge.js";
+import { load as loadDeck, loopSlide, onDeckChange, pageCount } from "/js/deckpdf.js";
 import { mountStage, renderOutput } from "/js/render.js";
 import { app, el, slideSummary } from "/js/control/util.js";
 
@@ -24,6 +25,70 @@ export function initSlides() {
     if (what === "service" || builtFor !== app.service) build();
     if (what !== "link") highlight(what === "selection");
   });
+  // Rebuild when the deck's slides arrive; keep the looping deck's
+  // highlight on the slide that is showing.
+  onDeckChange((url) => {
+    if (url === app.service?.announcements_deck) {
+      build();
+      highlight(false);
+    }
+  });
+  setInterval(() => highlightLoop(), 1000);
+}
+
+/** Cards for a looping deck: every slide, clicking any goes to `go`. */
+function deckCards(cue, ci, pages, go, jobs, label) {
+  const n = Math.max(1, pages ?? 1);
+  return Array.from({ length: n }, (_, k) => {
+    const thumb = el("div.thumb");
+    const card = el(
+      "button.slide-card.deck-card-btn",
+      { dataset: { loop: cue ? `cue-${ci}` : "pre", page: k + 1 }, title: label, onclick: go },
+      thumb,
+      el("span.slide-label", {}, el("span.slide-num", {}, String(k + 1)), pages ? `Slide ${k + 1}` : label),
+    );
+    jobs.push(() => {
+      const stage = mountStage(thumb);
+      const snap = { service: app.service, state: { revision: 0 } };
+      // A still of slide k+1 (a single pass of one slide shows it still).
+      const still = { ...(cue ?? {}), content: { kind: "announcements", mode: "single_pass", slides: n } };
+      renderOutput(stage, snap, cue || pages ? { cue: { ...(cue ?? preCue()), ...still }, slide: null, pos: { cue: ci, slide: k } } : null, "sanctuary");
+    });
+    return card;
+  });
+}
+
+/** A stand-in cue to render Pre-Service slides like an announcements item. */
+function preCue() {
+  const any = app.service?.cues.find((c) => c.content.kind === "announcements");
+  return any ?? { id: "pre", title: "Pre-Service", category: "announcements", sanctuary: { background: "#000000", layout: "centered", tone: "light", fit: "fill" }, stream: { background: "key", layout: "centered", tone: "light", fit: "fill" } };
+}
+
+/** Pre-Service: the deck looping before the service; click to go back to it. */
+function preServiceSection(jobs) {
+  const url = app.service?.announcements_deck;
+  const pages = url ? pageCount(url) : 0;
+  const back = () => send({ type: "reset" });
+  const cards = url
+    ? deckCards(null, -1, pages, back, jobs, "Announcements loop")
+    : [el("p.muted.small", {}, "No announcements deck: set its Google Slides link in ⚙ Service.")];
+  return el(
+    "section.slide-group.pre-group",
+    {},
+    el("h3.group-head", { onclick: back, title: "Go back to the pre-service loop" }, el("span.cue-num", {}, "–"), "Pre-Service", el("span.muted", {}, " · announcements loop, a slide every 9 s")),
+    el("div.slide-cards", {}, cards),
+  );
+}
+
+/** Highlights the slide a looping deck is showing now. */
+function highlightLoop() {
+  if (!grid) return;
+  const url = app.service?.announcements_deck;
+  const pages = url ? pageCount(url) : 0;
+  const a = app.state.active;
+  const liveLoop = !a ? "pre" : app.service?.cues[a.cue]?.content.kind === "announcements" && app.service.cues[a.cue].content.mode === "loop" ? `cue-${a.cue}` : null;
+  const now = pages ? loopSlide(pages) : 1;
+  grid.querySelectorAll(".deck-card-btn").forEach((c) => c.classList.toggle("on-air", c.dataset.loop === liveLoop && Number(c.dataset.page) === now));
 }
 
 function build() {
@@ -35,7 +100,18 @@ function build() {
   }
   const jobs = [];
   const sections = cues.map((cue, ci) => {
-    const slides = cue.content.kind === "liturgy" && cue.content.slides.length ? cue.content.slides : [null];
+    if (cue.content.kind === "announcements" && cue.content.mode === "loop") {
+      const url = app.service?.announcements_deck;
+      const cards = deckCards(cue, ci, url ? pageCount(url) : null, () => {
+        app.select(cue.id);
+        send({ type: "go_to", cue: ci, slide: 0 });
+      }, jobs, "Google Slides loop");
+      return group(cue, ci, cards);
+    }
+    const slides =
+      cue.content.kind === "liturgy" && cue.content.slides.length
+        ? cue.content.slides
+        : Array.from({ length: cue.content.kind === "announcements" ? Math.max(1, cue.content.slides ?? 1) : 1 }, () => null);
     const cards = slides.map((slide, si) => {
       const thumb = el("div.thumb");
       const card = el(
@@ -53,7 +129,7 @@ function build() {
           "span.slide-label",
           {},
           el("span.slide-num", {}, String(si + 1)),
-          slide?.heading ?? (cue.content.kind === "announcements" ? "Google Slides deck" : ""),
+          slide?.heading ?? (cue.content.kind === "announcements" ? `Slide ${si + 1}` : ""),
         ),
       );
       // Rendered once attached, so text can be measured and fitted.
@@ -64,7 +140,16 @@ function build() {
       });
       return card;
     });
-    return el(
+    return group(cue, ci, cards);
+  });
+  const url = app.service?.announcements_deck;
+  if (url) loadDeck(url);
+  grid.replaceChildren(preServiceSection(jobs), ...sections);
+  jobs.forEach((render) => render());
+}
+
+function group(cue, ci, cards) {
+  return el(
       "section.slide-group",
       { dataset: { id: cue.id } },
       el(
@@ -76,9 +161,6 @@ function build() {
       ),
       el("div.slide-cards", {}, cards),
     );
-  });
-  grid.replaceChildren(...sections);
-  jobs.forEach((render) => render());
 }
 
 function highlight(scrollToSelection) {
@@ -87,6 +169,7 @@ function highlight(scrollToSelection) {
   grid.querySelectorAll(".slide-group.selected").forEach((g) => g.classList.remove("selected"));
   const live = a && grid.querySelector(`.slide-card[data-cue="${a.cue}"][data-slide="${a.slide}"]`);
   live?.classList.add("on-air");
+  highlightLoop();
   const group = app.selectedId && grid.querySelector(`.slide-group[data-id="${CSS.escape(app.selectedId)}"]`);
   group?.classList.add("selected");
   if (scrollToSelection) group?.scrollIntoView({ block: "start", behavior: "smooth" });

@@ -10,6 +10,7 @@
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
 import { builtinUrl } from "/js/backgrounds.js";
 import { deckEmbedUrl } from "/js/deck.js";
+import { load as loadDeck, loopSlide, slideImage } from "/js/deckpdf.js";
 import { isAntiphonSlide, resolveTemplate, slideTypeFor } from "/js/templates.js";
 
 const STAGE_W = 1920;
@@ -442,40 +443,69 @@ export function renderTemplated(stage, key, cue, slide, templates) {
 // ---------- the Google Slides deck ----------
 
 /**
- * The announcements deck. In the output windows it is Google's embedded
- * player (kept across re-renders so it never restarts); in previews, a card.
- * `slide` (1-based) shows one slide; without it the deck plays itself.
+ * The announcements deck: images of its slides (from the downloaded PDF,
+ * ui/js/deckpdf.js). `slide` (1-based) shows that slide; without it the deck
+ * loops, a slide every 9 seconds, in step on every screen. If the slides are
+ * not available (a "Publish to web" link, or the download failed), the
+ * output windows fall back to Google's embedded player and previews show a
+ * card.
  */
 function paintDeck(stage, service, opts, { slide = null, of = null, loop = false } = {}) {
-  const src = deckEmbedUrl(service?.announcements_deck, { slide, loop });
+  const url = service?.announcements_deck;
+  const src = deckEmbedUrl(url, { slide, loop });
   if (!src) {
     const box = el("div", "box title-card");
     box.append(el("div", "title-small", "Announcements"), el("div", "deck-missing", "No Google Slides deck is set (⚙ Service)."));
     stage.append(box);
     return;
   }
-  if (opts.live) {
-    const keep = opts.keepDeck;
-    if (keep && keep.dataset.src === src) {
-      stage.append(keep);
+  const width = opts.live ? 1920 : 640;
+  const img = el("img", "deck-img");
+  img.alt = "";
+  stage.append(img);
+  const fallback = () => {
+    if (!img.isConnected) return;
+    if (opts.live) {
+      const keep = opts.keepDeck;
+      if (keep && keep.dataset.src === src) return img.replaceWith(keep);
+      const frame = document.createElement("iframe");
+      frame.className = "deck-frame";
+      frame.dataset.src = src;
+      frame.src = src;
+      frame.allow = "autoplay; fullscreen";
+      frame.setAttribute("frameborder", "0");
+      img.replaceWith(frame);
       return;
     }
-    const frame = document.createElement("iframe");
-    frame.className = "deck-frame";
-    frame.dataset.src = src;
-    frame.src = src;
-    frame.allow = "autoplay; fullscreen";
-    frame.setAttribute("frameborder", "0");
-    stage.append(frame);
-    return;
-  }
-  const card = el("div", "deck-card");
-  card.append(
-    el("div", "deck-icon", "▤"),
-    el("div", "deck-title", "Google Slides"),
-    el("div", "deck-sub", slide != null ? `Slide ${slide}${of ? ` of ${of}` : ""}` : loop ? "Loop · every 9 s" : "Plays once · every 9 s"),
-  );
-  stage.append(card);
+    const card = el("div", "deck-card");
+    card.append(
+      el("div", "deck-icon", "▤"),
+      el("div", "deck-title", "Google Slides"),
+      el("div", "deck-sub", slide != null ? `Slide ${slide}${of ? ` of ${of}` : ""}` : loop ? "Loop · every 9 s" : "Plays once · every 9 s"),
+    );
+    img.replaceWith(card);
+  };
+  const show = (n) =>
+    slideImage(url, n, width).then((u) => {
+      if (u) img.src = u;
+      else fallback();
+    });
+  loadDeck(url).then((pages) => {
+    if (!pages) return fallback();
+    if (slide != null) return show(Math.min(slide, pages));
+    // Loop: change slide every 9 s while this image is on screen.
+    let current = 0;
+    const tick = () => {
+      if (!img.isConnected && current) return clearInterval(timer);
+      const n = loopSlide(pages);
+      if (n !== current) {
+        current = n;
+        show(n);
+      }
+    };
+    const timer = setInterval(tick, 500);
+    tick();
+  });
 }
 
 // ---------- outputs ----------

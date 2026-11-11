@@ -89,19 +89,27 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 ## Announcements (Google Slides)
 
 Paste the deck's link in **⚙ Service → Announcements deck**: the ordinary
-sharing link (Share → Copy link) works, as do "Publish to web" and present
-links. The deck must be shared as **Anyone with the link can view** (or
-published to the web), since the output computers show it through Google's
-embedded player and need to reach docs.google.com.
+sharing link (Share → Copy link) works. Share the deck as **Anyone with the
+link can view**.
 
-* **Pre-Service** loops the deck on the sanctuary screen, a slide every 9
-  seconds. (The stream shows its Welcome design.)
-* An **Announcements** item in **Loop** mode does the same until you move on.
-* In **Single pass** mode, if **Slides in the deck** is set, **Next** /
-  **Prev** step through the slides one by one and then on to the next item;
-  without the count the deck plays through once on its own.
-* The control window's previews show a "Google Slides · Slide 3 of 8" card;
-  the deck itself appears on the output screens.
+When a service with a deck opens, each computer downloads the deck once (as
+a PDF, from Google) and shows its slides as pictures:
+
+* **Pre-Service** is a row in the timeline like the others, with a picture of
+  the slide showing now, and a section at the top of the **Slides** tab with
+  every slide; the one on screen is outlined. It loops on the sanctuary
+  screen, a slide every 9 seconds. Click its heading or a slide (or the
+  **Pre-Service** button) to go back to it.
+* An **Announcements** item in **Single pass** mode has one card per slide:
+  **Next** / **Prev** step through them, and you can click any slide, in any
+  order, to show it. In **Loop** mode it plays like Pre-Service.
+* The number of slides is found automatically. After changing the deck in
+  Google Slides, click **↻ Refresh slides** (⚙ Service, or the Announcements
+  item's Editor) to download it again.
+* The slides are shown as still pictures (animations and embedded videos in
+  the deck do not play). If the deck cannot be downloaded (for example a
+  "Publish to web" link, or no internet), the screens fall back to Google's
+  own player, which plays the deck by itself.
 
 ## Sanctuary-only blanks, pictures and video
 

@@ -891,11 +891,24 @@ function announcementsPanel(c) {
         : c.content.mode === "loop"
           ? "The deck loops on its own, a slide every 9 seconds, until you move on."
           : (c.content.slides ?? 1) > 1
-            ? `Next / Prev step through the deck’s ${c.content.slides} slides, then on to the next item.`
-            : "The deck plays through once, a slide every 9 seconds. Set “Slides in the deck” in ⚙ Service to step through it with Next / Prev instead.",
+            ? `Next / Prev step through the deck’s ${c.content.slides} slides, then on to the next item. Click any slide in the Slides tab to show it.`
+            : "Waiting for the deck’s slides (it downloads from Google when the service opens).",
     ),
     deck ? el("p.muted.small", {}, `Deck: ${deck}`) : null,
-    el("button.small", { onclick: () => document.getElementById("btn-settings").click() }, "⚙ Deck settings…"),
+    el(
+      "div.reading-row",
+      {},
+      el("button.small", { onclick: () => document.getElementById("btn-settings").click() }, "⚙ Deck settings…"),
+      deck
+        ? el("button.small", {
+            title: "Download the deck again after changing it in Google Slides",
+            onclick: async () => {
+              const f = await call("deck_fetch", { url: deck, refresh: true });
+              if (f) toast("Slides downloaded");
+            },
+          }, "↻ Refresh slides")
+        : null,
+    ),
   );
 }
 

@@ -26,3 +26,5 @@ tracing-subscriber.workspace = true
 # `macos-private-api` enables transparent windows on macOS (stream overlay).
 tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 tauri-plugin-dialog = "2"
+# Downloads the Google Slides deck as a PDF (already used by Tauri).
+reqwest = "0.13"

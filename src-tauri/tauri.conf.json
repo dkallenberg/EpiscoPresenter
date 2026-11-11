@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: https:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost",
       "assetProtocol": {
         "enable": true,
         "scope": {
@@ -49,7 +49,9 @@
             "**/*.webm",
             "**/*.WEBM",
             "**/*.ogv",
-            "**/*.OGV"
+            "**/*.OGV",
+            "**/*.pdf",
+            "**/*.PDF"
           ],
           "requireLiteralLeadingDot": false
         }

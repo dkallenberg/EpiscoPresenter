@@ -13,7 +13,7 @@ over the LAN, and builds everything from one plain-text liturgy format
 | 7. `.ewm` data format and parser | **Done**: parser, writer (round-trips), service plans, data model |
 | 2. Operator control interface | **Done**: service timeline, slide grid, interactive block editor, live previews, quick actions ([operator guide](docs/operator-guide.md)) |
 | 3. Output engine | **Mostly done**: per-cue backgrounds and layouts on both outputs, built-in stained-glass designs, lower thirds on a key colour, text fitted to its area ([backgrounds](docs/backgrounds.md)) |
-| 4. Google Slides | Data model only (`announcements` cues, pre-service state) |
+| 4. Google Slides | **Done**: the deck is downloaded as a PDF and shown as slide pictures (pdf.js): Pre-Service loop, single-pass stepping in any order, loop mode ([operator guide](docs/operator-guide.md#announcements-google-slides)) |
 | 5. Scripts and bulletins | Not started |
 | 6. Tablet remote | The protocol is ready (`remote` client role); web app not started |
 | Services & autosave | Services screen at start-up, scheduling about a month of Sundays ahead with church-year names and the day's propers, Rite I or Rite II, autosave ([services](docs/services.md)) |

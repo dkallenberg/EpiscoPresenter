@@ -5,6 +5,7 @@ import { initEditor } from "/js/control/editor.js";
 import { initHome, showHome } from "/js/control/home.js";
 import { openLayouts } from "/js/control/layouts.js";
 import { initOutputs } from "/js/control/outputs.js";
+import { load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
 import { initLibrary } from "/js/control/library.js";
 import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
@@ -48,6 +49,22 @@ listen("episco://autosave", (s) => {
 $("btn-settings").addEventListener("click", openServiceSettings);
 $("btn-layouts").addEventListener("click", openLayouts);
 initOutputs();
+
+// The announcements deck: download it (once per computer) when a service has
+// one, and record its slide count so a single pass steps through every slide.
+let deckUrl = null;
+const syncDeckCount = (url) => {
+  const n = pageCount(url);
+  const s = app.service;
+  if (n && s && !app.readonly && s.announcements_deck === url && s.deck_slides !== n) call("deck_set_slides", { slides: n });
+};
+app.on((what) => {
+  if (what !== "service") return;
+  const url = app.service?.announcements_deck ?? null;
+  if (url && url !== deckUrl) loadDeck(url, true).then(() => syncDeckCount(url));
+  deckUrl = url;
+});
+onDeckChange(syncDeckCount);
 document.addEventListener("keydown", (e) => {
   // ⌘S saves the selected item (editor.js); ⌥⌘S saves the whole service.
   if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "s") {

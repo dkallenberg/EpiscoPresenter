@@ -80,8 +80,6 @@ select:disabled { opacity: 0.6; }
 .cue:hover { background: var(--panel-2); }
 .cue.selected { border-color: #4a4d58; background: var(--panel-2); }
 .cue.on-air { background: #3a1d1f; border-color: var(--live); }
-.cue.pre-service { border-style: dashed; border-color: var(--line); grid-template-columns: 24px minmax(0, 1fr) auto; }
-.cue.pre-service.on-air { border-color: var(--live); border-style: solid; }
 .cue.dragging { opacity: 0.4; }
 .cue.drop-before { box-shadow: inset 0 3px 0 var(--accent); }
 .cue.drop-after { box-shadow: inset 0 -3px 0 var(--accent); }
@@ -451,3 +449,8 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .out-state.on { color: var(--ok); }
 .out-row .field select { width: 100%; }
 .out-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+
+/* Deck thumbnails (timeline, slide grid). */
+.deck-thumb { overflow: hidden; display: flex; align-items: center; justify-content: center; color: #f4b400; font-size: 14px; background: #111; }
+.deck-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.slide-group.pre-group .group-head { cursor: pointer; }
