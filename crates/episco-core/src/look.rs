@@ -107,6 +107,11 @@ pub struct Look {
     pub tone: Option<TextTone>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fit: Option<Fit>,
+    /// Show nothing on this output: black on the sanctuary screen, only the
+    /// key colour (the camera) on the stream. For planned blank slides and
+    /// pictures meant for one screen only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blank: Option<bool>,
 }
 
 impl Look {
@@ -129,6 +134,7 @@ impl Look {
             layout: over.layout.or(self.layout),
             tone: over.tone.or(if layout_changed { None } else { self.tone }),
             fit: over.fit.or(self.fit),
+            blank: over.blank.or(self.blank),
         }
     }
 }
@@ -169,6 +175,8 @@ pub struct ResolvedLook {
     pub layout: Layout,
     pub tone: TextTone,
     pub fit: Fit,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub blank: bool,
 }
 
 impl ResolvedLook {
@@ -180,6 +188,7 @@ impl ResolvedLook {
             layout,
             tone: look.tone.unwrap_or_else(|| layout.default_tone()),
             fit: look.fit.unwrap_or_default(),
+            blank: look.blank.unwrap_or(false),
         }
     }
 }
@@ -212,7 +221,13 @@ fn builtin_for(layout: Layout) -> &'static str {
 }
 
 fn look(background: &str, layout: Layout, tone: TextTone) -> Look {
-    Look { background: Some(background.into()), layout: Some(layout), tone: Some(tone), fit: Some(Fit::Fill) }
+    Look {
+        background: Some(background.into()),
+        layout: Some(layout),
+        tone: Some(tone),
+        fit: Some(Fit::Fill),
+        blank: None,
+    }
 }
 
 /// Built-in look for a category on an output.

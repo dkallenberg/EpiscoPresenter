@@ -9,6 +9,7 @@
 
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
 import { builtinUrl } from "/js/backgrounds.js";
+import { deckEmbedUrl } from "/js/deck.js";
 import { isAntiphonSlide, resolveTemplate, slideTypeFor } from "/js/templates.js";
 
 const STAGE_W = 1920;
@@ -438,6 +439,45 @@ export function renderTemplated(stage, key, cue, slide, templates) {
   }
 }
 
+// ---------- the Google Slides deck ----------
+
+/**
+ * The announcements deck. In the output windows it is Google's embedded
+ * player (kept across re-renders so it never restarts); in previews, a card.
+ * `slide` (1-based) shows one slide; without it the deck plays itself.
+ */
+function paintDeck(stage, service, opts, { slide = null, of = null, loop = false } = {}) {
+  const src = deckEmbedUrl(service?.announcements_deck, { slide, loop });
+  if (!src) {
+    const box = el("div", "box title-card");
+    box.append(el("div", "title-small", "Announcements"), el("div", "deck-missing", "No Google Slides deck is set (⚙ Service)."));
+    stage.append(box);
+    return;
+  }
+  if (opts.live) {
+    const keep = opts.keepDeck;
+    if (keep && keep.dataset.src === src) {
+      stage.append(keep);
+      return;
+    }
+    const frame = document.createElement("iframe");
+    frame.className = "deck-frame";
+    frame.dataset.src = src;
+    frame.src = src;
+    frame.allow = "autoplay; fullscreen";
+    frame.setAttribute("frameborder", "0");
+    stage.append(frame);
+    return;
+  }
+  const card = el("div", "deck-card");
+  card.append(
+    el("div", "deck-icon", "▤"),
+    el("div", "deck-title", "Google Slides"),
+    el("div", "deck-sub", slide != null ? `Slide ${slide}${of ? ` of ${of}` : ""}` : loop ? "Loop · every 9 s" : "Plays once · every 9 s"),
+  );
+  stage.append(card);
+}
+
 // ---------- outputs ----------
 
 /**
@@ -450,6 +490,7 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   const service = snap.service;
   const st = snap.state ?? {};
   const keepVideo = stage.querySelector("video.bg-video");
+  const keepDeck = stage.querySelector("iframe.deck-frame");
   stage.replaceChildren();
   stage.className = `stage out-${output}`;
   stage.style.background = output === "stream" ? keyColor(service) : "#000";
@@ -457,10 +498,19 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   if (st.blackout) return; // sanctuary black; stream fully keyed (camera only)
 
   const cue = active?.cue;
-  if (!cue) return renderPreService(stage, service, output);
+  if (!cue) return renderPreService(stage, service, output, { ...opts, keepDeck }, st);
   const look = cue[output];
   if (!look) return;
   stage.classList.add(`layout-${look.layout}`, `tone-${look.tone}`, `cat-${cue.category}`);
+  // Planned blank (or an item for the other screen only): black on the
+  // sanctuary, just the key colour (the camera) on the stream.
+  if (look.blank) return;
+
+  if (cue.content.kind === "announcements" && !st.media_cleared) {
+    const single = cue.content.mode !== "loop";
+    const steps = cue.content.slides ?? 1;
+    return paintDeck(stage, service, { ...opts, keepDeck }, single && steps > 1 ? { slide: (active.pos?.slide ?? 0) + 1, of: steps } : { loop: !single });
+  }
 
   if (!st.media_cleared) paintBackground(stage, service, cue, look, { ...opts, keepVideo, sound: output === "sanctuary" });
   else if (look.layout === "lower_third" || output === "stream") stage.style.background = keyColor(service);
@@ -472,7 +522,7 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
 
   const key = slideTypeFor(cue, slide, output, look);
   if (key) {
-    if (!slide && cue.content.kind !== "announcements" && key !== "stream.lower_third") return;
+    if (!slide && key !== "stream.lower_third") return;
     return renderTemplated(stage, key, cue, slide, service?.templates);
   }
   if (look.layout === "info_bar") return infoBar(stage, cue, slide);
@@ -524,8 +574,12 @@ function formatDate(iso) {
   return d && !isNaN(d) ? d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : iso ?? "";
 }
 
-function renderPreService(stage, service, output) {
+function renderPreService(stage, service, output, opts = {}, st = {}) {
   if (!service) return;
+  // The announcements deck loops on the sanctuary screen before the service.
+  if (output === "sanctuary" && service.announcements_deck && !st.media_cleared) {
+    return paintDeck(stage, service, opts, { loop: true });
+  }
   if (output === "stream") {
     // Welcome: camera window with the service details in the bar beneath.
     stage.classList.add("layout-info_bar", "tone-light");

@@ -97,6 +97,7 @@ pub fn run() {
             media::media_rename,
             media::media_folder,
             media::media_add,
+            media::blank_add,
             templates::layouts_get,
             templates::layouts_set,
             templates::layouts_reset,

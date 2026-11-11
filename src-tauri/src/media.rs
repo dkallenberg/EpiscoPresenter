@@ -151,13 +151,26 @@ pub fn media_folder(app: AppHandle) -> CmdResult<PathBuf> {
 
 /// The look that shows a media file full screen.
 pub fn full_screen(path: &str) -> Look {
-    Look { background: Some(path.to_string()), layout: Some(Layout::Centered), fit: Some(Fit::Fit), tone: None }
+    Look {
+        background: Some(path.to_string()),
+        layout: Some(Layout::Centered),
+        fit: Some(Fit::Fit),
+        tone: None,
+        blank: None,
+    }
 }
 
-/// Adds each file as its own item (shown full screen on both outputs) after
-/// cue index `after` (else at the end).
+/// Adds each file as its own item after cue index `after` (else at the
+/// end), shown full screen on both outputs, or with `sanctuary_only` on the
+/// sanctuary screen alone (the stream shows just the camera).
 #[tauri::command]
-pub fn media_add(engine: State<'_, Engine>, paths: Vec<PathBuf>, after: Option<usize>) -> CmdResult<Vec<String>> {
+pub fn media_add(
+    engine: State<'_, Engine>,
+    paths: Vec<PathBuf>,
+    after: Option<usize>,
+    sanctuary_only: Option<bool>,
+) -> CmdResult<Vec<String>> {
+    let sanctuary_only = sanctuary_only.unwrap_or(false);
     engine.edit_service(|s| {
         let start = after.map(|a| a + 1).unwrap_or(s.cues.len());
         let mut ids = Vec::new();
@@ -170,11 +183,48 @@ pub fn media_add(engine: State<'_, Engine>, paths: Vec<PathBuf>, after: Option<u
             doc.meta.extra.push(("media".into(), value.clone()));
             let mut overrides = CueOverrides::default();
             *overrides.looks.get_mut(Output::Sanctuary) = full_screen(&value);
-            *overrides.looks.get_mut(Output::Stream) = full_screen(&value);
+            *overrides.looks.get_mut(Output::Stream) = if sanctuary_only { camera_only() } else { full_screen(&value) };
             let mut cue = Cue::liturgy(s.unique_id(&title), doc, None, overrides);
             cue.modified = true;
             ids.push(s.insert_cue(at, cue));
         }
         Ok(ids)
+    })
+}
+
+/// The stream showing only the key colour (the camera through the keyer).
+pub fn camera_only() -> Look {
+    Look {
+        background: Some(episco_core::look::KEY_BACKGROUND.into()),
+        layout: Some(Layout::Centered),
+        tone: None,
+        fit: None,
+        blank: Some(true),
+    }
+}
+
+/// A planned blank: the sanctuary screen goes black while the stream shows
+/// the camera. Added after cue index `after` (else at the end).
+#[tauri::command]
+pub fn blank_add(engine: State<'_, Engine>, after: Option<usize>, title: Option<String>) -> CmdResult<String> {
+    engine.edit_service(|s| {
+        let title = title.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).unwrap_or_else(|| "Blank".into());
+        let mut doc = LiturgyDocument::default();
+        doc.meta.title = title.clone();
+        doc.meta.category = Some(ElementCategory::Other);
+        doc.meta.extra.push(("blank".into(), "sanctuary".into()));
+        let mut overrides = CueOverrides::default();
+        *overrides.looks.get_mut(Output::Sanctuary) = Look {
+            background: Some("#000000".into()),
+            layout: Some(Layout::Centered),
+            tone: None,
+            fit: None,
+            blank: Some(true),
+        };
+        *overrides.looks.get_mut(Output::Stream) = camera_only();
+        let at = after.map(|a| a + 1).unwrap_or(s.cues.len());
+        let mut cue = Cue::liturgy(s.unique_id(&title), doc, None, overrides);
+        cue.modified = true;
+        Ok(s.insert_cue(at, cue))
     })
 }

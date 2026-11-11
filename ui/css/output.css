@@ -169,3 +169,14 @@
 .out-stream.tone-dark .piece-reference,
 .out-stream.tone-dark .piece-subtitle { color: #111; }
 .out-sanctuary.tone-dark .piece-antiphon { color: #000; }
+
+/* ---------------- Google Slides deck ---------------- */
+.deck-frame { position: absolute; inset: 0; width: 1920px; height: 1080px; border: 0; background: #000; }
+.deck-card {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px;
+  background: linear-gradient(135deg, #2b2f3a, #14161c); color: #f3f3f3; font-family: "Segoe UI", Arial, sans-serif;
+}
+.deck-icon { font-size: 220px; line-height: 1; color: #f4b400; }
+.deck-title { font-size: 110px; font-weight: 700; }
+.deck-sub { font-size: 70px; opacity: 0.8; }
+.deck-missing { font-size: 0.6em; opacity: 0.8; margin-top: 0.4em; }

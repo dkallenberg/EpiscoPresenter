@@ -49,6 +49,10 @@ pub struct Service {
     /// Published Google Slides URL used for announcement loops.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub announcements_deck: Option<String>,
+    /// Number of slides in the announcements deck (lets a single pass be
+    /// stepped through slide by slide).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deck_slides: Option<u32>,
     /// Colour the stream's lower thirds are keyed on (default blue).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream_key: Option<String>,
@@ -124,6 +128,8 @@ pub struct CueOverrides {
 pub struct BuildContext<'a> {
     pub color: Option<LiturgicalColor>,
     pub looks: Option<&'a BTreeMap<ElementCategory, CueLooks>>,
+    /// Slides in the announcements deck, if the operator gave the count.
+    pub deck_slides: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -138,7 +144,17 @@ pub enum CueContent {
         slides: Vec<Slide>,
     },
     /// The Google Slides announcements deck.
-    Announcements { mode: AnnouncementMode },
+    Announcements {
+        mode: AnnouncementMode,
+        /// Positions to step through: the deck's slide count for a single
+        /// pass when the service knows it, else 1 (derived).
+        #[serde(default = "one")]
+        slides: usize,
+    },
+}
+
+fn one() -> usize {
+    1
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -171,7 +187,7 @@ impl Cue {
 
     /// A cue that runs the announcements deck.
     pub fn announcements(id: impl Into<String>, mode: AnnouncementMode, overrides: CueOverrides) -> Cue {
-        Cue::assemble(id.into(), overrides, CueContent::Announcements { mode })
+        Cue::assemble(id.into(), overrides, CueContent::Announcements { mode, slides: 1 })
     }
 
     fn assemble(id: String, overrides: CueOverrides, content: CueContent) -> Cue {
@@ -214,7 +230,12 @@ impl Cue {
                 caption_meta.category = Some(self.category);
                 self.caption = caption_meta.lower_third_caption();
             }
-            CueContent::Announcements { .. } => {
+            CueContent::Announcements { mode, slides } => {
+                // A single pass steps through the deck when its length is known.
+                *slides = match (mode, ctx.deck_slides) {
+                    (AnnouncementMode::SinglePass, Some(n)) if n > 0 => n as usize,
+                    _ => 1,
+                };
                 self.category = o.category.unwrap_or(ElementCategory::Announcements);
                 self.color = ctx.color;
                 self.title = o.title.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| "Announcements".into());
@@ -251,7 +272,7 @@ impl Cue {
     pub fn slide_count(&self) -> usize {
         match &self.content {
             CueContent::Liturgy { slides, .. } => slides.len().max(1),
-            CueContent::Announcements { .. } => 1,
+            CueContent::Announcements { slides, .. } => (*slides).max(1),
         }
     }
 
@@ -293,12 +314,12 @@ impl Service {
 
     /// The context cues are resolved in.
     pub fn context(&self) -> BuildContext<'_> {
-        BuildContext { color: self.color, looks: Some(&self.looks) }
+        BuildContext { color: self.color, looks: Some(&self.looks), deck_slides: self.deck_slides }
     }
 
     /// Recomputes every cue's derived fields (after service-wide changes).
     pub fn rebuild_all(&mut self) {
-        let ctx = BuildContext { color: self.color, looks: Some(&self.looks) };
+        let ctx = BuildContext { color: self.color, looks: Some(&self.looks), deck_slides: self.deck_slides };
         for cue in &mut self.cues {
             cue.rebuild(&ctx);
         }
@@ -357,7 +378,8 @@ impl Service {
     /// Replaces a liturgy cue's document and marks the cue modified.
     pub fn set_document(&mut self, id: &str, document: LiturgyDocument) -> Result<(), ServiceError> {
         let i = self.position(id)?;
-        let Service { cues, color, looks, .. } = self;
+        let ctx = BuildContext { color: self.color, looks: None, deck_slides: self.deck_slides };
+        let Service { cues, looks, .. } = self;
         let cue = &mut cues[i];
         match &mut cue.content {
             CueContent::Liturgy { document: d, .. } => **d = document,
@@ -366,16 +388,17 @@ impl Service {
             }
         }
         cue.modified = true;
-        cue.rebuild(&BuildContext { color: *color, looks: Some(looks) });
+        cue.rebuild(&BuildContext { looks: Some(looks), ..ctx });
         Ok(())
     }
 
     /// Sets a cue's plan-level overrides.
     pub fn set_overrides(&mut self, id: &str, overrides: CueOverrides) -> Result<(), ServiceError> {
         let i = self.position(id)?;
-        let Service { cues, color, looks, .. } = self;
+        let ctx = BuildContext { color: self.color, looks: None, deck_slides: self.deck_slides };
+        let Service { cues, looks, .. } = self;
         cues[i].overrides = overrides;
-        cues[i].rebuild(&BuildContext { color: *color, looks: Some(looks) });
+        cues[i].rebuild(&BuildContext { looks: Some(looks), ..ctx });
         self.modified = true;
         Ok(())
     }
@@ -492,6 +515,7 @@ impl Service {
             color,
             announcements_deck: plan.announcements_deck,
             stream_key: plan.stream_key,
+            deck_slides: plan.deck_slides.filter(|n| *n > 0),
             looks: plan.looks,
             rite: plan.rite.as_deref().and_then(crate::bcp::Rite::parse),
             track: plan.track.filter(|t| matches!(t, 1 | 2)),
@@ -602,7 +626,7 @@ impl Service {
                             cue.title
                         )))
                     }
-                    CueContent::Announcements { mode } => (None, Some(*mode)),
+                    CueContent::Announcements { mode, .. } => (None, Some(*mode)),
                 };
                 Ok(PlanCue {
                     file,
@@ -624,6 +648,7 @@ impl Service {
             color: self.color.filter(|c| Some(*c) != self.season.map(Season::default_color)).map(|c| c.label().into()),
             announcements_deck: self.announcements_deck.clone(),
             stream_key: self.stream_key.clone(),
+            deck_slides: self.deck_slides,
             rite: self.rite.filter(|r| *r == crate::bcp::Rite::One).map(|_| "I".into()),
             track: self.track.filter(|t| *t == 2),
             bible: self.bible.map(|b| b.initials().into()),
@@ -669,6 +694,8 @@ struct ServicePlan {
     announcements_deck: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     stream_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    deck_slides: Option<u32>,
     /// `"I"` or `"II"`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     rite: Option<String>,
@@ -783,7 +810,7 @@ mod tests {
         // `background = …` in a cue is the sanctuary background.
         assert_eq!(s.cues[1].sanctuary.background, "custom.png");
         assert_eq!(s.cues[2].id, "announcements");
-        assert!(matches!(s.cues[2].content, CueContent::Announcements { mode: AnnouncementMode::SinglePass }));
+        assert!(matches!(s.cues[2].content, CueContent::Announcements { mode: AnnouncementMode::SinglePass, .. }));
 
         // The resolved service is what travels over the network.
         let json = serde_json::to_string(&s).unwrap();
@@ -953,5 +980,31 @@ mod tests {
     fn slugs() {
         assert_eq!(slug("Great Thanksgiving (Rite II)"), "great-thanksgiving-rite-ii");
         assert_eq!(slug("  Psalm 78 "), "psalm-78");
+    }
+
+    #[test]
+    fn a_single_pass_steps_through_the_deck_when_its_length_is_known() {
+        let mut s = Service::default();
+        s.insert_cue(0, Cue::announcements("pass", AnnouncementMode::SinglePass, CueOverrides::default()));
+        s.insert_cue(1, Cue::announcements("loop", AnnouncementMode::Loop, CueOverrides::default()));
+        assert_eq!(s.outline(), vec![1, 1], "unknown length: one position (the deck plays itself)");
+        s.deck_slides = Some(8);
+        s.rebuild_all();
+        assert_eq!(s.outline(), vec![8, 1], "single pass: one position per slide; a loop stays one");
+        // Kept in the plan.
+        let toml = s.to_plan_toml(Path::new("/tmp/x/service.toml")).unwrap();
+        assert!(toml.contains("deck_slides = 8"), "{toml}");
+        let back = Service::from_plan_str(&toml, Path::new("/tmp/x")).unwrap().service;
+        assert_eq!(back.outline(), vec![8, 1]);
+    }
+
+    #[test]
+    fn blank_looks_layer_and_resolve() {
+        let base = default_look(ElementCategory::Prayer, Output::Sanctuary);
+        let blank = base.layered(&Look { blank: Some(true), ..Default::default() });
+        let r = ResolvedLook::complete(&blank);
+        assert!(r.blank);
+        assert_eq!(r.layout, ResolvedLook::complete(&base).layout, "blank keeps the rest of the look");
+        assert!(!ResolvedLook::complete(&base).blank);
     }
 }

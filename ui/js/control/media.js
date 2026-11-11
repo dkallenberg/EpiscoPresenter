@@ -142,7 +142,8 @@ function preview(root, toolbar) {
     el(
       "div.media-actions",
       {},
-      el("button.primary", { disabled: app.readonly || !app.service, onclick: () => addToService([f]) }, "Add to service"),
+      el("button.primary", { disabled: app.readonly || !app.service, title: "Full screen on the sanctuary and the stream", onclick: () => addToService([f]) }, "Add to service"),
+      el("button", { disabled: app.readonly || !app.service, title: "Full screen on the sanctuary only; the stream shows the camera", onclick: () => addToService([f], true) }, "Add (sanctuary only)"),
       el("span.muted.small", {}, cue ? `Background of “${cue.title}”:` : "Select an item to use this as its background."),
       el("button.small", { disabled: app.readonly || !cue, onclick: () => setBg(["sanctuary"]) }, "Sanctuary"),
       el("button.small", { disabled: app.readonly || !cue, onclick: () => setBg(["stream"]) }, "Live Stream"),
@@ -157,13 +158,13 @@ function preview(root, toolbar) {
   );
 }
 
-async function addToService(files) {
+async function addToService(files, sanctuaryOnly = false) {
   if (!app.service) return toast("Open a service first (☰ Services).", "warn");
   const i = app.selectedIndex();
-  const ids = await call("media_add", { paths: files.map((f) => f.path), after: i >= 0 ? i : null });
+  const ids = await call("media_add", { paths: files.map((f) => f.path), after: i >= 0 ? i : null, sanctuaryOnly });
   if (ids?.length) {
     app.select(ids[0]);
-    toast(`Added “${files[0].name}” to the service`);
+    toast(`Added “${files[0].name}” to the service${sanctuaryOnly ? " (sanctuary only)" : ""}`);
   }
 }
 

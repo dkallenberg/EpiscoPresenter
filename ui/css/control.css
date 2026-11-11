@@ -434,3 +434,9 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 .tpl-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; background: var(--panel-2); }
 .tpl-main { flex: 1; min-width: 0; }
 .season-boxes { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+
+/* Blank toggles and the deck note. */
+.blank-toggle { margin-top: 6px; font-size: 12px; }
+.deck-note { margin: -4px 0 6px; }
+.deck-note.ok { color: var(--ok); }
+.deck-help { align-self: end; margin: 0 0 4px; }

@@ -9,7 +9,7 @@ The control window has three panes: the **service timeline** (left), the
 | --- | --- |
 | ☰ Services | The Services screen: upcoming services, New service, Schedule upcoming Sundays, Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
 | Save status | ✓ Saved / Saving…, since services save themselves. For the example, *Not saved · Keep…* adds it to your services. |
-| ⚙ Service | Title, date, season, colour, rite (I or II), lectionary track, Bible version for reading texts, announcements deck and the stream key colour. |
+| ⚙ Service | Title, date, season, colour, rite (I or II), lectionary track, Bible version for reading texts, the announcements deck (Google Slides link and its number of slides) and the stream key colour. |
 | ▦ Layouts | Where text, titles and music go on each kind of slide, and their fonts. See [layouts.md](layouts.md). |
 | Save As… | Writes a copy of the service elsewhere. |
 
@@ -84,6 +84,35 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 | ⌫ in an empty row | Delete the row |
 | ⌘S / ⇧⌘S | Save item / Save item as… |
 | ⌥⌘S | Save service |
+
+## Announcements (Google Slides)
+
+Paste the deck's link in **⚙ Service → Announcements deck**: the ordinary
+sharing link (Share → Copy link) works, as do "Publish to web" and present
+links. The deck must be shared as **Anyone with the link can view** (or
+published to the web), since the output computers show it through Google's
+embedded player and need to reach docs.google.com.
+
+* **Pre-Service** loops the deck on the sanctuary screen, a slide every 9
+  seconds. (The stream shows its Welcome design.)
+* An **Announcements** item in **Loop** mode does the same until you move on.
+* In **Single pass** mode, if **Slides in the deck** is set, **Next** /
+  **Prev** step through the slides one by one and then on to the next item;
+  without the count the deck plays through once on its own.
+* The control window's previews show a "Google Slides · Slide 3 of 8" card;
+  the deck itself appears on the output screens.
+
+## Sanctuary-only blanks, pictures and video
+
+* **+ Add → Blank (sanctuary only)** adds a planned blank: the sanctuary
+  screen goes black while the stream shows the camera. Rename it (e.g.
+  "Blank during the sermon") in the Editor.
+* Any item can be blank on one screen: in the Editor's **Backgrounds &
+  layout**, tick **Blank on the sanctuary screen** (the stream is unaffected)
+  or **Camera only on the stream** (the sanctuary is unaffected).
+* In **Library → Media**, **Add (sanctuary only)** puts a picture or video
+  full screen on the sanctuary while the stream shows the camera. **Add to
+  service** shows it on both.
 
 ## Library tab
 

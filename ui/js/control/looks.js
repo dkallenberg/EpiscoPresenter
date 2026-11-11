@@ -10,6 +10,7 @@ import { activeSlide } from "/js/bridge.js";
 import { BUILTIN_LABELS } from "/js/backgrounds.js";
 import { backgroundCss, mountStage, renderOutput } from "/js/render.js";
 import { saveAsTemplate } from "/js/control/home.js";
+import { parseDeck } from "/js/deck.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
 export const OUTPUTS = [
@@ -49,6 +50,7 @@ export function layered(base, over) {
     layout: over.layout ?? base.layout,
     tone: over.tone ?? (changed ? undefined : base.tone),
     fit: over.fit ?? base.fit,
+    blank: over.blank ?? base.blank,
   });
 }
 
@@ -59,6 +61,7 @@ export function complete(look) {
     layout,
     tone: look.tone ?? (layout === "centered" ? "dark" : "light"),
     fit: look.fit ?? "fill",
+    blank: look.blank ?? false,
   };
 }
 
@@ -151,6 +154,17 @@ function lookCard(cue, output, label) {
       el("label.field", {}, el("span", {}, "Layout"), select("layout", LAYOUT_LABELS)),
       el("label.field", {}, el("span", {}, "Text"), select("tone", TONE_LABELS)),
       el("label.field", {}, el("span", {}, "Fit"), select("fit", FIT_LABELS)),
+    ),
+    el(
+      "label.toggle.blank-toggle",
+      { title: output === "sanctuary" ? "Black screen for this item; the stream is not affected" : "Only the camera (key colour) for this item; the sanctuary is not affected" },
+      el("input", {
+        type: "checkbox",
+        checked: Boolean(eff.blank),
+        disabled: ro,
+        onchange: (e) => set("blank", e.target.checked ? true : undefined),
+      }),
+      output === "sanctuary" ? "Blank on the sanctuary screen" : "Camera only on the stream (nothing shown)",
     ),
     ro
       ? null
@@ -261,7 +275,8 @@ export function openServiceSettings() {
     date: el("input", { type: "date", value: s.date ?? "" }),
     season: el("select", {}, el("option", { value: "" }, "—"), v.seasons.map((x) => el("option", { value: x.key, selected: s.season === x.key }, x.label))),
     color: el("select", {}, el("option", { value: "" }, "Auto (from season)"), v.colors.map((x) => el("option", { value: x.key, selected: s.color === x.key && s.color !== seasonColor(s.season) }, x.key))),
-    deck: el("input", { value: s.announcements_deck ?? "", placeholder: "https://docs.google.com/presentation/d/e/…/pub" }),
+    deck: el("input", { value: s.announcements_deck ?? "", placeholder: "Paste the Google Slides link (Share → Copy link)" }),
+    deckSlides: el("input", { type: "number", min: 0, step: 1, value: s.deck_slides ?? "", placeholder: "e.g. 8" }),
     key: el("select", {}, KEYS.map(([k, l]) => el("option", { value: k, selected: k === key }, l)), el("option", { value: "custom", selected: !known }, "Custom…")),
     customKey: el("input", { value: known ? "" : key, placeholder: "#rrggbb", hidden: known }),
     rite: el("select", {}, [["II", "Rite II (contemporary)"], ["I", "Rite I (traditional)"]].map(([v, l]) => el("option", { value: v, selected: (s.rite ?? "II") === v }, l))),
@@ -269,6 +284,19 @@ export function openServiceSettings() {
     bible: el("select", {}, [["NRSVue", "NRSVue (Updated Edition)"], ["NRSV", "NRSV"]].map(([v, l]) => el("option", { value: v, selected: (s.bible ?? "NRSVue") === v }, l))),
   };
   f.key.addEventListener("change", () => (f.customKey.hidden = f.key.value !== "custom"));
+  const deckNote = el("p.small.deck-note");
+  const checkDeck = () => {
+    const v = f.deck.value.trim();
+    const d = parseDeck(v);
+    deckNote.className = `small deck-note ${!v ? "muted" : d ? "ok" : "warn-note"}`;
+    deckNote.textContent = !v
+      ? "Plays before the service (sanctuary) and for Announcements items. Share the deck as “Anyone with the link can view”."
+      : d
+        ? `✓ Google Slides deck found. It must be shared as “Anyone with the link can view” (or File → Share → Publish to web) for the screens to show it.`
+        : "This doesn't look like a Google Slides link (docs.google.com/presentation/…).";
+  };
+  f.deck.addEventListener("input", checkDeck);
+  checkDeck();
 
   const close = () => overlay.remove();
   const save = async () => {
@@ -279,7 +307,8 @@ export function openServiceSettings() {
         date: f.date.value || null,
         season: f.season.value || null,
         color: f.color.value || null,
-        announcements_deck: f.deck.value || null,
+        announcements_deck: f.deck.value.trim() || null,
+        deck_slides: Number(f.deckSlides.value) > 0 ? Number(f.deckSlides.value) : null,
         stream_key: stream_key || null,
         rite: f.rite.value,
         track: Number(f.track.value),
@@ -300,7 +329,9 @@ export function openServiceSettings() {
       el("div.look-row", {}, row("Date", f.date), row("Season", f.season), row("Colour", f.color)),
       el("div.look-row", {}, row("Rite", f.rite), row("Readings (after Pentecost)", f.track), row("Bible for reading texts", f.bible)),
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
-      row("Announcements deck (published Google Slides URL)", f.deck),
+      row("Announcements deck (Google Slides link)", f.deck),
+      deckNote,
+      el("div.look-row", {}, row("Slides in the deck", f.deckSlides), el("p.muted.small.deck-help", {}, "With the count, a single-pass Announcements item steps through the slides with Next / Prev. Without it, the deck plays itself every 9 seconds.")),
       el("div.look-row", {}, row("Stream key colour (lower thirds)", f.key), row("Custom colour", f.customKey)),
       el(
         "div.modal-actions",

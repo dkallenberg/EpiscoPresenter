@@ -883,7 +883,19 @@ function announcementsPanel(c) {
         (mode) => call("set_announcement_mode", { id: c.id, mode }),
       ),
     ),
-    el("p.muted", {}, deck ? `Deck: ${deck}` : "No announcements deck is set for this service (announcements_deck in the plan)."),
+    el(
+      "p.muted",
+      {},
+      !deck
+        ? "No announcements deck is set for this service. Add its Google Slides link in ⚙ Service."
+        : c.content.mode === "loop"
+          ? "The deck loops on its own, a slide every 9 seconds, until you move on."
+          : (c.content.slides ?? 1) > 1
+            ? `Next / Prev step through the deck’s ${c.content.slides} slides, then on to the next item.`
+            : "The deck plays through once, a slide every 9 seconds. Set “Slides in the deck” in ⚙ Service to step through it with Next / Prev instead.",
+    ),
+    deck ? el("p.muted.small", {}, `Deck: ${deck}`) : null,
+    el("button.small", { onclick: () => document.getElementById("btn-settings").click() }, "⚙ Deck settings…"),
   );
 }
 

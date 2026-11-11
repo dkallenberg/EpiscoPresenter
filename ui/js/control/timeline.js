@@ -40,6 +40,7 @@ export function initTimeline() {
     el("button", { onclick: () => document.querySelector('.tabs button[data-tab="library"]').click() }, "From library…"),
     el("button", { onclick: () => openPropers() }, "Propers (Collect, readings, psalm)…"),
     el("button", { onclick: () => addFiles() }, "Add .ewm files…"),
+    el("button", { onclick: () => addBlank(), title: "The sanctuary screen goes black; the stream shows the camera" }, "Blank (sanctuary only)"),
     el("hr"),
     ...NEW_ITEMS.map(([key, label]) => el("button", { onclick: () => newItem(key) }, `New ${label}`)),
   );
@@ -128,6 +129,11 @@ async function addFiles() {
     reportWarnings(r.warnings);
     if (r.ids.length) app.select(r.ids[0]);
   }
+}
+
+async function addBlank() {
+  const id = await call("blank_add", { after: insertionPoint(), title: null });
+  if (id) app.select(id);
 }
 
 async function newItem(category) {

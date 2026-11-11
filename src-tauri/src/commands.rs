@@ -320,10 +320,11 @@ pub fn set_announcement_mode(engine: State<'_, Engine>, id: String, mode: Announ
     engine.edit_service(|s| {
         let i = s.index_of(&id).ok_or("no such cue")?;
         match &mut s.cues[i].content {
-            episco_core::CueContent::Announcements { mode: m } => *m = mode,
+            episco_core::CueContent::Announcements { mode: m, .. } => *m = mode,
             _ => return Err("not an announcements cue".to_string()),
         }
         s.modified = true;
+        s.rebuild_all(); // a single pass steps through the deck's slides
         Ok(())
     })
 }
@@ -361,6 +362,8 @@ pub struct ServiceDetails {
     announcements_deck: Option<String>,
     stream_key: Option<String>,
     #[serde(default)]
+    deck_slides: Option<u32>,
+    #[serde(default)]
     rite: Option<episco_core::bcp::Rite>,
     #[serde(default)]
     track: Option<u8>,
@@ -379,6 +382,7 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
         s.color = details.color.or_else(|| details.season.map(Season::default_color));
         s.announcements_deck = clean(details.announcements_deck);
         s.stream_key = clean(details.stream_key).filter(|k| !k.eq_ignore_ascii_case(DEFAULT_KEY_COLOR));
+        s.deck_slides = details.deck_slides.filter(|n| *n > 0);
         s.rite = details.rite;
         s.track = details.track.filter(|t| matches!(t, 1 | 2));
         s.bible = details.bible;
