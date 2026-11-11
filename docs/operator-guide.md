@@ -7,11 +7,10 @@ The control window has three panes: the **service timeline** (left), the
 
 | Button | Does |
 | --- | --- |
-| New | Starts an empty service. |
-| Open… | Opens a service plan (`.toml`). |
-| Example | Loads the built-in sample service. |
-| Save Service | Saves every changed item that already has a file, then the plan. Shift-click for *Save As*. A ● means there are unsaved changes. |
+| ☰ Services | The Services screen: upcoming services, New service, Schedule upcoming Sundays, Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
+| Save status | ✓ Saved / Saving…, since services save themselves. For the example, *Not saved · Keep…* adds it to your services. |
 | ⚙ Service | Title, date, season, colour, announcements deck and the stream key colour. |
+| Save As… | Writes a copy of the service elsewhere. |
 
 The right end shows the node's role and network status (and latency on a
 slave). A stage message, when one is active, is shown here on every node.

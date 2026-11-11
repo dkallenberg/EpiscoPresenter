@@ -16,6 +16,7 @@ over the LAN, and builds everything from one plain-text liturgy format
 | 4. Google Slides | Data model only (`announcements` cues, pre-service state) |
 | 5. Scripts and bulletins | Not started |
 | 6. Tablet remote | The protocol is ready (`remote` client role); web app not started |
+| Services & autosave | Services screen at start-up, scheduling about a month of Sundays ahead with church-year names, autosave ([services](docs/services.md)) |
 | Library & propers | Built-in Rite II texts, your saved items, and readings/collect import from a pasted lectionary page ([library](docs/library.md)) |
 
 ## Layout
@@ -49,8 +50,9 @@ Run the desktop app:
 cargo run -p episco-presenter
 ```
 
-Once it opens, click **Example** in the top bar to load a sample service, then
-press → (or Next) to step through it. See the [operator guide](docs/operator-guide.md).
+Once it opens, the Services screen offers **Schedule upcoming Sundays** to plan
+about a month ahead, or **Example** for a sample service. Open one and press →
+(or Next) to step through it. See the [operator guide](docs/operator-guide.md).
 
 To try a master and a slave side by side, see [docs/architecture.md](docs/architecture.md#nodes).
 To build a distributable app bundle, use the Tauri CLI:

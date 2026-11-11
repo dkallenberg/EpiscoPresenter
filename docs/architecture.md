@@ -123,6 +123,7 @@ Commands:
 | Items | `add_items`, `new_item`, `update_cue_document`, `set_cue_overrides`, `set_announcement_mode`, `move_cue`, `remove_cue`, `save_cue` |
 | Looks | `set_cue_look`, `set_default_look`, `set_service_details`, `list_backgrounds`, `import_backgrounds`, `pick_background` |
 | Library | `library_list`, `library_preview`, `library_add`, `library_save_cue`, `library_delete`, `library_folder`, `parse_propers`, `add_propers` |
+| Services | `liturgical_info`, `services_list`, `service_create`, `services_schedule`, `service_delete`, `service_keep` (autosave runs in `autosave.rs`) |
 | Dialogs | `confirm`, `pick_image` |
 
 All edits go through `SyncHub::edit_service`, which broadcasts the new
