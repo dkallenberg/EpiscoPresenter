@@ -9,6 +9,7 @@
 //! * [`state`] — the live presentation state and the commands that drive it,
 //!   shared by the operator UI, the sync network and the tablet remote.
 
+pub mod calendar;
 pub mod category;
 pub mod document;
 pub mod ewm;

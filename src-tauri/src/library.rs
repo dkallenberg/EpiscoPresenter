@@ -114,6 +114,12 @@ fn user_files(app: &AppHandle) -> Vec<PathBuf> {
     files
 }
 
+/// A built-in item's document by name (e.g. `"collect-for-purity"`).
+pub fn builtin_doc(name: &str) -> Option<LiturgyDocument> {
+    let (_, src) = BUILTIN.iter().find(|(n, _)| *n == name)?;
+    ewm::parse(src).ok().map(|p| p.document)
+}
+
 /// Loads a library item's document by id.
 fn load(app: &AppHandle, id: &str) -> CmdResult<LiturgyDocument> {
     if let Some(name) = id.strip_prefix("builtin:") {

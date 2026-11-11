@@ -1,7 +1,8 @@
 // Operator control window: boot, top bar, tabs and keyboard shortcuts.
 
-import { connectStore, inTauri, invoke, send } from "/js/bridge.js";
+import { connectStore, inTauri, invoke, listen, send } from "/js/bridge.js";
 import { initEditor } from "/js/control/editor.js";
+import { initHome, showHome } from "/js/control/home.js";
 import { initLibrary } from "/js/control/library.js";
 import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
@@ -23,31 +24,25 @@ document.querySelectorAll(".tabs button[data-tab]").forEach((b) =>
 );
 
 // ---------- file actions ----------
-async function confirmDiscard() {
-  if (!app.service || !hasUnsaved()) return true;
-  return call("confirm", {
-    title: "Unsaved changes",
-    message: "The current service has unsaved changes. Discard them?",
-    okLabel: "Discard",
-  });
-}
-
 const hasUnsaved = () => app.service && (app.service.modified || app.service.cues.some((c) => c.modified));
+let saveError = null;
 
-$("btn-new").addEventListener("click", async () => {
-  if (await confirmDiscard()) await call("new_service");
+$("btn-services").addEventListener("click", () => showHome());
+$("btn-save").addEventListener("click", () => saveService(true));
+$("save-status").addEventListener("click", async () => {
+  // A service with no file (the example) can be kept as a scheduled service.
+  if (app.service && !app.service.plan_path) {
+    const today = new Date().toISOString().slice(0, 10);
+    const path = await call("service_keep", { date: app.service.date ?? today });
+    if (path) toast("Kept. This service now saves automatically.");
+  } else if (saveError) {
+    toast(saveError, "error");
+  }
 });
-$("btn-open").addEventListener("click", async () => {
-  if (!(await confirmDiscard())) return;
-  const r = await call("open_service", { path: null });
-  if (r?.opened) reportWarnings(r.warnings);
+listen("episco://autosave", (s) => {
+  saveError = s.ok ? null : s.error;
+  renderTopbar();
 });
-$("btn-example").addEventListener("click", async () => {
-  if (!(await confirmDiscard())) return;
-  const w = await call("load_example_service");
-  if (w) reportWarnings(w);
-});
-$("btn-save").addEventListener("click", (e) => saveService(e.shiftKey));
 $("btn-settings").addEventListener("click", openServiceSettings);
 document.addEventListener("keydown", (e) => {
   // ⌘S saves the selected item (editor.js); ⌥⌘S saves the whole service.
@@ -60,7 +55,7 @@ document.addEventListener("keydown", (e) => {
 
 async function saveService(saveAs) {
   const path = await call("save_service", { saveAs });
-  if (path) toast(`Service saved to ${path}`);
+  if (path) toast(saveAs ? `Saved a copy to ${path}` : "Saved");
 }
 
 // ---------- presentation shortcuts ----------
@@ -90,9 +85,21 @@ document.addEventListener("keydown", (e) => {
 function renderTopbar() {
   const s = app.service;
   $("service-title").textContent = s ? s.title || "Untitled service" : "";
-  $("btn-save").classList.toggle("unsaved", Boolean(hasUnsaved()));
-  $("btn-save").title = s?.plan_path ? `Save ${s.plan_path} (⌥⌘S; shift-click for Save As)` : "Save service as… (⌥⌘S)";
-  for (const id of ["btn-new", "btn-open", "btn-example", "btn-save"]) $(id).disabled = app.readonly;
+  const status = $("save-status");
+  status.hidden = !s || app.readonly;
+  if (s) {
+    const [text, cls, title] = !s.plan_path
+      ? ["Not saved · Keep…", "warn", "This service has no file. Click to keep it with your scheduled services; it then saves automatically."]
+      : saveError
+        ? ["⚠ Save failed", "error", saveError]
+        : hasUnsaved()
+          ? ["Saving…", "pending", "Changes are saved automatically a moment after you stop editing."]
+          : ["✓ Saved", "ok", `Saved automatically to ${s.plan_path}`];
+    status.textContent = text;
+    status.className = `save-status ${cls}`;
+    status.title = title;
+  }
+  $("btn-services").disabled = app.readonly;
   $("btn-settings").disabled = app.readonly || !s;
   $("btn-save").disabled = app.readonly || !s;
 
@@ -112,6 +119,7 @@ initTimeline();
 initSlides();
 initEditor();
 initLibrary();
+initHome();
 initStage();
 app.on(renderTopbar);
 

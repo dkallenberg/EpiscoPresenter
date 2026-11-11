@@ -103,6 +103,8 @@ impl Engine {
             }
         };
 
+        crate::autosave::spawn(app.clone(), Arc::clone(&hub));
+
         let mut updates = hub.subscribe();
         tokio::spawn(async move {
             use tokio::sync::broadcast::error::RecvError;

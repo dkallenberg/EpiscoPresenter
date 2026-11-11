@@ -10,19 +10,19 @@
     <header class="topbar">
       <strong class="brand">EpiscoPresenter</strong>
       <div class="file-actions">
-        <button id="btn-new" title="New empty service">New</button>
-        <button id="btn-open" title="Open a service plan (.toml)">Open…</button>
-        <button id="btn-example" title="Load the built-in example service">Example</button>
-        <button id="btn-save">Save Service</button>
+        <button id="btn-services" title="Upcoming services, scheduling, open, example">☰ Services</button>
       </div>
       <span id="service-title" class="service-title"></span>
+      <button id="save-status" class="save-status" hidden></button>
       <button id="btn-settings" class="small" title="Service title, date, season, colour, announcements deck, stream key colour">⚙ Service</button>
+      <button id="btn-save" class="small" title="Save a copy of this service elsewhere (⇧⌥⌘S)">Save As…</button>
       <span class="spacer"></span>
       <span id="stage-banner" class="stage-banner" hidden></span>
       <span id="link" class="link">…</span>
     </header>
 
     <main class="panes">
+      <section id="home" class="home" hidden></section>
       <!-- Left: service cue timeline -->
       <section class="pane timeline">
         <div class="pane-head">

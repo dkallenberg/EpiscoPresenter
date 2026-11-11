@@ -532,9 +532,10 @@ pub async fn save_cue(
     Ok(Some(path))
 }
 
-/// Saves the plan (asking for a path if it has none, or if `save_as`) and
-/// every modified item. Items that have never been saved (new items, library
-/// additions, imported propers) are written to `liturgies/` beside the plan.
+/// Saves the service now: to its plan file, or (with `save_as`, or if it has
+/// none) to a path chosen in a dialog. Items that have never been saved are
+/// written to `liturgies/` beside the plan. (Services in the app's own
+/// folder are also saved automatically; see autosave.rs.)
 /// Returns the plan path, or `None` if cancelled.
 #[tauri::command]
 pub async fn save_service(app: AppHandle, engine: State<'_, Engine>, save_as: bool) -> CmdResult<Option<PathBuf>> {
@@ -549,51 +550,7 @@ pub async fn save_service(app: AppHandle, engine: State<'_, Engine>, save_as: bo
             }
         }
     };
-    // Give never-saved items a file beside the plan.
-    let dir = path.parent().unwrap_or_else(|| Path::new(".")).join("liturgies");
-    let mut assigned: Vec<(String, PathBuf)> = Vec::new();
-    for cue in service.cues.iter().filter(|c| c.document().is_some() && c.source().is_none()) {
-        std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
-        let base = slug_file_name(&cue.title, "ewm");
-        let stem = base.trim_end_matches(".ewm").to_string();
-        let mut file = dir.join(&base);
-        let mut n = 2;
-        while file.exists() || assigned.iter().any(|(_, p)| *p == file) {
-            file = dir.join(format!("{stem}-{n}.ewm"));
-            n += 1;
-        }
-        assigned.push((cue.id.clone(), file));
-    }
-    let service = if assigned.is_empty() {
-        service
-    } else {
-        engine.edit_service(|s| {
-            for (id, file) in &assigned {
-                s.mark_cue_saved(id, file.clone()).map_err(|e| e.to_string())?;
-                // Still needs writing below.
-                if let Some(c) = s.cues.iter_mut().find(|c| c.id == *id) {
-                    c.modified = true;
-                }
-            }
-            Ok(())
-        })?;
-        engine.service().ok_or("no service is loaded")?
-    };
-    let toml = service.to_plan_toml(&path).map_err(|e| e.to_string())?;
-    for cue in service.cues.iter().filter(|c| c.modified) {
-        if let (Some(src), Some(doc)) = (cue.source(), cue.document()) {
-            write_cue(src, doc)?;
-        }
-    }
-    std::fs::write(&path, toml).map_err(|e| format!("could not save {}: {e}", path.display()))?;
     let saved = path.clone();
-    engine.edit_service(|s| {
-        s.plan_path = Some(saved);
-        s.modified = false;
-        for c in &mut s.cues {
-            c.modified = false;
-        }
-        Ok(())
-    })?;
+    engine.edit_service(|s| s.save_to(&saved).map_err(|e| e.to_string()))?;
     Ok(Some(path))
 }

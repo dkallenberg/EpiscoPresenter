@@ -7,9 +7,11 @@
 //!    sync client on slave nodes.
 //! 3. Open this node's output windows on their monitors.
 
+mod autosave;
 mod commands;
 mod engine;
 mod library;
+mod services;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -79,6 +81,12 @@ pub fn run() {
             library::library_folder,
             library::parse_propers,
             library::add_propers,
+            services::liturgical_info,
+            services::services_list,
+            services::service_create,
+            services::services_schedule,
+            services::service_delete,
+            services::service_keep,
         ])
         .run(tauri::generate_context!())
         .expect("error while running EpiscoPresenter");

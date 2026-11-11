@@ -516,6 +516,56 @@ impl Service {
         Ok(Loaded { service, warnings })
     }
 
+    /// Saves the service to `plan_path`: items that have never been saved get
+    /// a file in `liturgies/` beside the plan, every modified item is written,
+    /// then the plan itself. Afterwards nothing is marked modified.
+    pub fn save_to(&mut self, plan_path: &Path) -> Result<(), ServiceError> {
+        let io = |path: &Path, e: std::io::Error| ServiceError::Io {
+            path: path.display().to_string(),
+            message: e.to_string(),
+        };
+        let dir = plan_path.parent().unwrap_or_else(|| Path::new(".")).join("liturgies");
+
+        let mut taken: Vec<PathBuf> = self.cues.iter().filter_map(|c| c.source().map(Path::to_path_buf)).collect();
+        for cue in &mut self.cues {
+            let title = cue.title.clone();
+            if let CueContent::Liturgy { source: source @ None, .. } = &mut cue.content {
+                std::fs::create_dir_all(&dir).map_err(|e| io(&dir, e))?;
+                let stem = match slug(&title) {
+                    s if s.is_empty() => "item".to_string(),
+                    s => s,
+                };
+                let mut file = dir.join(format!("{stem}.{}", ewm::EXTENSION));
+                let mut n = 2;
+                while file.exists() || taken.contains(&file) {
+                    file = dir.join(format!("{stem}-{n}.{}", ewm::EXTENSION));
+                    n += 1;
+                }
+                taken.push(file.clone());
+                *source = Some(file);
+                cue.modified = true;
+            }
+        }
+
+        let plan = self.to_plan_toml(plan_path)?;
+        for cue in self.cues.iter().filter(|c| c.modified) {
+            if let (Some(src), Some(doc)) = (cue.source(), cue.document()) {
+                std::fs::write(src, ewm::to_string(doc)).map_err(|e| io(src, e))?;
+            }
+        }
+        if let Some(parent) = plan_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| io(parent, e))?;
+        }
+        std::fs::write(plan_path, plan).map_err(|e| io(plan_path, e))?;
+
+        self.plan_path = Some(plan_path.to_path_buf());
+        self.modified = false;
+        for cue in &mut self.cues {
+            cue.modified = false;
+        }
+        Ok(())
+    }
+
     /// Serialises the service as a TOML plan to be stored at `plan_path`.
     /// Cue files are written relative to the plan's directory where possible.
     ///
@@ -829,6 +879,34 @@ mod tests {
         assert_eq!(again.looks, s.looks);
         assert_eq!(again.stream_key, s.stream_key);
         assert_eq!(again.cues, s.cues);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn save_to_writes_new_items_beside_the_plan() {
+        let dir = fixture("saveto");
+        let mut s = Service::load_plan(dir.join("service.toml")).unwrap().service;
+        let doc: LiturgyDocument =
+            "---\ntitle: Collect of the Day\ntype: collect\n---\n[Celebrant] O God.\n".parse().unwrap();
+        s.insert_cue(1, Cue::liturgy("", doc.clone(), None, CueOverrides::default()));
+        s.insert_cue(2, Cue::liturgy("", doc, None, CueOverrides::default()));
+        let mut hymn = s.cues[0].document().unwrap().clone();
+        hymn.meta.tune = Some("Truro".into());
+        s.set_document("hymn", hymn).unwrap();
+        assert!(s.has_unsaved_changes());
+
+        let target = dir.join("copy").join("service.toml");
+        s.save_to(&target).unwrap();
+        assert!(!s.has_unsaved_changes());
+        assert_eq!(s.plan_path.as_deref(), Some(target.as_path()));
+        let lit = dir.join("copy").join("liturgies");
+        assert!(lit.join("collect-of-the-day.ewm").exists());
+        assert!(lit.join("collect-of-the-day-2.ewm").exists(), "names stay unique");
+
+        let back = Service::load_plan(&target).unwrap().service;
+        assert_eq!(back.cues.len(), s.cues.len());
+        assert_eq!(back.cues[1].title, "Collect of the Day");
+        assert!(std::fs::read_to_string(dir.join("hymn.ewm")).unwrap().contains("tune: Truro"));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
