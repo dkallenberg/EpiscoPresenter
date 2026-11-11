@@ -98,6 +98,10 @@ function lookCard(cue, output, label) {
   const own = override(cue, output);
   const inh = inherited(cue, output);
   const eff = cue[output];
+  // What "Auto" means for a field: the value it resolves to given this cue's
+  // other settings (e.g. choosing Lower third makes the auto background the
+  // key colour, not the type's bottom-bar artwork).
+  const auto = (field) => complete(layered(inh, clean({ ...own, [field]: undefined })))[field];
   const ro = app.readonly;
 
   const preview = el("div.look-preview");
@@ -111,19 +115,19 @@ function lookCard(cue, output, label) {
   });
 
   const set = (field, value) => setCueLook(cue, output, { ...own, [field]: value || undefined });
-  const select = (field, labels, inheritedValue) =>
+  const select = (field, labels) =>
     el(
       "select",
       { disabled: ro, onchange: (e) => set(field, e.target.value), className: own[field] ? "overridden" : "" },
-      el("option", { value: "", selected: !own[field] }, `Auto · ${labels[inheritedValue] ?? inheritedValue}`),
+      el("option", { value: "", selected: !own[field] }, `Auto · ${labels[auto(field)] ?? auto(field)}`),
       Object.entries(labels).map(([v, l]) => el("option", { value: v, selected: own[field] === v }, l)),
     );
 
   const bgButton = el(
     "button.bg-button" + (own.background ? ".overridden" : ""),
-    { disabled: ro, title: eff.background, onclick: (e) => openPicker(e.currentTarget, cue, output, own) },
+    { disabled: ro, title: eff.background, onclick: (e) => openPicker(e.currentTarget, cue, output, own, auto("background")) },
     el("span.bg-thumb", { style: { background: backgroundCss(app.service, cue, eff.background, "fill") } }),
-    el("span.bg-name", {}, own.background ? backgroundName(eff.background) : `Auto · ${backgroundName(inh.background)}`),
+    el("span.bg-name", {}, own.background ? backgroundName(eff.background) : `Auto · ${backgroundName(auto("background"))}`),
     el("span.muted", {}, "▾"),
   );
 
@@ -141,9 +145,9 @@ function lookCard(cue, output, label) {
     preview,
     el("label.field", {}, el("span", {}, "Background"), bgButton),
     el("div.look-row", {},
-      el("label.field", {}, el("span", {}, "Layout"), select("layout", LAYOUT_LABELS, inh.layout)),
-      el("label.field", {}, el("span", {}, "Text"), select("tone", TONE_LABELS, own.layout && !own.tone ? eff.tone : inh.tone)),
-      el("label.field", {}, el("span", {}, "Fit"), select("fit", FIT_LABELS, inh.fit)),
+      el("label.field", {}, el("span", {}, "Layout"), select("layout", LAYOUT_LABELS)),
+      el("label.field", {}, el("span", {}, "Text"), select("tone", TONE_LABELS)),
+      el("label.field", {}, el("span", {}, "Fit"), select("fit", FIT_LABELS)),
     ),
     ro
       ? null
@@ -183,7 +187,7 @@ document.addEventListener("mousedown", (e) => {
 });
 document.addEventListener("keydown", (e) => e.key === "Escape" && closePicker());
 
-async function openPicker(anchor, cue, output, own) {
+async function openPicker(anchor, cue, output, own, autoBackground) {
   closePicker();
   const choose = async (value) => {
     closePicker();
@@ -193,7 +197,7 @@ async function openPicker(anchor, cue, output, own) {
     el(
       "button.bg-tile" + (current ? ".current" : ""),
       { title: value ?? "", onclick: () => choose(value) },
-      el("span.bg-thumb", { style: { background: backgroundCss(app.service, cue, value ?? inherited(cue, output).background, "fill") } }),
+      el("span.bg-thumb", { style: { background: backgroundCss(app.service, cue, value ?? autoBackground, "fill") } }),
       el("span.bg-tile-name", {}, name),
     );
 
@@ -202,7 +206,7 @@ async function openPicker(anchor, cue, output, own) {
     "div.bg-picker",
     {},
     el("div.picker-title", {}, `${output === "sanctuary" ? "Sanctuary" : "Stream"} background · ${cue.title}`),
-    el("div.bg-grid", {}, tile(null, `Auto · ${backgroundName(inherited(cue, output).background)}`, !own.background)),
+    el("div.bg-grid", {}, tile(null, `Auto · ${backgroundName(autoBackground)}`, !own.background)),
     el("div.picker-sub", {}, "Built-in (drawn in the liturgical colour)"),
     el("div.bg-grid", {}, builtins.map((b) => tile(b, BUILTIN_LABELS[b] ?? b, own.background === b))),
     el("div.picker-sub", {}, "Library"),

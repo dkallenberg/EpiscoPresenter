@@ -51,9 +51,13 @@ paths.
 | Gospel | Glass · colour, centered, light text | Stream bottom bar |
 | Reading, sermon, anthem, announcements | Glass · colour, centered, light text | Key colour, lower third |
 
-The built-in designs are drawn in the cue's liturgical colour. They copy the
-geometry of the parish's slide templates, so your own PNGs drop in with
-matching text areas.
+For **green**, the stream designs (panel, light panel, bottom bar, lower third)
+are the parish's own artwork, bundled with the app in `ui/backgrounds/green/`.
+For other colours, and for the sanctuary designs, the app draws them in the
+liturgical colour with the same geometry. To add artwork for another colour,
+put `panel-dark`, `panel-light`, `bar-bottom` and `lower-third` images in
+`ui/backgrounds/<colour>/` and list them in `ARTWORK` in
+`ui/js/backgrounds.js`.
 
 ## Text areas (for making your own backgrounds)
 
@@ -63,13 +67,15 @@ Positions are percentages of a 16:9 canvas, so they hold for 1920×1080 or 1280�
 | --- | --- | --- |
 | `centered` | x 3.6–96.4 %, y 12.5–87.5 % | between top and bottom borders of about 11 % |
 | `lyrics` | x 5.7–94.3 %, y 6.5–91.7 % | centered, bold; caption at the bottom-left |
-| `left_panel` | x 3.9–45.5 %, y 2–98 % | panel ends where a border column starts at about 46.5 % |
-| `left_panel_wide` | x 3.9–53.9 %, y 2–92.6 % | hymn credits at the bottom-left |
-| `bottom_bar` | x 2.9–97.1 %, y 62.2–94.1 % | label tag at x 3.2–28.8 %, y 27.6–36.1 % |
-| `lower_third` | x 4–68 %, y 78.7–94.6 % | inside a framed bar at x 1.5–70.5 %, y 75–97.6 %; the rest is key colour |
+| `left_panel` | x 3.9–45.5 %, y 2–98 % | inside the panel at x 3.2–46.8 % (border columns at 1.7–3.0 % and 47.0–48.3 %) |
+| `left_panel_wide` | x 3.9–53.9 %, y 2–92.6 % | inside the panel at x 3.0–54.5 %; hymn credits at the bottom-left |
+| `bottom_bar` | x 2.9–97.1 %, y 62.2–94.1 % | the bar is y 60.7–94.8 % between brick rows; label tag at x 4.9–24.8 %, y 28.1–35.7 % |
+| `lower_third` | x 4.1–68 %, y 78.3–93.9 % | inside a framed bar at x 1.5–70.4 %, y 74.8–97.5 % (panel x 3.3–68.5 %, y 78–94.1 %); the rest is key colour |
 
-For `lower_third` with a **built-in** background, the app paints the key colour
-and draws the frame. With your **own** image, include both the key colour and
+For `lower_third` with the **built-in** background, the app paints the key
+colour with the frame. With the default blue key it uses the parish artwork,
+whose blue is a slight gradient (about `#1D1CE5` to `#3736FC`); with any other
+key colour it draws the frame on a solid fill. With your **own** image, include both the key colour and
 the frame in the image.
 
 ## Keying the stream

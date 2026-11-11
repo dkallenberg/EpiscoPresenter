@@ -102,7 +102,7 @@
 .header-sub { font-size: 0.82em; font-weight: 700; font-style: italic; }
 .ref { font-size: calc(30px * var(--fit)); font-weight: 700; white-space: nowrap; }
 .tag {
-  position: absolute; left: 62px; top: 298px; width: 490px; height: 92px;
+  position: absolute; left: 94px; top: 303px; width: 382px; height: 83px;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-weight: 700; font-size: 50px;
 }
@@ -119,7 +119,7 @@
 
 /* Lower third: inside the framed bar at the bottom-left. */
 .box.lt {
-  left: 76px; width: 1232px; top: 850px; height: 172px;
+  left: 78px; width: 1228px; top: 846px; height: 168px;
   color: #fff; --body: 50px; --label: 30px;
   justify-content: center;
 }

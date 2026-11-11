@@ -112,12 +112,14 @@ const DESIGNS = {
   },
   // Stream: glass above, brick-framed bar across the bottom, label tag.
   "bar-bottom": (o, r, c) => {
-    glass(o, r, c.glass, 0, 0, W, 634, 170);
-    bricks(o, 0, 634, W, 26);
-    panel(o, "g", 0, 660, W, 360, c.panel);
-    bricks(o, 0, 1020, W, 28);
-    glass(o, r, c.glass, 0, 1048, W, 32, 170);
-    o.push(`<rect x="62" y="298" width="490" height="92" fill="${BRICK}" stroke="${LEAD}" stroke-width="4"/>`);
+    // Measured from the parish template: bricks 58.6–60.7% and 94.8–96.9%,
+    // label tag x 4.9–24.8%, y 28.1–35.7%.
+    glass(o, r, c.glass, 0, 0, W, 633, 170);
+    bricks(o, 0, 633, W, 23);
+    panel(o, "g", 0, 656, W, 368, c.panel);
+    bricks(o, 0, 1024, W, 23);
+    glass(o, r, c.glass, 0, 1047, W, 33, 170);
+    o.push(`<rect x="94" y="303" width="382" height="83" fill="${BRICK}" stroke="${LEAD}" stroke-width="4"/>`);
   },
 };
 
@@ -134,9 +136,30 @@ export const BUILTIN_LABELS = {
 
 const cache = new Map();
 
-/** data: URL for a built-in background in a liturgical colour, or null. */
+// The parish's own artwork, used in place of the drawn design where it
+// exists (files in ui/backgrounds/<colour>/, bundled with the app). Add a
+// colour by dropping files with these names into a new folder and listing
+// it here.
+const ARTWORK = {
+  Green: {
+    "panel-dark": "/backgrounds/green/panel-dark.webp",
+    "panel-light": "/backgrounds/green/panel-light.webp",
+    "bar-bottom": "/backgrounds/green/bar-bottom.webp",
+    "lower-third": "/backgrounds/green/lower-third.webp",
+  },
+};
+
+/** Parish artwork for a design in a colour, if there is any. */
+export function artworkUrl(design, color) {
+  return ARTWORK[color]?.[design] ?? null;
+}
+
+/** URL for a built-in background in a liturgical colour, or null. */
 export function builtinUrl(name, color) {
-  const design = DESIGNS[name.replace(/^builtin:/, "")];
+  const id = name.replace(/^builtin:/, "");
+  const art = artworkUrl(id, color);
+  if (art) return art;
+  const design = DESIGNS[id];
   if (!design) return null;
   const c = BASE[color] ?? BASE.Green;
   const key = `${name}|${color}`;
@@ -155,7 +178,7 @@ export function lowerThirdFrameUrl(color) {
   if (!cache.has(key)) {
     const c = BASE[color] ?? BASE.Green;
     const o = [];
-    // Bar spans 1.5–70.5% x 75–97.6% y, as in the parish template.
+    // Bar spans 1.5–70.4% x 74.8–97.5% y, as in the parish template.
     const x = 29, y = 810, w = 1325, h = 244;
     bricks(o, x, y, w, 32);
     bricks(o, x, y + h - 32, w, 32);

@@ -1,8 +1,10 @@
-Seasonal stained-glass backgrounds go here, named by liturgical colour:
+Bundled background artwork, by liturgical colour.
 
-    green_stained_glass.png   violet_stained_glass.png   white_stained_glass.png
-    red_stained_glass.png     blue_stained_glass.png     black_stained_glass.png
+`green/` holds the parish's live-stream designs: `panel-dark` (prayers),
+`panel-light` (hymns), `bar-bottom` (psalms, Eucharistic Prayer, Gospel) and
+`lower-third` (readings, sermon, announcements, dismissal, on a blue key).
+They replace the drawn built-in designs of the same names when a cue's colour
+is Green. See `ARTWORK` in `ui/js/backgrounds.js` and docs/backgrounds.md.
 
-A `.ewm` file or service-plan cue can name a different file with
-`default_background:` / `background =`. Until an image exists the outputs fall
-back to a gradient in the liturgical colour.
+Service-specific images belong in a `backgrounds/` folder beside the service
+plan, not here.

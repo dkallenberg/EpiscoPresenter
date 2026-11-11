@@ -8,7 +8,7 @@
 // Sanctuary sizes follow the spec: role labels 48pt italic, text 55pt.
 
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
-import { builtinUrl, lowerThirdFrameUrl } from "/js/backgrounds.js";
+import { artworkUrl, builtinUrl, lowerThirdFrameUrl } from "/js/backgrounds.js";
 
 const STAGE_W = 1920;
 const STAGE_H = 1080;
@@ -50,14 +50,26 @@ export function backgroundCss(service, cue, value, fit = "fill") {
   return `#000 url("${url}") center / ${size} no-repeat`;
 }
 
+/** Key colour plus the framed bar, for lower thirds on the `key` background.
+ *  With the default blue key, the parish's own lower-third artwork is used
+ *  where there is one; with any other key colour the frame is drawn. */
+function paintLowerThirdFrame(stage, service, color) {
+  const art = artworkUrl("lower-third", color);
+  const layer = el("div", "bg");
+  if (art && keyColor(service).toLowerCase() === DEFAULT_KEY) {
+    layer.style.background = `url("${art}") center / 100% 100% no-repeat`;
+  } else {
+    layer.style.background = `url("${lowerThirdFrameUrl(color)}") center / 100% 100% no-repeat`;
+  }
+  stage.append(layer);
+}
+
 function paintBackground(stage, service, cue, look) {
   const layer = el("div", "bg");
   layer.style.background = backgroundCss(service, cue, look.background, look.fit);
   stage.append(layer);
   if (look.background === "key" && look.layout === "lower_third") {
-    const frame = el("div", "bg");
-    frame.style.background = `url("${lowerThirdFrameUrl(cue?.color ?? service?.color ?? "Green")}") center / 100% 100% no-repeat`;
-    stage.append(frame);
+    paintLowerThirdFrame(stage, service, cue?.color ?? service?.color ?? "Green");
   }
 }
 
@@ -276,9 +288,7 @@ export function renderOutput(stage, snap, active, output) {
 function renderPreService(stage, service, output) {
   if (!service) return;
   if (output === "stream") {
-    const frame = el("div", "bg");
-    frame.style.background = `url("${lowerThirdFrameUrl(service.color ?? "Green")}") center / 100% 100% no-repeat`;
-    stage.append(frame);
+    paintLowerThirdFrame(stage, service, service.color ?? "Green");
     const box = el("div", "box lt lt-center");
     box.append(el("div", "lt-label-big", service.title));
     stage.append(box);
