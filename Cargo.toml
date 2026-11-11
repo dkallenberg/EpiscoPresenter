@@ -23,3 +23,11 @@ axum = { version = "0.8", features = ["ws"] }
 tokio-tungstenite = "0.26"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Keep development builds small: line numbers for our own code (enough for
+# panic backtraces), no debug info for dependencies.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

@@ -7,8 +7,10 @@ license.workspace = true
 
 [lib]
 # `_lib` suffix avoids a name clash with the binary on Windows (cargo#8519).
+# Desktop only: the template's `staticlib` / `cdylib` outputs are for iOS and
+# Android and cost ~1 GB of disk per debug build.
 name = "episco_presenter_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
