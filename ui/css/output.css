@@ -67,6 +67,16 @@
   background: #fff;
 }
 
+.score-missing {
+  padding: 60px 80px;
+  font-size: 56px;
+  font-style: italic;
+  color: #555;
+  background: rgba(255, 255, 255, 0.9);
+  border: 6px dashed #999;
+  border-radius: 16px;
+}
+
 .sanctuary.lyrics .text-panel {
   background: transparent;
 }

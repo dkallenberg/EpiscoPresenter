@@ -27,6 +27,7 @@ pub fn run() {
         .init();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let config = load_config(app.handle());
             tracing::info!("starting as {:?} node `{}`", config.role, config.node_name);
@@ -46,13 +47,23 @@ pub fn run() {
             commands::get_node_config,
             commands::get_snapshot,
             commands::send_command,
+            commands::vocabulary,
             commands::parse_ewm,
             commands::format_ewm,
-            commands::open_ewm,
-            commands::save_ewm,
-            commands::load_service_plan,
-            commands::present_ewm,
-            commands::role_styles,
+            commands::confirm,
+            commands::pick_image,
+            commands::open_service,
+            commands::new_service,
+            commands::load_example_service,
+            commands::add_items,
+            commands::new_item,
+            commands::update_cue_document,
+            commands::set_cue_overrides,
+            commands::set_announcement_mode,
+            commands::move_cue,
+            commands::remove_cue,
+            commands::save_cue,
+            commands::save_service,
         ])
         .run(tauri::generate_context!())
         .expect("error while running EpiscoPresenter");

@@ -62,3 +62,21 @@ export function activeSlide(snap) {
   const slide = cue.content.kind === "liturgy" ? cue.content.slides[pos.slide] ?? null : null;
   return { cue, slide, pos };
 }
+
+/**
+ * URL for an image referenced from a cue's .ewm file. Relative paths resolve
+ * against the .ewm file's folder and load through Tauri's asset protocol.
+ * (On a slave node these are the master's paths; the stream overlay never
+ * shows images, so that is fine.)
+ */
+export function assetUrl(cue, src) {
+  if (!src || /^(https?:|data:|asset:|blob:)/i.test(src)) return src;
+  const absolute = src.startsWith("/") || /^[A-Za-z]:[\\/]/.test(src);
+  const source = cue?.content?.source;
+  let path = src;
+  if (!absolute) {
+    if (!source) return src;
+    path = source.replace(/[^\\/]*$/, "") + src;
+  }
+  return T?.core?.convertFileSrc ? T.core.convertFileSrc(path) : path;
+}

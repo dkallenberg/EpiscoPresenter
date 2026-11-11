@@ -203,12 +203,25 @@ impl Engine {
                 hub.load_service(service);
                 Ok(())
             }
-            Engine::Follower { .. } => {
-                Err("this is a slave node; load the service on the master (sanctuary) node".into())
-            }
+            Engine::Follower { .. } => Err(FOLLOWER_EDIT.into()),
         }
     }
+
+    /// Edits the live service (master / standalone only).
+    pub fn edit_service<T>(&self, edit: impl FnOnce(&mut Service) -> Result<T, String>) -> Result<T, String> {
+        match self {
+            Engine::Host { hub, .. } => hub.edit_service(edit),
+            Engine::Follower { .. } => Err(FOLLOWER_EDIT.into()),
+        }
+    }
+
+    /// The live service, if one is loaded.
+    pub fn service(&self) -> Option<Arc<Service>> {
+        self.snapshot().service
+    }
 }
+
+const FOLLOWER_EDIT: &str = "this is a slave node; edit the service on the master (sanctuary) node";
 
 fn display_addr(addr: SocketAddr) -> String {
     if addr.ip().is_unspecified() {

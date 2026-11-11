@@ -74,20 +74,48 @@ impl Role {
     /// Default formatting for this role across editor and display outputs.
     pub fn style(&self) -> RoleStyle {
         match self {
-            Role::People => RoleStyle { text_color: "#000000", bold: true, italic: false, editor_bar_color: "#fff4c2" },
-            Role::Rubric => RoleStyle { text_color: "#8b1a1a", bold: false, italic: true, editor_bar_color: "#f3e3e3" },
-            Role::Celebrant | Role::Priest | Role::Bishop => {
-                RoleStyle { text_color: "#404040", bold: false, italic: false, editor_bar_color: "#e3ecf7" }
-            }
-            Role::Deacon => {
-                RoleStyle { text_color: "#404040", bold: false, italic: false, editor_bar_color: "#e5f3e5" }
-            }
-            Role::Reader => {
-                RoleStyle { text_color: "#404040", bold: false, italic: false, editor_bar_color: "#efe6f7" }
-            }
-            Role::Custom(_) => {
-                RoleStyle { text_color: "#404040", bold: false, italic: false, editor_bar_color: "#ececec" }
-            }
+            Role::People => RoleStyle {
+                text_color: "#000000",
+                bold: true,
+                italic: false,
+                editor_bar_color: "#fff4c2",
+                editor_accent_color: "#c99a06",
+            },
+            Role::Rubric => RoleStyle {
+                text_color: "#8b1a1a",
+                bold: false,
+                italic: true,
+                editor_bar_color: "#f3e3e3",
+                editor_accent_color: "#a33a3a",
+            },
+            Role::Celebrant | Role::Priest | Role::Bishop => RoleStyle {
+                text_color: "#404040",
+                bold: false,
+                italic: false,
+                editor_bar_color: "#e3ecf7",
+                editor_accent_color: "#2f5f9e",
+            },
+            Role::Deacon => RoleStyle {
+                text_color: "#404040",
+                bold: false,
+                italic: false,
+                editor_bar_color: "#e5f3e5",
+                editor_accent_color: "#2e7d32",
+            },
+            Role::Reader => RoleStyle {
+                text_color: "#404040",
+                bold: false,
+                italic: false,
+                editor_bar_color: "#efe6f7",
+                editor_accent_color: "#6a3d9a",
+            },
+            Role::Custom(_) => RoleStyle {
+                text_color: "#404040",
+                bold: false,
+                italic: false,
+                editor_bar_color: "#ececec",
+                editor_accent_color: "#6b6b6b",
+            },
         }
     }
 }
@@ -122,6 +150,8 @@ pub struct RoleStyle {
     pub italic: bool,
     /// Background colour of the role's row in the operator's block editor.
     pub editor_bar_color: &'static str,
+    /// Strong edge / label colour for the role's editor row.
+    pub editor_accent_color: &'static str,
 }
 
 /// Point size of role labels on the sanctuary display (rendered italic).

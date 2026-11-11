@@ -5,6 +5,8 @@
 // Typography (sanctuary): role labels 48pt italic; body 55pt; People text
 // bold #000; everyone else #404040. 1pt = 1.333px at 96dpi on the 1080p stage.
 
+import { assetUrl } from "/js/bridge.js";
+
 const STAGE_W = 1920;
 const STAGE_H = 1080;
 
@@ -34,7 +36,7 @@ function renderLine(spans) {
   return line;
 }
 
-function renderBlocks(blocks, { labels }) {
+export function renderBlocks(blocks, { labels, cue }) {
   const frag = document.createDocumentFragment();
   for (const b of blocks) {
     if (b.kind === "paragraph") {
@@ -49,7 +51,8 @@ function renderBlocks(blocks, { labels }) {
       frag.append(row);
     } else if (b.kind === "image") {
       const img = el("img", "score");
-      img.src = b.src;
+      img.src = assetUrl(cue, b.src);
+      img.onerror = () => img.replaceWith(el("div", "score-missing", `♪ ${b.alt || b.src}`));
       img.alt = b.alt;
       frag.append(img);
     }
@@ -106,7 +109,7 @@ export function renderSanctuary(stage, snap, active) {
   if (st.text_cleared || !active.slide) return;
 
   const panel = el("div", "text-panel");
-  panel.append(renderBlocks(active.slide.blocks, { labels: !lyrics }));
+  panel.append(renderBlocks(active.slide.blocks, { labels: !lyrics, cue }));
   stage.append(panel);
 }
 
@@ -131,6 +134,6 @@ export function renderStream(stage, snap, active) {
     return;
   }
   const box = el("div", `zone ${zone === "left_panel" ? "left-panel" : "bottom-bar"}`);
-  box.append(renderBlocks(slide.blocks.filter((b) => b.kind !== "image"), { labels: false }));
+  box.append(renderBlocks(slide.blocks.filter((b) => b.kind !== "image"), { labels: false, cue }));
   stage.append(box);
 }

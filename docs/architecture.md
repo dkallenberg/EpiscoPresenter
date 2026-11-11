@@ -113,6 +113,17 @@ not replayed later, so a stale "next" can never fire after reconnecting.
 Events (emitted to every window): `episco://state`, `episco://service`,
 `episco://link`.
 
-Commands: `get_node_config`, `get_snapshot`, `send_command`, `parse_ewm`,
-`format_ewm`, `open_ewm`, `save_ewm`, `load_service_plan`, `present_ewm`,
-`role_styles`.
+Commands:
+
+| Area | Commands |
+| --- | --- |
+| Presentation | `get_node_config`, `get_snapshot`, `send_command` |
+| Vocabulary / text | `vocabulary`, `parse_ewm`, `format_ewm` |
+| Service | `new_service`, `open_service`, `load_example_service`, `save_service` |
+| Items | `add_items`, `new_item`, `update_cue_document`, `set_cue_overrides`, `set_announcement_mode`, `move_cue`, `remove_cue`, `save_cue` |
+| Dialogs | `confirm`, `pick_image` |
+
+All edits go through `SyncHub::edit_service`, which broadcasts the new
+service to every window and node and keeps the on-air slide attached to its
+cue (by id) through reorders and edits. On a slave node the edit commands
+return an error and the UI is read-only.

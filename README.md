@@ -11,7 +11,7 @@ over the LAN, and builds everything from one plain-text liturgy format
 | --- | --- |
 | 1. Hardware architecture and network sync | **Done**: master, slave and standalone roles; WebSocket sync; per-monitor output windows |
 | 7. `.ewm` data format and parser | **Done**: parser, writer (round-trips), service plans, data model |
-| 2. Operator control interface | Scaffold: cue list, slide grid, live previews, quick actions, `.ewm` editor with role-coloured block view |
+| 2. Operator control interface | **Done**: service timeline, slide grid, interactive block editor, live previews, quick actions ([operator guide](docs/operator-guide.md)) |
 | 3. Output engine | Basic renderers following the typography and zone rules; auto-fit text and background images still to do |
 | 4. Google Slides | Data model only (`announcements` cues, pre-service state) |
 | 5. Scripts and bulletins | Not started |
@@ -47,6 +47,9 @@ Run the desktop app:
 ```bash
 cargo run -p episco-presenter
 ```
+
+Once it opens, click **Example** in the top bar to load a sample service, then
+press → (or Next) to step through it. See the [operator guide](docs/operator-guide.md).
 
 To try a master and a slave side by side, see [docs/architecture.md](docs/architecture.md#nodes).
 To build a distributable app bundle, use the Tauri CLI:

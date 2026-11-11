@@ -20,5 +20,5 @@ pub use category::{ElementCategory, SanctuaryLayout, StreamZone};
 pub use document::{Block, FrontMatter, Line, LiturgyDocument, Slide, Span};
 pub use role::Role;
 pub use season::{LiturgicalColor, Season};
-pub use service::{Cue, CueContent, Service};
+pub use service::{AnnouncementMode, Cue, CueContent, CueOverrides, Service};
 pub use state::{Command, CuePosition, PresentationState};

@@ -154,3 +154,42 @@ async fn rapid_updates_arrive_in_order() {
     assert!(!hub.state().blackout); // even number of toggles
     server.shutdown().await;
 }
+
+#[tokio::test]
+async fn edits_follow_the_on_air_cue_and_reach_clients() {
+    let (hub, server, url) = start(None).await;
+    let (_client, mut events) = SyncClient::spawn(ClientConfig::new(&url, "stream-node", ClientRole::Mirror));
+    let _ = next_event(&mut events).await; // connected
+    let _ = next_event(&mut events).await; // snapshot
+
+    hub.apply(&Command::GoTo { cue: 0, slide: 1 });
+    let _ = next_event(&mut events).await;
+    let on_air = hub.service().unwrap().cues[0].id.clone();
+
+    // Insert a cue in front: the on-air slide moves to index 1 with it.
+    hub.edit_service(|s| {
+        let doc = ewm::parse("---\ntitle: Opening\n---\n[Celebrant] Blessed be God.\n").unwrap().document;
+        s.insert_cue(0, episco_core::Cue::liturgy("", doc, None, Default::default(), None));
+        Ok::<_, String>(())
+    })
+    .unwrap();
+    match next_event(&mut events).await {
+        ClientEvent::Service { service, state } => {
+            let service = service.unwrap();
+            assert_eq!(service.cues.len(), 2);
+            assert_eq!(service.cues[1].id, on_air);
+            assert_eq!(state.active, Some(CuePosition { cue: 1, slide: 1 }));
+        }
+        e => panic!("unexpected {e:?}"),
+    }
+
+    // A failed edit changes nothing and sends nothing.
+    let rev = hub.state().revision;
+    assert!(hub.edit_service(|s| s.move_cue("nope", 0)).is_err());
+    assert_eq!(hub.state().revision, rev);
+
+    // Removing the on-air cue returns to pre-service.
+    hub.edit_service(|s| s.remove_cue(&on_air).map(drop)).unwrap();
+    assert_eq!(hub.state().active, None);
+    server.shutdown().await;
+}

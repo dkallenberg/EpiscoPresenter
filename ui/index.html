@@ -8,67 +8,98 @@
   </head>
   <body>
     <header class="topbar">
-      <strong>EpiscoPresenter</strong>
-      <span id="service-title" class="muted"></span>
+      <strong class="brand">EpiscoPresenter</strong>
+      <div class="file-actions">
+        <button id="btn-new" title="New empty service">New</button>
+        <button id="btn-open" title="Open a service plan (.toml)">Open…</button>
+        <button id="btn-example" title="Load the built-in example service">Example</button>
+        <button id="btn-save">Save Service</button>
+      </div>
+      <span id="service-title" class="service-title"></span>
       <span class="spacer"></span>
+      <span id="stage-banner" class="stage-banner" hidden></span>
       <span id="link" class="link">…</span>
     </header>
 
     <main class="panes">
       <!-- Left: service cue timeline -->
-      <section class="pane cues">
-        <h2>Service</h2>
+      <section class="pane timeline">
+        <div class="pane-head">
+          <h2>Service</h2>
+          <div class="menu-wrap">
+            <button id="btn-add" class="small">+ Add</button>
+            <div id="add-menu" class="menu" hidden></div>
+          </div>
+        </div>
         <ol id="cue-list" class="cue-list"></ol>
-        <p id="cue-empty" class="muted">No service loaded. Paste or edit an <code>.ewm</code> file in the editor and press <em>Present</em>.</p>
+        <p id="cue-empty" class="muted empty">
+          No service loaded. Use <strong>Open…</strong> for a service plan, <strong>Example</strong> to try the built-in
+          one, or <strong>New</strong> to start from scratch.
+        </p>
+        <p class="hint muted">Click to select · double-click to go live · drag to reorder</p>
       </section>
 
-      <!-- Center: slide grid + .ewm editor -->
+      <!-- Center: slide grid + block editor -->
       <section class="pane center">
         <nav class="tabs">
           <button data-tab="slides" class="active">Slides</button>
-          <button data-tab="editor">.ewm Editor</button>
+          <button data-tab="editor">Editor</button>
+          <button data-tab="source">Source</button>
         </nav>
         <div id="tab-slides" class="tab active">
           <div id="slide-grid" class="slide-grid"></div>
         </div>
         <div id="tab-editor" class="tab">
+          <div id="editor" class="editor"></div>
+        </div>
+        <div id="tab-source" class="tab">
           <div class="editor-toolbar">
-            <button id="btn-parse">Parse</button>
-            <button id="btn-present" class="primary">Present</button>
-            <span id="parse-status" class="muted"></span>
+            <button id="btn-source-apply" class="primary">Apply</button>
+            <button id="btn-source-reload">Revert</button>
+            <span id="source-status" class="muted"></span>
           </div>
-          <div class="editor-split">
-            <textarea id="ewm-source" spellcheck="false"></textarea>
-            <div id="block-view" class="block-view"></div>
-          </div>
+          <textarea id="ewm-source" spellcheck="false"></textarea>
         </div>
       </section>
 
-      <!-- Right: live previews + quick actions -->
+      <!-- Right: live previews + stage controls -->
       <section class="pane right">
-        <h2>Sanctuary</h2>
+        <h2>Sanctuary · 85″</h2>
         <div id="preview-sanctuary" class="preview"></div>
-        <h2>Live Stream</h2>
+        <h2>Live stream overlay</h2>
         <div id="preview-stream" class="preview checker"></div>
+
+        <div id="now-next" class="now-next"></div>
+
         <div class="transport">
-          <button data-cmd="prev">◀ Prev</button>
-          <button data-cmd="next" class="primary">Next ▶</button>
+          <button data-cmd="prev" title="← / ↑ / PageUp">◀ Prev</button>
+          <button data-cmd="next" class="primary" title="→ / ↓ / Space / PageDown">Next ▶</button>
         </div>
         <div class="actions">
-          <button data-cmd="clear_text">Clear Text</button>
-          <button data-cmd="toggle_blackout" id="btn-blackout">Blackout</button>
-          <button data-cmd="clear_media">Clear Media</button>
-          <button data-cmd="reset">Pre-Service</button>
+          <button data-cmd="clear_text" title="Esc">Clear Text</button>
+          <button data-cmd="toggle_blackout" class="blackout" title="B">Blackout</button>
+          <button data-cmd="clear_media" title="M">Clear Media</button>
+          <button data-cmd="reset" title="Back to the pre-service announcements loop">Pre-Service</button>
         </div>
+
+        <h2>Stage message</h2>
         <form id="stage-form" class="stage-msg">
-          <input id="stage-text" placeholder="Stage message…" />
+          <input id="stage-text" placeholder="Message to the clergy…" autocomplete="off" />
           <button type="submit">Send</button>
-          <button type="button" data-cmd="clear_stage_message">✕</button>
         </form>
-        <div id="stage-current" class="muted"></div>
+        <div class="presets">
+          <button data-stage-preset="Slow down">Slow down</button>
+          <button data-stage-preset="Speed up">Speed up</button>
+          <button data-stage-preset="Mic is off">Mic is off</button>
+          <button data-stage-preset="Stream is live">Stream is live</button>
+        </div>
+        <div id="stage-current" class="stage-current" hidden>
+          <span class="msg"></span>
+          <button data-cmd="clear_stage_message" class="small">Clear</button>
+        </div>
       </section>
     </main>
 
-    <script type="module" src="/js/control.js"></script>
+    <script type="module" src="/js/control/main.js"></script>
   </body>
 </html>

@@ -22,7 +22,18 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: https:; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com"
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: https:; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com",
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**/*.png",
+          "**/*.jpg",
+          "**/*.jpeg",
+          "**/*.gif",
+          "**/*.svg",
+          "**/*.webp"
+        ]
+      }
     }
   },
   "bundle": {

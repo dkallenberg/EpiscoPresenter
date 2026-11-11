@@ -124,6 +124,26 @@ impl SyncHub {
         state
     }
 
+    /// Edits the loaded service in place (starting from an empty service if
+    /// none is loaded) and broadcasts the result. The on-air slide follows
+    /// its cue by id through reorders and edits; if that cue is removed the
+    /// state returns to pre-service. If `edit` fails nothing changes.
+    pub fn edit_service<T, E>(&self, edit: impl FnOnce(&mut Service) -> Result<T, E>) -> Result<T, E> {
+        let mut inner = self.write();
+        let before = inner.service.clone().unwrap_or_default();
+        let mut after = (*before).clone();
+        let out = edit(&mut after)?;
+
+        inner.state.active = inner.state.active.and_then(|pos| before.remap_position(pos, &after));
+        inner.state.revision += 1;
+        inner.outline = after.outline();
+        let service = Some(Arc::new(after));
+        inner.service = service.clone();
+        let state = inner.state.clone();
+        let _ = self.tx.send(HubUpdate::new(ServerMessage::Service { service, state }));
+        Ok(out)
+    }
+
     /// The HTTP routes (`/ws`, `/health`). Exposed so other servers (e.g. the
     /// tablet remote) can mount them alongside their own routes.
     pub fn router(self: &Arc<Self>) -> Router {
