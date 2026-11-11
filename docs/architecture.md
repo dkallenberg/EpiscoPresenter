@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | `crates/episco-core` | Data model, `.ewm` parser and writer, service plans, presentation state machine. No I/O beyond reading files and no async code. | `serde`, `toml` |
 | `crates/episco-sync` | Node configuration and the master/slave WebSocket sync (server and client). | `episco-core`, `tokio`, `axum`, `tokio-tungstenite` |
-| `src-tauri` | Desktop app: starts the engine for this node's role, opens output windows, exposes Tauri commands. | both of the above, `tauri` 2 |
+| `src-tauri` | Desktop app: starts the engine for this node's role, opens output windows on request, exposes Tauri commands. | both of the above, `tauri` 2 |
 | `ui/` | Plain HTML/CSS/ES-module front-end with no build step: control dashboard, `output/sanctuary.html`, `output/stream.html`. | |
 
 `cargo build` / `cargo test` at the workspace root covers the two library
@@ -57,15 +57,20 @@ written with defaults on first run.
   "sync_listen": "0.0.0.0:7878",
   "master_url": "ws://192.168.1.20:7878/ws",
   "access_token": null,
-  "displays": { "sanctuary_monitor": 1, "stream_monitor": null, "windowed": false }
+  "displays": { "sanctuary_monitor": null, "stream_monitor": null, "windowed": false, "open_at_start": false }
 }
 ```
 
-* `sanctuary_monitor` / `stream_monitor` are indexes into the OS monitor list.
-  Monitor 0 is the control screen. When unset, a single output uses monitor 1;
-  standalone puts the sanctuary on 1 and the stream on 2. If a monitor is
-  missing, the output opens as a normal window instead.
-* `windowed: true` opens outputs as half-size windows, for rehearsal or development.
+* The output windows do **not** open at start-up. The operator opens them
+  from the control window's top bar (**▣ Outputs**): **Full screen** on a
+  monitor or as a **Window**, and **Close**. In an output window, Esc leaves
+  full screen and a double-click toggles it.
+* `sanctuary_monitor` / `stream_monitor` (indexes into the OS monitor list)
+  set the monitor **Full screen** offers first. When unset it is the "second
+  monitor": the first screen other than the one showing the control window;
+  on a standalone machine the stream takes the next screen after that.
+* `open_at_start: true` opens the outputs when the app starts, full screen
+  (or as half-size windows with `windowed: true`), as earlier versions did.
 * `access_token`, if set, must also be set on the slave and is required from
   tablets. Without it, any device on the LAN can drive the presentation.
 

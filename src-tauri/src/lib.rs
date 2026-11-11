@@ -5,7 +5,8 @@
 //!    created with defaults on first run; see `docs/architecture.md`).
 //! 2. Start the [`Engine`]: sync server on master / standalone nodes,
 //!    sync client on slave nodes.
-//! 3. Open this node's output windows on their monitors.
+//! 3. Output windows open from the control window (Outputs), or at start-up
+//!    with `displays.open_at_start`.
 
 mod autosave;
 mod commands;
@@ -45,12 +46,16 @@ pub fn run() {
             if let Some(control) = app.get_webview_window("control") {
                 let _ = control.set_title(&format!("EpiscoPresenter — {}", role_title(config.role)));
             }
-            windows::open_outputs(app.handle(), &config)?;
+            windows::open_at_start(app.handle(), &config)?;
             app.manage(config);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_node_config,
+            windows::outputs_status,
+            windows::output_show,
+            windows::output_close,
+            windows::output_set_fullscreen,
             commands::get_snapshot,
             commands::send_command,
             commands::vocabulary,

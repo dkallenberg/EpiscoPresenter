@@ -64,6 +64,9 @@ pub struct DisplayConfig {
     pub stream_monitor: Option<usize>,
     /// Open outputs as ordinary windows instead of full-screen (rehearsal / dev).
     pub windowed: bool,
+    /// Open the output windows when the app starts (as before). Off by
+    /// default: the operator opens them from the control window (Outputs).
+    pub open_at_start: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

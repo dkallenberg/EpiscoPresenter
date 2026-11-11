@@ -9,6 +9,7 @@ The control window has three panes: the **service timeline** (left), the
 | --- | --- |
 | ☰ Services | The Services screen: upcoming services, New service, Schedule upcoming Sundays, Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
 | Save status | ✓ Saved / Saving…, since services save themselves. For the example, *Not saved · Keep…* adds it to your services. |
+| ▣ Outputs | Opens the output screens, which no longer open by themselves: for the Sanctuary (and Live Stream), **Full screen** on a monitor (the second monitor unless you choose another), **Window** for an ordinary window, or **Close**. The button shows how many are open (e.g. *Outputs 1/2*) and is highlighted while none are. In an output, Esc leaves full screen; a double-click toggles it. |
 | ⚙ Service | Title, date, season, colour, rite (I or II), lectionary track, Bible version for reading texts, the announcements deck (Google Slides link and its number of slides) and the stream key colour. |
 | ▦ Layouts | Where text, titles and music go on each kind of slide, and their fonts. See [layouts.md](layouts.md). |
 | Save As… | Writes a copy of the service elsewhere. |

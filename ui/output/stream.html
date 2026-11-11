@@ -13,9 +13,13 @@
   <body>
     <div id="host"></div>
     <script type="module">
-      import { connectStore, activeSlide } from "/js/bridge.js";
+      import { connectStore, activeSlide, invoke } from "/js/bridge.js";
       import { mountStage, renderStream } from "/js/render.js";
       const stage = mountStage(document.getElementById("host"));
+      // Esc leaves full screen; a double-click toggles it.
+      const fullscreen = (value) => invoke("output_set_fullscreen", { output: "stream", fullscreen: value }).catch(() => {});
+      document.addEventListener("keydown", (e) => e.key === "Escape" && fullscreen(false));
+      document.addEventListener("dblclick", () => fullscreen(null));
       connectStore((snap) => renderStream(stage, snap, activeSlide(snap), { live: true }));
     </script>
   </body>
