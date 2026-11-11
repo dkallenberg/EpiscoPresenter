@@ -85,6 +85,12 @@ the frame in the image.
 
 ## Keying the stream
 
+The lower-third box is the parish artwork: the green panel with the gold
+border (`ui/backgrounds/green/lower-third-frame.webp`, cut out of
+`lower-third.webp` onto a transparent layer). It is drawn over the flat key
+colour in every season and with any key colour, so the switcher keys
+everything but the box.
+
 Lower thirds are keyed by the video switcher on the stream key colour
 (`#0000FF` by default). Change it in **⚙ Service** (Blue, Green, Transparent
 or a custom colour). **Blackout** on the stream output fills it with the key

@@ -271,7 +271,8 @@ select.overridden, .bg-button.overridden { border-color: var(--accent); }
 /* ---------- library ---------- */
 .library { display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; min-height: 0; flex: 1; }
 .lib-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-.lib-toolbar { display: flex; gap: 8px; }
+.lib-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.lib-toolbar .lib-search { flex: 1 1 100%; order: 1; min-width: 0; }
 .lib-search { flex: 1; }
 .chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .chip { padding: 3px 9px; font-size: 12px; border-radius: 12px; }

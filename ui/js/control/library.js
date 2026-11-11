@@ -107,6 +107,7 @@ function render() {
         viewSwitch(),
         search,
         el("button.small", { title: "The day's Collect, readings and psalm from the lectionary", onclick: openPropers }, "Propers…"),
+        el("button.small", { title: "Add hymns to your library from text files (one per hymn, named with its number and title)", onclick: importHymns }, "Import hymns…"),
       ),
       chips,
       list,
@@ -157,6 +158,15 @@ async function add(ids) {
     app.select(added[0]);
     toast(`Added to the service: ${lib.entries.find((e) => e.id === ids[0])?.title ?? ""}`);
   }
+}
+
+async function importHymns() {
+  const r = await call("library_import_hymns");
+  if (!r) return;
+  if (r.added) toast(`Added ${r.added} hymn${r.added === 1 ? "" : "s"} to your library`);
+  if (r.skipped.length) toast(`Skipped: ${r.skipped.join(", ")}`, "warn");
+  lib.category = "hymn";
+  await refresh();
 }
 
 async function remove(entry) {

@@ -154,6 +154,7 @@ function render(c) {
         metaForm(c),
         c.category === "psalm" ? psalmPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
+      c.category === "hymn" ? hymnPanel(c) : null,
         blockList(),
       ].filter(Boolean),
     );
@@ -457,6 +458,67 @@ function psalmPanel(c) {
       "p.muted.small",
       {},
       "Apply rebuilds the slides from the verses, keeping who sings each verse. Or place antiphons by hand: ♫ Antiphon between verses copies the first antiphon there. Choose Choir or People beside each verse; the people’s verses are bold.",
+    ),
+  );
+}
+
+// ----- hymn words -----
+
+/** A hymn's words, pasted from the parish's licensed source (the app ships
+ *  no hymn texts), with its credits and licence notice. */
+function hymnPanel(c) {
+  const stanzas = ed.doc.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric").length;
+  const credit = (key, label, placeholder) =>
+    field(
+      label,
+      el("input", {
+        value: extraOf(ed.doc, key) ?? "",
+        placeholder,
+        disabled: app.readonly,
+        oninput: (e) => {
+          setExtra(key, e.target.value.trim());
+          changed();
+        },
+      }),
+    );
+  const paste = el("textarea", {
+    placeholder:
+      "Paste the hymn's words here, from your licensed source (hymnal PDF, OneLicense, CCLI …).\n1 First stanza…\n\nRefrain:\n…\n\n2 Second stanza…\n\nNumbered stanzas, a “Refrain:” and blank lines between stanzas are recognised; Words:/Music: lines and copyright notices fill the credits.",
+    disabled: app.readonly,
+  });
+  const repeat = el("input", { type: "checkbox", disabled: app.readonly });
+  const apply = async () => {
+    if (!paste.value.trim()) return toast("Paste the words first.", "warn");
+    await flush(true);
+    const n = await call("hymn_set_text", {
+      id: c.id,
+      text: paste.value,
+      options: { refrain_after_each: repeat.checked, max_lines: 8 },
+    });
+    if (n) toast(`Hymn laid out on ${n} slide${n === 1 ? "" : "s"}`);
+  };
+  return el(
+    "details.section.reading-panel.hymn-panel",
+    { open: stanzas <= 1 },
+    el("summary", {}, "Hymn words", el("span.muted.small", {}, stanzas > 1 ? ` · ${stanzas} stanzas` : " · not entered yet")),
+    paste,
+    el(
+      "div.reading-row",
+      {},
+      el("label.toggle", {}, repeat, "Repeat the refrain after every stanza"),
+      el("button.primary", { disabled: app.readonly, onclick: apply }, "Apply"),
+    ),
+    el(
+      "div.reading-row",
+      {},
+      credit("words", "Words", "Author, translator"),
+      credit("music", "Music", "Tune, composer"),
+      credit("license", "Licence notice", "e.g. Reprinted under OneLicense #A-…"),
+    ),
+    el(
+      "p.muted.small",
+      {},
+      "Hymn texts are mostly under copyright, so the app does not include the Hymnal 1982. Use words your parish is licensed to project. To bring in many at once: Library → Import hymns… (text files named like “436 Lift Up Your Heads.txt”).",
     ),
   );
 }

@@ -6,13 +6,17 @@ The **Library** tab lists reusable items, which you can filter by type
 (Acclamation, Collect, Prayer, Hymn, …) or search by title and text. Selecting
 an item previews every slide on both outputs.
 
-* **Built-in** items are texts from the Holy Eucharist, Rite Two, of the 1979
-  Book of Common Prayer (public domain): the opening acclamations (ordinary,
-  Easter, Lent), Collect for Purity, Gloria, Kyrie, Salutation, Nicene Creed,
-  Confession, Absolution, Peace, Sursum Corda, Sanctus, Lord's Prayer
-  (contemporary and traditional), the Breaking of the Bread, Invitation, both
-  Postcommunion prayers and the four Dismissals. They ship with the app (the
-  `library/` folder in the source).
+* **Built-in** items are texts of the Holy Eucharist from the 1979 Book of
+  Common Prayer (public domain), in **Rite Two** and **Rite One** (filter with
+  the **Rite I** / **Rite II** chips): the opening acclamations (ordinary,
+  Easter, Lent), Collect for Purity, Summary of the Law (Rite I), Gloria,
+  Kyrie, Salutation, Nicene Creed, Confession, Absolution, Peace, Sursum Corda,
+  Sanctus, **the Eucharistic Prayers** (Rite II: Prayers A, B, C and D; Rite I:
+  Prayers I and II, each from the Sursum Corda to the Great AMEN, with the
+  people's parts in bold), Lord's Prayer, the Breaking of the Bread, O Lamb of
+  God and the Prayer of Humble Access (Rite I), Invitation, Postcommunion
+  prayers, the Blessing (Rite I) and the four Dismissals. They ship with the
+  app (the `library/` folder in the source).
 * **Mine** items are ones you saved. In the **Editor**, **Save to Library**
   keeps a copy of the selected item, including your edits, for use in later
   services. They are `.ewm` files in the app's data folder (on macOS,
@@ -26,6 +30,26 @@ Service**.
 
 Please proofread the built-in texts against your prayer book before relying
 on them in worship.
+
+## Hymns
+
+The app does not include the Hymnal 1982. The hymnal is a copyrighted
+publication and many of its texts and translations are under copyright, so
+hymn words come from your parish's own licensed source (the hymnal's digital
+edition, a OneLicense or CCLI reprint licence, …):
+
+* **One at a time.** Select a hymn item (new services have Entrance,
+  Offertory, Communion and Closing Hymn slots) and open the **Editor**. Paste
+  the words into **Hymn words** and click **Apply**: numbered stanzas become
+  one slide each with the number as a label, a stanza marked `Refrain:` (or
+  `Chorus:`) is the refrain (tick **Repeat the refrain after every stanza** to
+  repeat it), and stanzas over eight lines are split over two slides.
+  `Words:` / `Music:` lines and copyright notices go into **Words**, **Music**
+  and **Licence notice**, which the stream shows under the hymn.
+* **Many at once.** **Library → Import hymns…** takes text files, one per
+  hymn, named with the number and title (`436 Lift Up Your Heads.txt`,
+  `S 280 Gloria.txt`), and saves each as a hymn in **Mine**. Search the
+  Library by number ("Hymn 436") or title, then **Add to service**.
 
 ## Media
 

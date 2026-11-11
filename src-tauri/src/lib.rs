@@ -89,6 +89,8 @@ pub fn run() {
             library::reading_set_text,
             library::reading_url,
             library::open_passage,
+            library::hymn_set_text,
+            library::library_import_hymns,
             media::media_list,
             media::media_import,
             media::media_delete,

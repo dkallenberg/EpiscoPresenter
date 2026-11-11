@@ -46,6 +46,10 @@ const BUILTIN: &[(&str, &str)] = builtin![
     "the-peace",
     "sursum-corda",
     "sanctus",
+    "eucharistic-prayer-a",
+    "eucharistic-prayer-b",
+    "eucharistic-prayer-c",
+    "eucharistic-prayer-d",
     "lords-prayer",
     "lords-prayer-traditional",
     "fraction-anthem",
@@ -71,6 +75,8 @@ const BUILTIN: &[(&str, &str)] = builtin![
     "rite1/the-peace",
     "rite1/sursum-corda",
     "rite1/sanctus",
+    "rite1/eucharistic-prayer-1",
+    "rite1/eucharistic-prayer-2",
     "rite1/lords-prayer",
     "rite1/fraction-anthem",
     "rite1/agnus-dei",
@@ -120,7 +126,7 @@ fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
         id,
         title: doc.meta.title.clone(),
         category: doc.meta.effective_category().key().to_string(),
-        citation: doc.meta.citation.clone(),
+        citation: doc.meta.citation.clone().or_else(|| doc.meta.hymn_number.as_ref().map(|n| format!("Hymn {n}"))),
         season: doc.meta.season.map(|s| s.label().to_string()),
         rite: doc.meta.extra("rite").map(String::from),
         builtin,
@@ -356,4 +362,99 @@ pub fn open_passage(citation: String, version: episco_core::bible::BibleVersion)
         std::process::Command::new("xdg-open").arg(&url).status()
     };
     status.map(|_| ()).map_err(|e| format!("could not open the browser: {e}"))
+}
+
+// ---- hymns ------------------------------------------------------------------
+
+/// Replaces a hymn's words with pasted text (from the parish's licensed
+/// source), one stanza per slide. Returns the number of slides.
+#[tauri::command]
+pub fn hymn_set_text(
+    engine: State<'_, Engine>,
+    id: String,
+    text: String,
+    options: Option<episco_core::hymn::HymnOptions>,
+) -> CmdResult<usize> {
+    let opts = options.unwrap_or_default();
+    engine.edit_service(|s| {
+        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
+        let new = episco_core::hymn::set_hymn_text(doc, &text, &opts);
+        if new.blocks.is_empty() {
+            return Err("no words found in the pasted text".to_string());
+        }
+        let n = new.slides().len();
+        s.set_document(&id, new).map_err(|e| e.to_string())?;
+        Ok(n)
+    })
+}
+
+#[derive(Serialize)]
+pub struct HymnImport {
+    added: usize,
+    skipped: Vec<String>,
+}
+
+/// Imports hymns from text files into My Library: one file per hymn, named
+/// with its number and title ("436 Lift Up Your Heads.txt"), holding the
+/// words as copied from the parish's licensed source.
+#[tauri::command]
+pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
+    use tauri_plugin_dialog::DialogExt;
+    let picked = app.dialog().file().add_filter("Hymn words", &["txt"]).blocking_pick_files().unwrap_or_default();
+    let dir = user_dir(&app)?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let mut added = 0;
+    let mut skipped = Vec::new();
+    for file in picked {
+        let path = file.into_path().map_err(|e| e.to_string())?;
+        let name = path.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        let Ok(text) = std::fs::read_to_string(&path) else {
+            skipped.push(format!("{name} (not UTF-8 text)"));
+            continue;
+        };
+        let (number, title) = episco_core::hymn::split_file_name(&name);
+        let doc = episco_core::hymn::hymn_document(&title, number.as_deref(), &text, &Default::default());
+        if doc.blocks.is_empty() {
+            skipped.push(format!("{name} (no words)"));
+            continue;
+        }
+        let file_name = slug_file_name(&format!("hymn {} {title}", number.as_deref().unwrap_or("")), ewm::EXTENSION);
+        std::fs::write(dir.join(&file_name), ewm::to_string(&doc))
+            .map_err(|e| format!("could not save {file_name}: {e}"))?;
+        added += 1;
+    }
+    Ok(HymnImport { added, skipped })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_builtin_item_parses_cleanly() {
+        for (name, src) in BUILTIN {
+            let parsed = ewm::parse(src).unwrap_or_else(|e| panic!("{name}: {e}"));
+            assert!(parsed.warnings.is_empty(), "{name}: {:?}", parsed.warnings);
+            assert!(!parsed.document.slides().is_empty(), "{name} has no slides");
+        }
+        let names: Vec<&str> = BUILTIN.iter().map(|(n, _)| *n).collect();
+        for ep in [
+            "eucharistic-prayer-a",
+            "eucharistic-prayer-b",
+            "eucharistic-prayer-c",
+            "eucharistic-prayer-d",
+            "rite1/eucharistic-prayer-1",
+            "rite1/eucharistic-prayer-2",
+        ] {
+            assert!(names.contains(&ep), "{ep}");
+        }
+        // Prayer C's people's lines are the people's, in bold.
+        let c = builtin_doc("eucharistic-prayer-c").unwrap();
+        let people: Vec<String> =
+            c.blocks.iter().filter(|b| b.role() == Some(&episco_core::Role::People)).map(|b| b.plain_text()).collect();
+        assert!(people.contains(&"Glory to you for ever and ever.".to_string()), "{people:?}");
+        assert!(people.contains(&"Risen Lord, be known to us in the breaking of the Bread.".to_string()));
+        let one = builtin_doc("rite1/eucharistic-prayer-1").unwrap();
+        assert!(one.blocks.iter().any(|b| b.plain_text().starts_with("All glory be to thee, Almighty God")));
+    }
 }

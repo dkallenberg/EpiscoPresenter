@@ -18,6 +18,7 @@ pub mod calendar;
 pub mod category;
 pub mod document;
 pub mod ewm;
+pub mod hymn;
 pub mod lectionary;
 pub mod look;
 pub mod propers;

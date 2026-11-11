@@ -8,7 +8,7 @@
 // Sanctuary sizes follow the spec: role labels 48pt italic, text 55pt.
 
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
-import { artworkUrl, builtinUrl, lowerThirdFrameUrl } from "/js/backgrounds.js";
+import { builtinUrl } from "/js/backgrounds.js";
 import { isAntiphonSlide, resolveTemplate, slideTypeFor } from "/js/templates.js";
 
 const STAGE_W = 1920;
@@ -51,17 +51,14 @@ export function backgroundCss(service, cue, value, fit = "fill") {
   return `#000 url("${url}") center / ${size} no-repeat`;
 }
 
-/** Key colour plus the framed bar, for lower thirds on the `key` background.
- *  With the default blue key, the parish's own lower-third artwork is used
- *  where there is one; with any other key colour the frame is drawn. */
-function paintLowerThirdFrame(stage, service, color) {
-  const art = artworkUrl("lower-third", color);
-  const layer = el("div", "bg");
-  if (art && keyColor(service).toLowerCase() === DEFAULT_KEY) {
-    layer.style.background = `url("${art}") center / 100% 100% no-repeat`;
-  } else {
-    layer.style.background = `url("${lowerThirdFrameUrl(color)}") center / 100% 100% no-repeat`;
-  }
+/** The parish's lower-third box (green with the gold border, cut out of
+ *  its artwork onto a transparent layer) over the flat key colour, in every
+ *  season and with any key colour. */
+const LOWER_THIRD_FRAME = "/backgrounds/green/lower-third-frame.webp";
+
+function paintLowerThirdFrame(stage) {
+  const layer = el("div", "bg lt-frame");
+  layer.style.background = `url("${LOWER_THIRD_FRAME}") center / 100% 100% no-repeat`;
   stage.append(layer);
 }
 
@@ -107,7 +104,7 @@ function paintBackground(stage, service, cue, look, opts = {}) {
   layer.style.background = backgroundCss(service, cue, look.background, look.fit);
   stage.append(layer);
   if (look.background === "key" && look.layout === "lower_third") {
-    paintLowerThirdFrame(stage, service, cue?.color ?? service?.color ?? "Green");
+    paintLowerThirdFrame(stage);
   }
 }
 
@@ -226,6 +223,8 @@ function credits(cue) {
     .map((k) => [k, extra(cue, k)])
     .filter(([, v]) => v)
     .map(([k, v]) => `${k[0].toUpperCase()}${k.slice(1)}: ${v}`);
+  const license = extra(cue, "license");
+  if (license) lines.push(license);
   if (!lines.length) return null;
   const c = el("div", "credits");
   lines.forEach((l) => c.append(el("div", null, l)));
