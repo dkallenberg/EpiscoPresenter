@@ -267,3 +267,32 @@ select.overridden, .bg-button.overridden { border-color: var(--accent); }
   display: flex; flex-direction: column; gap: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.6); }
 .modal h3 { margin: 0 0 4px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
+
+/* ---------- library ---------- */
+.library { display: grid; grid-template-columns: minmax(300px, 420px) minmax(0, 1fr); gap: 16px; min-height: 0; flex: 1; }
+.lib-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.lib-toolbar { display: flex; gap: 8px; }
+.lib-search { flex: 1; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { padding: 3px 9px; font-size: 12px; border-radius: 12px; }
+.chip.active { background: var(--accent); color: #111; border-color: var(--accent); }
+.lib-list { display: flex; flex-direction: column; gap: 2px; overflow: auto; }
+.lib-row { padding: 8px 10px; border-radius: 6px; border: 1px solid transparent; cursor: pointer; }
+.lib-row:hover { background: var(--panel-2); }
+.lib-row.selected { border-color: var(--accent); background: var(--panel-2); }
+.lib-title { font-weight: 600; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.lib-meta { font-size: 12px; color: var(--muted); }
+.lib-summary { font-size: 12px; color: #b8bac2; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lib-preview { min-width: 0; overflow: auto; }
+.lib-preview-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.lib-actions { display: flex; gap: 8px; }
+.lib-slides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.danger-btn:hover { background: #5a2226 !important; border-color: var(--live) !important; }
+.modal.wide { width: 760px; }
+.propers-text { width: 100%; min-height: 160px; resize: vertical; font-size: 13px; }
+.propers-results { display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow: auto; }
+.propers-row { display: grid; grid-template-columns: auto 170px 1fr auto auto; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; }
+.propers-row:hover { background: var(--panel-2); }
+.propers-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.propers-day { margin-bottom: 4px; }
+.modal-actions.left { justify-content: flex-start; margin-top: 0; }

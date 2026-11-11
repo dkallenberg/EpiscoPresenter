@@ -28,8 +28,10 @@ slave). A stage message, when one is active, is shown here on every node.
     inset at the corner (hover for the names).
 * **Click** selects a cue (for the editor and slide grid), **double-click** puts
   it on air, **drag** reorders. Hover a row for ↑ ↓ ✕.
-* **+ Add** inserts after the selected cue: existing `.ewm` files (several at
-  once) or a new item from a template.
+* **+ Add** inserts after the selected cue: an item from the **Library**,
+  **Import propers** (readings and collect pasted from the lectionary page),
+  existing `.ewm` files (several at once), or a new item from a template.
+  See [library.md](library.md).
 
 ## Slides tab
 
@@ -83,6 +85,13 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 | ⌘S / ⇧⌘S | Save item / Save item as… |
 | ⌥⌘S | Save service |
 
+## Library tab
+
+Built-in Rite II texts and the items you have saved, by type, with previews
+of both outputs. **Add to service** (or double-click) puts a copy after the
+selected cue. In the Editor, **Save to Library** keeps the selected item for
+later services. See [library.md](library.md).
+
 ## Source tab
 
 The raw `.ewm` text of the selected item. **Apply** parses it and applies it
@@ -90,7 +99,7 @@ The raw `.ewm` text of the selected item. **Apply** parses it and applies it
 
 ## Right pane
 
-* **Sanctuary** and **Live stream overlay** previews show exactly what each
+* **Sanctuary** and **Live Stream** previews show exactly what each
   output shows (the stream preview's checkerboard is transparent).
 * **NOW / NEXT** name the current and following slide.
 * **Prev / Next**, then **Clear Text**, **Blackout**, **Clear Media** and

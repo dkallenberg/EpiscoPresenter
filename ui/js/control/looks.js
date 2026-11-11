@@ -12,8 +12,8 @@ import { backgroundCss, mountStage, renderOutput } from "/js/render.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
 export const OUTPUTS = [
-  ["sanctuary", "Sanctuary · 85″"],
-  ["stream", "Live stream"],
+  ["sanctuary", "Sanctuary"],
+  ["stream", "Live Stream"],
 ];
 
 const LAYOUT_LABELS = {
@@ -23,6 +23,7 @@ const LAYOUT_LABELS = {
   left_panel_wide: "Left panel, wide (hymns)",
   bottom_bar: "Bottom bar",
   lower_third: "Lower third (keyed)",
+  info_bar: "Info bar (welcome window)",
 };
 const LAYOUT_BACKGROUND = {
   centered: "builtin:glass-light",
@@ -31,6 +32,7 @@ const LAYOUT_BACKGROUND = {
   left_panel_wide: "builtin:panel-light",
   bottom_bar: "builtin:bar-bottom",
   lower_third: "key",
+  info_bar: "builtin:window",
 };
 const TONE_LABELS = { dark: "Dark text", light: "Light text" };
 const FIT_LABELS = { fill: "Fill (crop)", fit: "Fit (letterbox)", stretch: "Stretch" };

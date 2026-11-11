@@ -9,6 +9,7 @@
 
 import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom } from "/js/control/richtext.js";
+import { saveCueToLibrary } from "/js/control/library.js";
 import { lookPanel } from "/js/control/looks.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
@@ -182,6 +183,12 @@ function header(c) {
           ),
           c.content.kind === "liturgy" ? el("button", { onclick: () => save(false), title: "⌘S" }, "Save") : null,
           c.content.kind === "liturgy" ? el("button", { onclick: () => save(true), title: "⇧⌘S" }, "Save As…") : null,
+          c.content.kind === "liturgy"
+            ? el("button", {
+                title: "Keep a copy of this item in your library to reuse in other services",
+                onclick: async () => { await flush(true); await saveCueToLibrary(cue()); },
+              }, "Save to Library")
+            : null,
         ),
   );
 }

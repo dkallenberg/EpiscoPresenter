@@ -132,3 +132,10 @@
 .lt-center .rows { display: block; }
 .lt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6em; }
 .lt-title { font-size: 1.1em; font-weight: 700; }
+
+/* Info bar: under the camera window (welcome / postlude). Bar is
+   x 9.5–90.5%, y 80.8–99.7% in the parish template. */
+.box.ib { left: 200px; right: 200px; top: 880px; bottom: 14px; align-items: center; text-align: center; color: #fff; --body: 52px; --label: 30px; }
+.ib-small { font-size: calc(30px * var(--fit)); }
+.ib-big { font-size: 1.35em; font-weight: 700; }
+.ib .rows { display: block; }

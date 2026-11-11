@@ -238,6 +238,7 @@ export function renderOutput(stage, snap, active, output) {
   if (st.text_cleared) return;
 
   if (look.layout === "lower_third") return lowerThird(stage, cue, active);
+  if (look.layout === "info_bar") return infoBar(stage, cue, active.slide);
 
   const slide = active.slide;
   const box = el("div", "box");
@@ -285,12 +286,33 @@ export function renderOutput(stage, snap, active, output) {
   autoFit(box);
 }
 
+/** Text in the bar under the camera window (welcome / postlude design). */
+function infoBar(stage, cue, slide) {
+  const box = el("div", "box ib");
+  stage.append(box);
+  if (slide?.heading) box.append(el("div", "ib-small", slide.heading));
+  const blocks = slide?.blocks ?? [];
+  if (blocks.length) box.append(renderBlocks(blocks.filter((b) => b.kind !== "image"), cue, { labels: true, numbers: true, rubrics: true }));
+  else box.append(el("div", "ib-big", cue.title));
+  autoFit(box, 0.6);
+}
+
+function formatDate(iso) {
+  const d = iso && new Date(`${iso}T12:00:00`);
+  return d && !isNaN(d) ? d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : iso ?? "";
+}
+
 function renderPreService(stage, service, output) {
   if (!service) return;
   if (output === "stream") {
-    paintLowerThirdFrame(stage, service, service.color ?? "Green");
-    const box = el("div", "box lt lt-center");
-    box.append(el("div", "lt-label-big", service.title));
+    // Welcome: camera window with the service details in the bar beneath.
+    stage.classList.add("layout-info_bar", "tone-light");
+    const layer = el("div", "bg");
+    layer.style.background = backgroundCss(service, null, "builtin:window");
+    stage.append(layer);
+    const box = el("div", "box ib");
+    const line = [service.title, formatDate(service.date)].filter(Boolean).join(", ");
+    box.append(el("div", "ib-small", line), el("div", "ib-big", "Welcome"));
     stage.append(box);
     autoFit(box, 0.6);
     return;

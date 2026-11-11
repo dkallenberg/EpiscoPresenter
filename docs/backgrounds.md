@@ -51,13 +51,17 @@ paths.
 | Gospel | Glass · colour, centered, light text | Stream bottom bar |
 | Reading, sermon, anthem, announcements | Glass · colour, centered, light text | Key colour, lower third |
 
-For **green**, the stream designs (panel, light panel, bottom bar, lower third)
-are the parish's own artwork, bundled with the app in `ui/backgrounds/green/`.
-For other colours, and for the sanctuary designs, the app draws them in the
-liturgical colour with the same geometry. To add artwork for another colour,
-put `panel-dark`, `panel-light`, `bar-bottom` and `lower-third` images in
-`ui/backgrounds/<colour>/` and list them in `ARTWORK` in
-`ui/js/backgrounds.js`.
+Before the first cue, the stream shows the **Welcome window** design with the
+service title and date in its info bar. Any cue can use it with the `info_bar`
+layout, for example for the postlude.
+
+For **green**, every built-in design (sanctuary glass light / colour /
+charcoal, stream panels, bottom bar, lower third and welcome window) is the
+parish's own artwork, bundled with the app in `ui/backgrounds/green/`. For
+other colours the app draws them in the liturgical colour with the same
+geometry. To add artwork for another colour,
+put images named like those in `green/` into `ui/backgrounds/<colour>/` and
+list them in `ARTWORK` in `ui/js/backgrounds.js`.
 
 ## Text areas (for making your own backgrounds)
 
@@ -65,11 +69,12 @@ Positions are percentages of a 16:9 canvas, so they hold for 1920×1080 or 1280�
 
 | Layout | Text area | Notes |
 | --- | --- | --- |
-| `centered` | x 3.6–96.4 %, y 12.5–87.5 % | between top and bottom borders of about 11 % |
+| `centered` | x 3.6–96.4 %, y 12.5–87.5 % | glass bands end at 8.5 % and start at 91.5 % |
 | `lyrics` | x 5.7–94.3 %, y 6.5–91.7 % | centered, bold; caption at the bottom-left |
 | `left_panel` | x 3.9–45.5 %, y 2–98 % | inside the panel at x 3.2–46.8 % (border columns at 1.7–3.0 % and 47.0–48.3 %) |
 | `left_panel_wide` | x 3.9–53.9 %, y 2–92.6 % | inside the panel at x 3.0–54.5 %; hymn credits at the bottom-left |
 | `bottom_bar` | x 2.9–97.1 %, y 62.2–94.1 % | the bar is y 60.7–94.8 % between brick rows; label tag at x 4.9–24.8 %, y 28.1–35.7 % |
+| `info_bar` | x 10.4–89.6 %, y 81.5–98.7 % | the bar under the welcome window, x 9.5–90.5 %, y 80.8–99.7 %; the window above is for the camera |
 | `lower_third` | x 4.1–68 %, y 78.3–93.9 % | inside a framed bar at x 1.5–70.4 %, y 74.8–97.5 % (panel x 3.3–68.5 %, y 78–94.1 %); the rest is key colour |
 
 For `lower_third` with the **built-in** background, the app paints the key

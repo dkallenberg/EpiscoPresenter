@@ -80,21 +80,21 @@ function panel(out, id, x, y, w, h, color) {
 const DESIGNS = {
   // Sanctuary: glass bands top and bottom, light centre (prayers).
   "glass-light": (o, r, c) => {
-    glass(o, r, c.glass, 0, 0, W, 115, 170);
-    glass(o, r, c.glass, 0, 965, W, 115, 170);
-    panel(o, "g", 0, 115, W, 850, c.light);
+    glass(o, r, c.glass, 0, 0, W, 92, 170);
+    glass(o, r, c.glass, 0, 988, W, 92, 170);
+    panel(o, "g", 0, 92, W, 896, c.light);
   },
   // Sanctuary: glass bands, panel in the liturgical colour (readings).
   "glass-dark": (o, r, c) => {
-    glass(o, r, c.glass, 0, 0, W, 115, 170);
-    glass(o, r, c.glass, 0, 965, W, 115, 170);
-    panel(o, "g", 0, 115, W, 850, c.panel);
+    glass(o, r, c.glass, 0, 0, W, 92, 170);
+    glass(o, r, c.glass, 0, 988, W, 92, 170);
+    panel(o, "g", 0, 92, W, 896, c.panel);
   },
   // Sanctuary: glass bands, charcoal centre (psalms).
   "glass-charcoal": (o, r, c) => {
-    glass(o, r, c.glass, 0, 0, W, 115, 170);
-    glass(o, r, c.glass, 0, 965, W, 115, 170);
-    panel(o, "g", 0, 115, W, 850, "#353535");
+    glass(o, r, c.glass, 0, 0, W, 92, 170);
+    glass(o, r, c.glass, 0, 988, W, 92, 170);
+    panel(o, "g", 0, 92, W, 896, "#353535");
   },
   // Stream: dark panel on the left between brick borders, glass on the right.
   "panel-dark": (o, r, c) => {
@@ -109,6 +109,17 @@ const DESIGNS = {
     glass(o, r, c.glass, 0, 0, 58, H, 90);
     panel(o, "g", 58, 0, 990, H, c.light);
     glass(o, r, c.glass, 1048, 0, W - 1048, H, 160);
+  },
+  // Welcome / postlude: camera window framed in brick, info bar beneath,
+  // glass down both sides (measured from the parish template).
+  window: (o, r, c) => {
+    glass(o, r, c.glass, 0, 0, 182, H, 90);
+    glass(o, r, c.glass, 1738, 0, W - 1738, H, 90);
+    bricks(o, 182, 0, 26, 842, true);
+    bricks(o, 1712, 0, 26, 842, true);
+    panel(o, "w", 208, 0, 1504, 842, "#1f1f1f");
+    bricks(o, 182, 842, 1556, 26);
+    panel(o, "g", 182, 868, 1556, 212, c.panel);
   },
   // Stream: glass above, brick-framed bar across the bottom, label tag.
   "bar-bottom": (o, r, c) => {
@@ -130,6 +141,7 @@ export const BUILTIN_LABELS = {
   "builtin:panel-dark": "Stream panel · colour",
   "builtin:panel-light": "Stream panel · light",
   "builtin:bar-bottom": "Stream bottom bar",
+  "builtin:window": "Welcome window",
   key: "Key colour (lower third)",
   "#000000": "Black",
 };
@@ -146,6 +158,10 @@ const ARTWORK = {
     "panel-light": "/backgrounds/green/panel-light.webp",
     "bar-bottom": "/backgrounds/green/bar-bottom.webp",
     "lower-third": "/backgrounds/green/lower-third.webp",
+    "glass-light": "/backgrounds/green/glass-light.webp",
+    "glass-dark": "/backgrounds/green/glass-dark.webp",
+    "glass-charcoal": "/backgrounds/green/glass-charcoal.webp",
+    window: "/backgrounds/green/window.webp",
   },
 };
 

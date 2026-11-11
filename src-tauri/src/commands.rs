@@ -481,7 +481,7 @@ pub fn remove_cue(engine: State<'_, Engine>, id: String) -> CmdResult<()> {
 
 // ---- saving --------------------------------------------------------------
 
-fn slug_file_name(title: &str, ext: &str) -> String {
+pub(crate) fn slug_file_name(title: &str, ext: &str) -> String {
     let stem: String = title
         .chars()
         .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
@@ -532,16 +532,13 @@ pub async fn save_cue(
     Ok(Some(path))
 }
 
-/// Saves every modified item that already has a file, then the plan itself
-/// (asking for a path if it has none, or if `save_as`). Items that have never
-/// been saved must be saved individually first. Returns the plan path, or
-/// `None` if cancelled.
+/// Saves the plan (asking for a path if it has none, or if `save_as`) and
+/// every modified item. Items that have never been saved (new items, library
+/// additions, imported propers) are written to `liturgies/` beside the plan.
+/// Returns the plan path, or `None` if cancelled.
 #[tauri::command]
 pub async fn save_service(app: AppHandle, engine: State<'_, Engine>, save_as: bool) -> CmdResult<Option<PathBuf>> {
     let service = engine.service().ok_or("no service is loaded")?;
-    if let Some(unsaved) = service.cues.iter().find(|c| c.document().is_some() && c.source().is_none()) {
-        return Err(format!("“{}” has never been saved; save it to an .ewm file first", unsaved.title));
-    }
     let path = match &service.plan_path {
         Some(p) if !save_as => p.clone(),
         existing => {
@@ -551,6 +548,36 @@ pub async fn save_service(app: AppHandle, engine: State<'_, Engine>, save_as: bo
                 None => return Ok(None),
             }
         }
+    };
+    // Give never-saved items a file beside the plan.
+    let dir = path.parent().unwrap_or_else(|| Path::new(".")).join("liturgies");
+    let mut assigned: Vec<(String, PathBuf)> = Vec::new();
+    for cue in service.cues.iter().filter(|c| c.document().is_some() && c.source().is_none()) {
+        std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+        let base = slug_file_name(&cue.title, "ewm");
+        let stem = base.trim_end_matches(".ewm").to_string();
+        let mut file = dir.join(&base);
+        let mut n = 2;
+        while file.exists() || assigned.iter().any(|(_, p)| *p == file) {
+            file = dir.join(format!("{stem}-{n}.ewm"));
+            n += 1;
+        }
+        assigned.push((cue.id.clone(), file));
+    }
+    let service = if assigned.is_empty() {
+        service
+    } else {
+        engine.edit_service(|s| {
+            for (id, file) in &assigned {
+                s.mark_cue_saved(id, file.clone()).map_err(|e| e.to_string())?;
+                // Still needs writing below.
+                if let Some(c) = s.cues.iter_mut().find(|c| c.id == *id) {
+                    c.modified = true;
+                }
+            }
+            Ok(())
+        })?;
+        engine.service().ok_or("no service is loaded")?
     };
     let toml = service.to_plan_toml(&path).map_err(|e| e.to_string())?;
     for cue in service.cues.iter().filter(|c| c.modified) {

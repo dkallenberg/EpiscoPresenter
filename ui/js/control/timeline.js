@@ -1,6 +1,7 @@
 // Left pane: the service cue timeline.
 
 import { send } from "/js/bridge.js";
+import { openPropers } from "/js/control/library.js";
 import { backgroundName } from "/js/control/looks.js";
 import { backgroundCss } from "/js/render.js";
 import { app, call, el, reportWarnings, slideCount, titleCase } from "/js/control/util.js";
@@ -36,6 +37,8 @@ export function initTimeline() {
 
   // Add menu
   menu.replaceChildren(
+    el("button", { onclick: () => document.querySelector('.tabs button[data-tab="library"]').click() }, "From library…"),
+    el("button", { onclick: () => openPropers() }, "Import propers (readings & collect)…"),
     el("button", { onclick: () => addFiles() }, "Add .ewm files…"),
     el("hr"),
     ...NEW_ITEMS.map(([key, label]) => el("button", { onclick: () => newItem(key) }, `New ${label}`)),

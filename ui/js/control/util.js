@@ -4,10 +4,12 @@ import { invoke } from "/js/bridge.js";
 
 /** el("div#id.cls1.cls2", {attrs / on* handlers / dataset}, ...children) */
 export function el(spec, props = {}, ...children) {
-  const [head, ...classes] = spec.split(".");
-  const [tag, id] = head.split("#");
-  const node = document.createElement(tag || "div");
-  if (id) node.id = id;
+  // "tag", then any mix of ".class" and "#id" parts, in any order.
+  const tag = spec.match(/^[a-z0-9]*/i)[0] || "div";
+  const node = document.createElement(tag);
+  const id = spec.match(/#([\w-]+)/);
+  if (id) node.id = id[1];
+  const classes = [...spec.matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
   if (classes.length) node.className = classes.join(" ");
   for (const [k, v] of Object.entries(props ?? {})) {
     if (v == null || v === false) continue;

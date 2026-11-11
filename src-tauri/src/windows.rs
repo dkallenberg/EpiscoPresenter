@@ -18,8 +18,8 @@ pub fn open_outputs(app: &AppHandle, config: &NodeConfig) -> tauri::Result<()> {
         let index = config.monitor_for(output);
         let monitor = monitors.get(index);
         let title = match output {
-            OutputKind::Sanctuary => "Sanctuary Output",
-            OutputKind::Stream => "Live Stream Overlay",
+            OutputKind::Sanctuary => "Sanctuary",
+            OutputKind::Stream => "Live Stream",
         };
 
         let mut builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(format!("output/{label}.html").into()))

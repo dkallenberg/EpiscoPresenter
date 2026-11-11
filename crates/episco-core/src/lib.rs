@@ -13,6 +13,7 @@ pub mod category;
 pub mod document;
 pub mod ewm;
 pub mod look;
+pub mod propers;
 pub mod role;
 pub mod season;
 pub mod service;

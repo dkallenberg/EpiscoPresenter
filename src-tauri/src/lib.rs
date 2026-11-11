@@ -9,6 +9,7 @@
 
 mod commands;
 mod engine;
+mod library;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -70,6 +71,14 @@ pub fn run() {
             commands::remove_cue,
             commands::save_cue,
             commands::save_service,
+            library::library_list,
+            library::library_preview,
+            library::library_add,
+            library::library_save_cue,
+            library::library_delete,
+            library::library_folder,
+            library::parse_propers,
+            library::add_propers,
         ])
         .run(tauri::generate_context!())
         .expect("error while running EpiscoPresenter");

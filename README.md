@@ -16,6 +16,7 @@ over the LAN, and builds everything from one plain-text liturgy format
 | 4. Google Slides | Data model only (`announcements` cues, pre-service state) |
 | 5. Scripts and bulletins | Not started |
 | 6. Tablet remote | The protocol is ready (`remote` client role); web app not started |
+| Library & propers | Built-in Rite II texts, your saved items, and readings/collect import from a pasted lectionary page ([library](docs/library.md)) |
 
 ## Layout
 

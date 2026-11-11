@@ -2,6 +2,7 @@
 
 import { connectStore, inTauri, invoke, send } from "/js/bridge.js";
 import { initEditor } from "/js/control/editor.js";
+import { initLibrary } from "/js/control/library.js";
 import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
 import { initStage } from "/js/control/stage.js";
@@ -65,6 +66,9 @@ async function saveService(saveAs) {
 // ---------- presentation shortcuts ----------
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("textarea, input, select, [contenteditable='true']") || e.metaKey || e.ctrlKey) return;
+  // Never drive the screens while a dialog or picker is open: stray typing
+  // there would otherwise advance slides or black out the outputs.
+  if (document.querySelector(".modal-overlay, .bg-picker")) return;
   const cmd = {
     ArrowRight: "next",
     ArrowDown: "next",
@@ -107,6 +111,7 @@ function renderTopbar() {
 initTimeline();
 initSlides();
 initEditor();
+initLibrary();
 initStage();
 app.on(renderTopbar);
 

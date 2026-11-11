@@ -45,16 +45,20 @@ pub enum Layout {
     BottomBar,
     /// A framed bar at the bottom-left; everything else is key colour.
     LowerThird,
+    /// Text in a bar across the bottom 81–99% under a camera window
+    /// (the welcome / postlude design).
+    InfoBar,
 }
 
 impl Layout {
-    pub const ALL: [Layout; 6] = [
+    pub const ALL: [Layout; 7] = [
         Layout::Centered,
         Layout::Lyrics,
         Layout::LeftPanel,
         Layout::LeftPanelWide,
         Layout::BottomBar,
         Layout::LowerThird,
+        Layout::InfoBar,
     ];
 
     /// Text colour that suits this layout's usual background.
@@ -181,13 +185,14 @@ impl ResolvedLook {
 }
 
 /// Built-in backgrounds, drawn by the renderer in the cue's liturgical colour.
-pub const BUILTIN_BACKGROUNDS: [&str; 6] = [
+pub const BUILTIN_BACKGROUNDS: [&str; 7] = [
     "builtin:glass-light",
     "builtin:glass-dark",
     "builtin:glass-charcoal",
     "builtin:panel-dark",
     "builtin:panel-light",
     "builtin:bar-bottom",
+    "builtin:window",
 ];
 
 /// The stream key colour (configured per service; blue by default).
@@ -202,6 +207,7 @@ fn builtin_for(layout: Layout) -> &'static str {
         Layout::LeftPanelWide => "builtin:panel-light",
         Layout::BottomBar => "builtin:bar-bottom",
         Layout::LowerThird => KEY_BACKGROUND,
+        Layout::InfoBar => "builtin:window",
     }
 }
 
