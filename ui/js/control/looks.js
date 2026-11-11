@@ -263,6 +263,9 @@ export function openServiceSettings() {
     deck: el("input", { value: s.announcements_deck ?? "", placeholder: "https://docs.google.com/presentation/d/e/…/pub" }),
     key: el("select", {}, KEYS.map(([k, l]) => el("option", { value: k, selected: k === key }, l)), el("option", { value: "custom", selected: !known }, "Custom…")),
     customKey: el("input", { value: known ? "" : key, placeholder: "#rrggbb", hidden: known }),
+    rite: el("select", {}, [["II", "Rite II (contemporary)"], ["I", "Rite I (traditional)"]].map(([v, l]) => el("option", { value: v, selected: (s.rite ?? "II") === v }, l))),
+    track: el("select", {}, [[1, "Track 1"], [2, "Track 2"]].map(([v, l]) => el("option", { value: v, selected: (s.track ?? 1) === v }, l))),
+    bible: el("select", {}, [["NRSVue", "NRSVue (Updated Edition)"], ["NRSV", "NRSV"]].map(([v, l]) => el("option", { value: v, selected: (s.bible ?? "NRSVue") === v }, l))),
   };
   f.key.addEventListener("change", () => (f.customKey.hidden = f.key.value !== "custom"));
 
@@ -277,6 +280,9 @@ export function openServiceSettings() {
         color: f.color.value || null,
         announcements_deck: f.deck.value || null,
         stream_key: stream_key || null,
+        rite: f.rite.value,
+        track: Number(f.track.value),
+        bible: f.bible.value,
       },
     });
     if (ok !== undefined) close();
@@ -291,6 +297,8 @@ export function openServiceSettings() {
       el("h3", {}, "Service settings"),
       row("Title", f.title),
       el("div.look-row", {}, row("Date", f.date), row("Season", f.season), row("Colour", f.color)),
+      el("div.look-row", {}, row("Rite", f.rite), row("Readings (after Pentecost)", f.track), row("Bible for reading texts", f.bible)),
+      el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
       row("Announcements deck (published Google Slides URL)", f.deck),
       el("div.look-row", {}, row("Stream key colour (lower thirds)", f.key), row("Custom colour", f.customKey)),
       el("div.modal-actions", {}, el("button", { onclick: close }, "Cancel"), el("button.primary", { onclick: save }, "Save")),

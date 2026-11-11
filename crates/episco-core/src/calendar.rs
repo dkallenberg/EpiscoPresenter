@@ -69,7 +69,7 @@ impl Date {
         self.add_days(i64::from((7 - self.weekday()) % 7))
     }
 
-    fn days_until(self, other: Date) -> i64 {
+    pub fn days_until(self, other: Date) -> i64 {
         other.to_days() - self.to_days()
     }
 }
@@ -213,7 +213,8 @@ pub fn liturgical_day(date: Date) -> LiturgicalDay {
     // ---- fixed and moveable feasts -------------------------------------
     let feast = |name: &str, season, color| Some(day(name, season, color, date));
     let named = match (date.month, date.day) {
-        (12, 24) => feast("Christmas Eve", S::Christmas, C::White),
+        // On a Sunday, the morning of December 24 is still the Fourth Sunday of Advent.
+        (12, 24) if !sunday => feast("Christmas Eve", S::Christmas, C::White),
         (12, 25) => feast("Christmas Day", S::Christmas, C::White),
         (1, 1) => feast("The Holy Name of Our Lord Jesus Christ", S::Christmas, C::White),
         (1, 6) => feast("The Epiphany", S::Epiphany, C::White),
@@ -356,6 +357,8 @@ mod tests {
             ("2026-11-29", "The First Sunday of Advent"),
             ("2026-12-20", "The Fourth Sunday of Advent"),
             ("2026-12-25", "Christmas Day"),
+            ("2028-12-24", "The Fourth Sunday of Advent"),
+            ("2026-12-24", "Christmas Eve"),
             ("2026-12-27", "The First Sunday after Christmas Day"),
             ("2027-01-03", "The Second Sunday after Christmas Day"),
             ("2027-01-06", "The Epiphany"),

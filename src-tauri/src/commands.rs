@@ -360,6 +360,12 @@ pub struct ServiceDetails {
     color: Option<LiturgicalColor>,
     announcements_deck: Option<String>,
     stream_key: Option<String>,
+    #[serde(default)]
+    rite: Option<episco_core::bcp::Rite>,
+    #[serde(default)]
+    track: Option<u8>,
+    #[serde(default)]
+    bible: Option<episco_core::bible::BibleVersion>,
 }
 
 /// Edits the service's own settings.
@@ -373,6 +379,9 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
         s.color = details.color.or_else(|| details.season.map(Season::default_color));
         s.announcements_deck = clean(details.announcements_deck);
         s.stream_key = clean(details.stream_key).filter(|k| !k.eq_ignore_ascii_case(DEFAULT_KEY_COLOR));
+        s.rite = details.rite;
+        s.track = details.track.filter(|t| matches!(t, 1 | 2));
+        s.bible = details.bible;
         s.modified = true;
         s.rebuild_all();
         Ok(())

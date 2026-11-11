@@ -19,24 +19,41 @@ When the app opens, it shows **Services**. Open it again any time with
 * **Open file…** opens a service plan from anywhere, and **Example** loads the
   built-in example.
 
+### Rite, readings and Bible
+
+Both cards have three choices, remembered for next time:
+
+| Choice | Options | What it does |
+| --- | --- | --- |
+| Rite | Rite II (default), Rite I | The service texts (Collect for Purity, Gloria, Creed, Confession, Peace, Great Thanksgiving, Lord's Prayer, Postcommunion, …) and the Collect of the Day in contemporary or traditional language. Rite I services also include the Prayer of Humble Access. |
+| Readings | Track 1 (default), Track 2 | Which Old Testament reading and psalm to use in the Season after Pentecost. |
+| Bible | NRSVue (default), NRSV | The translation offered when you paste reading texts (see [library.md](library.md#reading-texts)). |
+
+The same three are in **⚙ Service** for the open service. Changing them
+there affects texts added from then on.
+
 ### Starting from
 
 New and scheduled services start from either:
 
-* **Standard Rite II order**, built from the Library and adjusted for the
-  season: Welcome & Announcements, Entrance Hymn, Opening Acclamation (Easter
-  or Lent form in those seasons), Collect for Purity, Gloria (Kyrie in Advent
-  and Lent), Salutation, Sermon, Nicene Creed, Confession, Absolution, Peace,
-  Offertory Hymn, Great Thanksgiving, Sanctus, Lord's Prayer, Breaking of the
-  Bread, Invitation, Communion Hymn, Postcommunion Prayer, Closing Hymn,
-  Dismissal and the post-service announcements loop. Hymn slots hold a note
-  until you fill them.
-* **Copy of** an existing service: everything except its propers (readings,
-  psalm, Gospel and Collect of the Day), with its own copies of the texts and
-  its custom backgrounds kept.
+* **Standard order**, built from the Library in the chosen rite and adjusted
+  for the season: Welcome & Announcements, Entrance Hymn, Opening Acclamation
+  (Easter or Lent form in those seasons), Collect for Purity, Gloria (Kyrie in
+  Advent and Lent), Salutation, **the propers**, Sermon, Nicene Creed,
+  Confession, Absolution, Peace, Offertory Hymn, Great Thanksgiving, Sanctus,
+  Lord's Prayer, Breaking of the Bread, (Prayer of Humble Access in Rite I),
+  Invitation, Communion Hymn, Postcommunion Prayer, Closing Hymn, Dismissal and
+  the post-service announcements loop. Hymn slots hold a note until you fill
+  them.
+* **Copy of** an existing service: everything except its propers, with its
+  own copies of the texts and its custom backgrounds kept. The new day's
+  propers are added in the same place.
 
-Then open the service and use **+ Add → Import propers** to add that day's
-readings and collect (see [library.md](library.md)).
+**The propers are added automatically** from the lectionary for the date:
+the Collect of the Day, the first reading and psalm (of the chosen track),
+the second reading and the Gospel, with the psalm's verses from the Prayer
+Book. To choose a holy day or different readings instead, use
+**Library → Propers…** (see [library.md](library.md#propers)).
 
 ## Autosave
 

@@ -315,6 +315,7 @@ select.overridden, .bg-button.overridden { border-color: var(--accent); }
 .home-card h3 { margin: 0; font-size: 15px; }
 .home-card p { margin: 0; }
 .home-row { display: grid; grid-template-columns: 170px 1fr; gap: 10px; }
+.home-row.three { grid-template-columns: 1fr 1fr 1fr; }
 .home-card-actions { display: flex; justify-content: flex-end; margin-top: auto; }
 .day-info { min-height: 1em; }
 .svc-list { display: flex; flex-direction: column; gap: 4px; }
@@ -404,3 +405,17 @@ details.past > summary { cursor: pointer; color: var(--muted); margin-bottom: 8p
 .brow.antiphon, .brow.antiphon-head { --bar: #efe3c0; --accent: #9a7a1c; }
 .brow.antiphon-head .kind-label { color: #9a7a1c; font-weight: 700; }
 .add-more .antiphon-btn { color: #9a7a1c; font-weight: 600; }
+
+/* ---------------- Propers dialog ---------------- */
+.propers-head { display: flex; align-items: center; gap: 12px; }
+.propers-head h3 { margin: 0; }
+.seg.propers-modes { margin-left: auto; }
+.propers-pane { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.propers-when { display: flex; gap: 12px; align-items: center; }
+.propers-when .grow { flex: 1; }
+.propers-when .grow select { flex: 1; min-width: 0; }
+.propers-results { max-height: 46vh; }
+
+/* ---------------- Reading text (editor) ---------------- */
+.reading-panel .reading-row { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+.reading-panel textarea { width: 100%; min-height: 110px; resize: vertical; font-size: 13px; margin: 6px 0; }

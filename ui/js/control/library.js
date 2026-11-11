@@ -1,12 +1,12 @@
 // Center pane, "Library" tab: reusable items (built-in Rite II texts and
 // the operator's own saved items), browsable by type, with previews; plus the
-// "Import propers" dialog for readings and collects pasted from the lectionary.
+// "Propers" dialog: the Collect, readings and psalm for a date from the lectionary.
 
 import { mountStage, renderOutput } from "/js/render.js";
 import { renderMedia } from "/js/control/media.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
-const lib = { entries: [], category: "all", query: "", selected: null, mine: false, view: "items" };
+const lib = { entries: [], category: "all", query: "", selected: null, mine: false, view: "items", rite: "all" };
 
 /** Items | Media switch at the top of the Library. */
 function viewSwitch() {
@@ -37,6 +37,7 @@ export async function refresh() {
 
 function matches(e) {
   if (lib.mine && e.builtin) return false;
+  if (lib.rite !== "all" && e.rite && e.rite !== lib.rite) return false;
   if (lib.category !== "all" && e.category !== lib.category) return false;
   const q = lib.query.trim().toLowerCase();
   return !q || `${e.title} ${e.citation ?? ""} ${e.summary}`.toLowerCase().includes(q);
@@ -68,6 +69,9 @@ function render() {
       el(`button.chip${lib.category === c ? ".active" : ""}`, { onclick: () => { lib.category = c; render(); } }, c === "all" ? "All" : titleCase(c)),
     ),
     el(`button.chip${lib.mine ? ".active" : ""}`, { title: "Only items you saved", onclick: () => { lib.mine = !lib.mine; render(); } }, "★ Mine"),
+    ["I", "II"].map((r) =>
+      el(`button.chip${lib.rite === r ? ".active" : ""}`, { title: `Only Rite ${r} texts (and those common to both)`, onclick: () => { lib.rite = lib.rite === r ? "all" : r; render(); } }, `Rite ${r}`),
+    ),
   );
   const list = el(
     "div.lib-list",
@@ -86,7 +90,7 @@ function render() {
               e.title,
               e.builtin ? el("span.badge", {}, "Built-in") : el("span.badge.own", {}, "Mine"),
             ),
-            el("div.lib-meta", {}, [titleCase(e.category), e.citation, e.season, `${e.slides} slide${e.slides === 1 ? "" : "s"}`].filter(Boolean).join(" · ")),
+            el("div.lib-meta", {}, [titleCase(e.category), e.rite ? `Rite ${e.rite}` : null, e.citation, e.season, `${e.slides} slide${e.slides === 1 ? "" : "s"}`].filter(Boolean).join(" · ")),
             el("div.lib-summary", {}, e.summary),
           ),
         )
@@ -102,7 +106,7 @@ function render() {
         {},
         viewSwitch(),
         search,
-        el("button.small", { title: "Paste readings and the collect from the lectionary page", onclick: openPropers }, "Import propers…"),
+        el("button.small", { title: "The day's Collect, readings and psalm from the lectionary", onclick: openPropers }, "Propers…"),
       ),
       chips,
       list,
@@ -181,7 +185,7 @@ export async function saveCueToLibrary(cue) {
   if (id) toast(`Saved “${cue.title}” to your library`);
 }
 
-// ---------- Import propers ----------
+// ---------- Propers ----------
 
 const KIND_LABELS = {
   collect: "Collect of the Day",
@@ -192,36 +196,51 @@ const KIND_LABELS = {
   reading: "Reading",
 };
 
+/** The next Sunday (or today, if Sunday) as YYYY-MM-DD. */
+function nextSunday() {
+  const d = new Date();
+  d.setDate(d.getDate() + ((7 - d.getDay()) % 7));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * The Propers dialog: the day's Collect, readings and psalm from the
+ * lectionary (by date), or from a pasted lectionary page.
+ */
 export function openPropers() {
-  const text = el("textarea.propers-text", {
-    placeholder:
-      "On the lectionary page for the day, select everything (⌘A), copy (⌘C), and paste here (⌘V).\n\nThe app finds the day, the collect and the scripture citations. Reading texts are not imported: the screens show the citation and responses.",
-  });
+  const remember = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+  const recall = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+  const svc = app.service;
+  // The service's own choices win over the last ones used here.
+  const serviceRite = svc ? (svc.rite === "I" ? "Rite I" : "Rite II") : null;
+  const serviceTrack = svc ? `Track ${svc.track ?? 1}` : null;
+
   const results = el("div.propers-results");
   let parsed = null;
 
-  const remember = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
-  const recall = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
-
-  const find = async () => {
-    parsed = await call("parse_propers", { text: text.value });
-    if (!parsed) return;
-    if (!parsed.items.length) {
-      results.replaceChildren(el("p.muted", {}, "No collect or scripture citations found in that text."));
+  /** Shows importable items with Collect (rite) and Readings (track) pickers. */
+  const showItems = (data, note) => {
+    parsed = data;
+    if (!parsed?.items?.length) {
+      results.replaceChildren(el("p.muted", {}, note ?? "No collect or readings found."));
       return;
     }
     const variantsOf = (pred) => [...new Set(parsed.items.filter(pred).map((i) => i.variant).filter(Boolean))];
     const rites = variantsOf((i) => i.kind === "collect");
-    const tracks = variantsOf((i) => i.kind !== "collect");
+    const tracks = variantsOf((i) => i.kind !== "collect" && /^Track/.test(i.variant ?? ""));
+    const pick = (list, own, key, def) => {
+      const want = own ?? recall(key, def);
+      return list.includes(want) ? want : list.find((x) => x === def) ?? list[0];
+    };
     const choice = {
-      rite: rites.includes(recall("propers.rite", "Rite II")) ? recall("propers.rite", "Rite II") : rites.at(-1),
-      track: tracks.includes(recall("propers.track", "Track 1")) ? recall("propers.track", "Track 1") : tracks[0],
+      rite: pick(rites, serviceRite, "propers.rite", "Rite II"),
+      track: pick(tracks, serviceTrack, "propers.track", "Track 1"),
     };
     const boxes = [];
     const applyChoice = () =>
       boxes.forEach(({ item, box }) => {
-        const pick = item.kind === "collect" ? choice.rite : choice.track;
-        box.checked = !item.alternative && (!item.variant || item.variant === pick);
+        const want = item.kind === "collect" ? choice.rite : /^Track/.test(item.variant ?? "") ? choice.track : null;
+        box.checked = !item.alternative && (!want || item.variant === want);
       });
     const picker = (label, options, key, store) =>
       options.length > 1
@@ -262,19 +281,15 @@ export function openPropers() {
         item.variant ? el("span.badge", {}, item.variant) : null,
         item.alternative ? el("span.badge", {}, "or") : null,
       );
-      if (item.kind === "psalm" && !item.verses?.length) {
+      if (item.kind !== "psalm") return row;
+      if (!item.verses?.length) {
         return el(
           "div.propers-psalm",
           {},
           row,
-          el(
-            "p.warn-note.propers-psalm-opts",
-            {},
-            "No verses were found for this psalm in the pasted text. It will be added as a title slide; open it in the Editor and paste the verses into Psalm layout.",
-          ),
+          el("p.warn-note.propers-psalm-opts", {}, "No Prayer Book verses for this one. It will be added as a title slide; paste the text in the Editor (Psalm layout)."),
         );
       }
-      if (item.kind !== "psalm") return row;
       // Psalm: verses become slides; optional antiphon.
       const antiphon = el("input.antiphon", {
         placeholder: "Antiphon (optional): sung by all at the start and end",
@@ -294,7 +309,7 @@ export function openPropers() {
         el(
           "div.propers-psalm-opts",
           {},
-          el("span.muted.small", {}, `${item.verses.length} verses → ${Math.ceil(item.verses.length / 2)} slides, choir plain / congregation bold`),
+          el("span.muted.small", {}, `${item.verses.length} verses → ${Math.ceil(item.verses.length / 2)} slides, choir plain / people bold`),
           antiphon,
           every,
         ),
@@ -313,6 +328,68 @@ export function openPropers() {
       ...rows,
     );
   };
+
+  // ---- from the lectionary ----
+  const date = el("input", { type: "date", value: svc?.date ?? nextSunday() });
+  const observance = el("select.observance");
+  const dayInfo = el("span.muted.small");
+  const load = async (which) => {
+    if (!date.value) return;
+    const dp = await call("lectionary_propers", { date: date.value, observance: which ?? null });
+    if (!dp) return;
+    dayInfo.textContent = `${dp.day.name} · Year ${dp.day.year}${dp.day.proper ? ` · Proper ${dp.day.proper}` : ""}`;
+    observance.replaceChildren(
+      ...(dp.observance ? [] : [el("option", { value: "", selected: true }, "— choose an observance —")]),
+      ...dp.observances.map((o) => el("option", { value: o, selected: o === dp.observance }, o)),
+    );
+    showItems(
+      { day: dp.title ?? dp.day.name, items: dp.items },
+      dp.observance ? "This observance has no collect or readings in the lectionary." : "No Sunday or holy day on this date: choose an observance (a holy day, the Common of Saints, a lesser feast).",
+    );
+  };
+  date.addEventListener("change", () => load());
+  observance.addEventListener("change", () => load(observance.value || null));
+  const lectionaryPane = el(
+    "div.propers-pane",
+    {},
+    el(
+      "div.propers-when",
+      {},
+      el("label.field.inline", {}, el("span", {}, "Date"), date),
+      el("label.field.inline.grow", {}, el("span", {}, "Observance"), observance),
+    ),
+    dayInfo,
+  );
+
+  // ---- from a pasted page ----
+  const text = el("textarea.propers-text", {
+    placeholder:
+      "On the lectionary page for the day, select everything (⌘A), copy (⌘C), and paste here (⌘V).\n\nThe app finds the day, the collect and the scripture citations.",
+  });
+  const pastePane = el(
+    "div.propers-pane",
+    { hidden: true },
+    text,
+    el(
+      "div.modal-actions.left",
+      {},
+      el("button", { onclick: async () => showItems(await call("parse_propers", { text: text.value }), "No collect or scripture citations found in that text.") }, "Find readings & collect"),
+    ),
+  );
+  const mode = (m) => {
+    lectionaryPane.hidden = m !== "lectionary";
+    pastePane.hidden = m !== "paste";
+    tabs.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.mode === m));
+    results.replaceChildren();
+    parsed = null;
+    if (m === "lectionary") load(observance.value || null);
+  };
+  const tabs = el(
+    "div.seg.propers-modes",
+    {},
+    el("button.active", { dataset: { mode: "lectionary" }, onclick: () => mode("lectionary") }, "Lectionary"),
+    el("button", { dataset: { mode: "paste" }, onclick: () => mode("paste") }, "Paste a page"),
+  );
 
   const close = () => overlay.remove();
   const addChosen = async () => {
@@ -336,18 +413,18 @@ export function openPropers() {
     el(
       "div.modal.wide",
       {},
-      el("h3", {}, "Import propers"),
+      el("div.propers-head", {}, el("h3", {}, "Propers"), tabs),
       el(
         "p.muted.small",
         {},
-        "Paste the day's page from lectionary.episcopalchurch.org (or any list of readings). Tick the items to add; they go after the selected cue.",
+        "The Collect of the Day (Rite I or II), the readings and the psalm (verses from the Prayer Book) for a date. Tick the items to add; they go after the selected cue.",
       ),
-      text,
-      el("div.modal-actions.left", {}, el("button", { onclick: find }, "Find readings & collect")),
+      lectionaryPane,
+      pastePane,
       results,
       el("div.modal-actions", {}, el("button", { onclick: close }, "Cancel"), el("button.primary", { onclick: addChosen }, "Add to service")),
     ),
   );
   document.body.append(overlay);
-  text.focus();
+  load();
 }

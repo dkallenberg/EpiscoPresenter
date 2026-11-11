@@ -614,7 +614,31 @@ fn evangelist(citation: &str) -> Option<&'static str> {
 /// readings get a title slide and the responses; the Gospel gets both
 /// acclamations; the collect gets the text and the people's Amen.
 pub fn build_document(item: &ProperItem, day: Option<&str>) -> LiturgyDocument {
+    build_document_in(item, day, crate::bcp::Rite::Two)
+}
+
+/// [`build_document`] for a service in `rite`: Rite I has its own Gospel
+/// responses ("Glory be to thee, O Lord") and traditional-language canticles.
+pub fn build_document_in(item: &ProperItem, day: Option<&str>, rite: crate::bcp::Rite) -> LiturgyDocument {
+    use crate::bcp::{self, Rite};
+    if rite == Rite::One && item.kind == ProperKind::Psalm {
+        if let Some(t) = bcp::canticle_number(&item.citation).and_then(bcp::traditional_canticle) {
+            if let (Some(c), Some(verses)) = (bcp::canticle(t), bcp::canticle_verses(t)) {
+                let mut traditional = item.clone();
+                traditional.citation = format!("Canticle {t}: {}", c.title);
+                traditional.verses = verses;
+                return build_document_in(&traditional, day, Rite::Two);
+            }
+        }
+    }
+    let (glory, praise) = match rite {
+        Rite::One => ("Glory be to thee, O Lord.", "Praise be to thee, O Christ."),
+        Rite::Two => ("Glory to you, Lord Christ.", "Praise to you, Lord Christ."),
+    };
     let mut meta = FrontMatter::default();
+    if rite == Rite::One {
+        meta.extra.push(("rite".into(), "I".into()));
+    }
     let mut blocks = Vec::new();
     match item.kind {
         ProperKind::Collect => {
@@ -657,11 +681,10 @@ pub fn build_document(item: &ProperItem, day: Option<&str>) -> LiturgyDocument {
                 Role::Deacon,
                 [format!("The Holy Gospel of our Lord Jesus Christ according to {who}.")],
             ));
-            blocks.push(Block::Paragraph { role: Some(Role::People), lines: vec![bold("Glory to you, Lord Christ.")] });
+            blocks.push(Block::Paragraph { role: Some(Role::People), lines: vec![bold(glory)] });
             blocks.push(Block::SlideBreak);
             blocks.push(Block::speech(Role::Deacon, ["The Gospel of the Lord."]));
-            blocks
-                .push(Block::Paragraph { role: Some(Role::People), lines: vec![bold("Praise to you, Lord Christ.")] });
+            blocks.push(Block::Paragraph { role: Some(Role::People), lines: vec![bold(praise)] });
         }
         ProperKind::FirstReading | ProperKind::SecondReading | ProperKind::Reading => {
             let label = match item.kind {

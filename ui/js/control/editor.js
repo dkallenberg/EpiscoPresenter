@@ -147,12 +147,15 @@ function render(c) {
     root.replaceChildren(header(c), announcementsPanel(c), looks);
   } else {
     root.replaceChildren(
-      header(c),
-      el("div#live-banner.live-banner", { hidden: true }),
-      looks,
-      metaForm(c),
-      c.category === "psalm" ? psalmPanel(c) : null,
-      blockList(),
+      ...[
+        header(c),
+        el("div#live-banner.live-banner", { hidden: true }),
+        looks,
+        metaForm(c),
+        c.category === "psalm" ? psalmPanel(c) : null,
+        ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
+        blockList(),
+      ].filter(Boolean),
     );
   }
   refreshLooks(c);
@@ -454,6 +457,69 @@ function psalmPanel(c) {
       "p.muted.small",
       {},
       "Apply rebuilds the slides from the verses, keeping who sings each verse. Or place antiphons by hand: ♫ Antiphon between verses copies the first antiphon there. Choose Choir or People beside each verse; the people’s verses are bold.",
+    ),
+  );
+}
+
+// ----- reading text -----
+
+/** The text of a reading from the NRSV or NRSVue, pasted from a licensed
+ *  source (the app cannot include it), laid out as slides. */
+function readingPanel(c) {
+  const citation = ed.doc.meta.citation ?? "";
+  const textBlocks = ed.doc.blocks.filter((b) => b.kind === "paragraph" && !b.role).length;
+  const current = extraOf(ed.doc, "bible");
+  const version = el(
+    "select",
+    { disabled: app.readonly },
+    [["NRSVue", "NRSVue (Updated Edition, 2021)"], ["NRSV", "NRSV (1989)"]].map(([v, l]) =>
+      el("option", { value: v, selected: v === (current ?? app.service?.bible ?? "NRSVue") }, l),
+    ),
+  );
+  const words = el(
+    "select",
+    { disabled: app.readonly },
+    [[30, "Short slides (~30 words)"], [40, "~40 words a slide"], [55, "~55 words a slide"], [70, "Long slides (~70 words)"]].map(([v, l]) =>
+      el("option", { value: v, selected: v === 40 }, l),
+    ),
+  );
+  const paste = el("textarea", {
+    placeholder: citation
+      ? `Paste ${citation} here, copied from the page that opens with “Open ${citation}”. Verse numbers, headings, footnotes and the copyright notice are removed.`
+      : "Set the citation above first.",
+    disabled: app.readonly,
+  });
+  const apply = async (text) => {
+    await flush(true);
+    const n = await call("reading_set_text", { id: c.id, text, version: version.value, words: Number(words.value) });
+    if (n != null) toast(text ? `Reading text set: ${n} slide${n === 1 ? "" : "s"}` : "Reading text removed");
+  };
+  return el(
+    "details.section.reading-panel",
+    { open: !textBlocks },
+    el("summary", {}, "Reading text", el("span.muted.small", {}, textBlocks ? ` · ${textBlocks} slides (${current ?? "?"})` : " · citation and responses only")),
+    el(
+      "div.reading-row",
+      {},
+      field("Bible", version),
+      el("button", {
+        disabled: !citation,
+        title: "Opens the passage in your browser: Bible Gateway (NRSVue) or the Oremus Bible Browser (NRSV)",
+        onclick: () => call("open_passage", { citation, version: version.value }),
+      }, citation ? `Open ${citation} ↗` : "Open passage ↗"),
+      field("Slides", words),
+    ),
+    paste,
+    el(
+      "div.reading-row",
+      {},
+      el("button.primary", { disabled: app.readonly, onclick: () => paste.value.trim() ? apply(paste.value) : toast("Paste the reading first.", "warn") }, "Apply"),
+      textBlocks ? el("button", { disabled: app.readonly, onclick: () => apply("") }, "Remove text") : null,
+    ),
+    el(
+      "p.muted.small",
+      {},
+      "The NRSV and NRSVue are copyright the National Council of Churches, so the app cannot include their text. Copy the passage from a licensed source and paste it here; the version's initials are added after the reading, as the NCC asks for service use.",
     ),
   );
 }

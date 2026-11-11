@@ -52,6 +52,15 @@ pub struct Service {
     /// Colour the stream's lower thirds are keyed on (default blue).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream_key: Option<String>,
+    /// Rite I (traditional) or Rite II (contemporary); `None` is Rite II.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rite: Option<crate::bcp::Rite>,
+    /// Season after Pentecost: lectionary Track 1 or 2; `None` is Track 1.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub track: Option<u8>,
+    /// Translation for reading texts; `None` is the NRSVue.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bible: Option<crate::bible::BibleVersion>,
     /// Default looks per item type (`[looks.<type>]` in the plan).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub looks: BTreeMap<ElementCategory, CueLooks>,
@@ -484,6 +493,9 @@ impl Service {
             announcements_deck: plan.announcements_deck,
             stream_key: plan.stream_key,
             looks: plan.looks,
+            rite: plan.rite.as_deref().and_then(crate::bcp::Rite::parse),
+            track: plan.track.filter(|t| matches!(t, 1 | 2)),
+            bible: plan.bible.as_deref().and_then(crate::bible::BibleVersion::parse),
             ..Default::default()
         };
 
@@ -612,6 +624,9 @@ impl Service {
             color: self.color.filter(|c| Some(*c) != self.season.map(Season::default_color)).map(|c| c.label().into()),
             announcements_deck: self.announcements_deck.clone(),
             stream_key: self.stream_key.clone(),
+            rite: self.rite.filter(|r| *r == crate::bcp::Rite::One).map(|_| "I".into()),
+            track: self.track.filter(|t| *t == 2),
+            bible: self.bible.map(|b| b.initials().into()),
             looks: self.looks.clone(),
             cues,
         };
@@ -654,6 +669,14 @@ struct ServicePlan {
     announcements_deck: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     stream_key: Option<String>,
+    /// `"I"` or `"II"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    rite: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    track: Option<u8>,
+    /// `"NRSV"` or `"NRSVue"`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bible: Option<String>,
     // Tables must follow plain values in TOML.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     looks: BTreeMap<ElementCategory, CueLooks>,

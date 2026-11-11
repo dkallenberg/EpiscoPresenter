@@ -4,16 +4,21 @@
 //! * [`look`] — backgrounds and text layouts per output, with defaults per
 //!   item type.
 //! * [`document`] — a parsed liturgy item ([`LiturgyDocument`]) and slides.
+//! * [`bcp`] — Psalter, canticles and collects of the 1979 Prayer Book.
+//! * [`lectionary`] — the Sunday and holy-day propers for a date.
 //! * [`ewm`] — the Episcopal Worship Markdown reader / writer.
 //! * [`service`] — a service plan (ordered cues) and its on-disk TOML format.
 //! * [`template`] — the operator's slide layouts (positions and fonts).
 //! * [`state`] — the live presentation state and the commands that drive it,
 //!   shared by the operator UI, the sync network and the tablet remote.
 
+pub mod bcp;
+pub mod bible;
 pub mod calendar;
 pub mod category;
 pub mod document;
 pub mod ewm;
+pub mod lectionary;
 pub mod look;
 pub mod propers;
 pub mod role;

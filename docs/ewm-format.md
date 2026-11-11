@@ -41,6 +41,8 @@ escapes, or `'...'` with `''` for a quote). Lines starting with `#` are comments
 | `setting_image` | Psalms: image of the musical setting, shown on the stream between the gold title box and the text bar | image path |
 | `antiphon`, `antiphon_every`, `antiphon_placed`, `verses_per_slide` | Psalms: how **Apply** in the Psalm layout panel arranges the slides | text, number, `true`, number |
 | `media` | A media item (image or video shown full screen) | file path |
+| `rite` | Which rite a text belongs to (shown in the Library) | `I`, `II` |
+| `bible` | Translation of a reading's pasted text | `NRSV`, `NRSVue` |
 
 If `color` is omitted it follows the season (Advent → Blue, Christmas/Easter →
 White, Epiphany/Pentecost → Green, Lent → Violet, Holy Week → Red). If
@@ -176,6 +178,9 @@ title = "Holy Eucharist, Rite II — Proper 27"
 date = "2026-11-08"
 season = "Pentecost"                 # default colour for cues that set none
 announcements_deck = "https://docs.google.com/presentation/d/e/…/pub"
+rite = "I"                           # optional: Rite I (default Rite II)
+track = 2                            # optional: lectionary Track 2 (default 1)
+bible = "NRSV"                       # optional: for reading texts (default NRSVue)
 
 [[cue]]
 file = "liturgies/hymn-436.ewm"

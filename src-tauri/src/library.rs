@@ -31,7 +31,7 @@ macro_rules! builtin {
     };
 }
 
-/// Built-in items, in the order of the Rite II service.
+/// Built-in items, in the order of the service: Rite II, then Rite I.
 const BUILTIN: &[(&str, &str)] = builtin![
     "acclamation-ordinary",
     "acclamation-easter",
@@ -56,6 +56,28 @@ const BUILTIN: &[(&str, &str)] = builtin![
     "dismissal-go-in-peace",
     "dismissal-rejoicing",
     "dismissal-bless-the-lord",
+    "rite1/acclamation-ordinary",
+    "rite1/acclamation-easter",
+    "rite1/acclamation-lent",
+    "rite1/collect-for-purity",
+    "rite1/summary-of-the-law",
+    "rite1/kyrie",
+    "rite1/gloria-in-excelsis",
+    "rite1/salutation",
+    "rite1/nicene-creed",
+    "rite1/confession",
+    "rite1/confession-short",
+    "rite1/absolution",
+    "rite1/the-peace",
+    "rite1/sursum-corda",
+    "rite1/sanctus",
+    "rite1/lords-prayer",
+    "rite1/fraction-anthem",
+    "rite1/agnus-dei",
+    "rite1/humble-access",
+    "rite1/invitation",
+    "rite1/postcommunion",
+    "rite1/blessing",
 ];
 
 #[derive(Serialize)]
@@ -68,6 +90,9 @@ pub struct LibraryEntry {
     citation: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     season: Option<String>,
+    /// "I" or "II" for texts that differ between the rites.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rite: Option<String>,
     builtin: bool,
     /// First words of the text, for the list.
     summary: String,
@@ -97,6 +122,7 @@ fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
         category: doc.meta.effective_category().key().to_string(),
         citation: doc.meta.citation.clone(),
         season: doc.meta.season.map(|s| s.label().to_string()),
+        rite: doc.meta.extra("rite").map(String::from),
         builtin,
         summary,
         slides: doc.slides().len(),
@@ -240,7 +266,8 @@ pub fn add_propers(
     day: Option<String>,
     after: Option<usize>,
 ) -> CmdResult<Vec<String>> {
-    let docs = items.iter().map(|i| propers::build_document(i, day.as_deref())).collect();
+    let rite = engine.service().and_then(|s| s.rite).unwrap_or_default();
+    let docs = items.iter().map(|i| propers::build_document_in(i, day.as_deref(), rite)).collect();
     insert_documents(&engine, docs, after)
 }
 
@@ -278,4 +305,55 @@ pub fn psalm_arrange(
         s.set_document(&id, arranged).map_err(|e| e.to_string())?;
         Ok(count)
     })
+}
+
+// ---- the lectionary --------------------------------------------------------
+
+/// The propers for a date from the lectionary: the observances possible
+/// that day and the chosen one's Collect (both rites) and readings (both
+/// tracks), with psalm verses from the Prayer Book.
+#[tauri::command]
+pub fn lectionary_propers(date: String, observance: Option<String>) -> CmdResult<episco_core::lectionary::DayPropers> {
+    let date: episco_core::calendar::Date = date.parse()?;
+    Ok(episco_core::lectionary::for_date(date, observance.as_deref()))
+}
+
+/// Sets (or, with empty text, removes) the text of a reading from pasted
+/// NRSV / NRSVue text, laid out about `words` words to a slide.
+#[tauri::command]
+pub fn reading_set_text(
+    engine: State<'_, Engine>,
+    id: String,
+    text: String,
+    version: episco_core::bible::BibleVersion,
+    words: Option<usize>,
+) -> CmdResult<usize> {
+    engine.edit_service(|s| {
+        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
+        let new = episco_core::bible::set_reading_text(doc, &text, version, words.unwrap_or(40));
+        let slides =
+            new.blocks.iter().filter(|b| matches!(b, episco_core::Block::Paragraph { role: None, .. })).count();
+        s.set_document(&id, new).map_err(|e| e.to_string())?;
+        Ok(slides)
+    })
+}
+
+/// The web page to copy a reading's text from.
+#[tauri::command]
+pub fn reading_url(citation: String, version: episco_core::bible::BibleVersion) -> String {
+    version.passage_url(&citation)
+}
+
+/// Opens a reading's page on Bible Gateway / Oremus in the browser.
+#[tauri::command]
+pub fn open_passage(citation: String, version: episco_core::bible::BibleVersion) -> CmdResult<()> {
+    let url = version.passage_url(&citation);
+    let status = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(&url).status()
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd").args(["/C", "start", "", &url]).status()
+    } else {
+        std::process::Command::new("xdg-open").arg(&url).status()
+    };
+    status.map(|_| ()).map_err(|e| format!("could not open the browser: {e}"))
 }

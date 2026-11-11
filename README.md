@@ -16,8 +16,8 @@ over the LAN, and builds everything from one plain-text liturgy format
 | 4. Google Slides | Data model only (`announcements` cues, pre-service state) |
 | 5. Scripts and bulletins | Not started |
 | 6. Tablet remote | The protocol is ready (`remote` client role); web app not started |
-| Services & autosave | Services screen at start-up, scheduling about a month of Sundays ahead with church-year names, autosave ([services](docs/services.md)) |
-| Library & propers | Built-in Rite II texts, your saved items, a media library (images, videos), and readings/collect/psalm import from a pasted lectionary page ([library](docs/library.md)) |
+| Services & autosave | Services screen at start-up, scheduling about a month of Sundays ahead with church-year names and the day's propers, Rite I or Rite II, autosave ([services](docs/services.md)) |
+| Library & propers | Built-in Rite I and Rite II texts, your saved items, a media library (images, videos); the lectionary (Years A–C, Tracks 1 & 2, holy days) with BCP collects (both rites), Psalter and canticles; NRSV/NRSVue reading texts pasted from a licensed source ([library](docs/library.md)) |
 | Slide layouts | Layout tool: place every piece of each slide type and set its font, size and colour ([layouts](docs/layouts.md)) |
 
 ## Layout

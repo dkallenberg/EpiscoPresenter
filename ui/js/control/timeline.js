@@ -38,7 +38,7 @@ export function initTimeline() {
   // Add menu
   menu.replaceChildren(
     el("button", { onclick: () => document.querySelector('.tabs button[data-tab="library"]').click() }, "From library…"),
-    el("button", { onclick: () => openPropers() }, "Import propers (readings & collect)…"),
+    el("button", { onclick: () => openPropers() }, "Propers (Collect, readings, psalm)…"),
     el("button", { onclick: () => addFiles() }, "Add .ewm files…"),
     el("hr"),
     ...NEW_ITEMS.map(([key, label]) => el("button", { onclick: () => newItem(key) }, `New ${label}`)),

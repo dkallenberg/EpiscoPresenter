@@ -70,9 +70,30 @@ function templateSelect() {
   return el(
     "select",
     {},
-    el("option", { value: "" }, "Standard Rite II order (from the Library)"),
+    el("option", { value: "" }, "Standard order (from the Library)"),
     copies.map((s) => el("option", { value: s.path }, `Copy of ${s.title} — ${formatDate(s.date, { month: "short", day: "numeric", year: "numeric" })}`)),
   );
+}
+
+const remember = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const recall = (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+
+/** Rite, track and Bible version for new services (remembered). */
+function serviceOptions() {
+  const sel = (key, def, opts, title) =>
+    el(
+      "select",
+      { title, onchange: (e) => remember(key, e.target.value) },
+      opts.map(([v, l]) => el("option", { value: v, selected: v === recall(key, def) }, l)),
+    );
+  const rite = sel("svc.rite", "II", [["II", "Rite II"], ["I", "Rite I"]], "Contemporary (Rite II) or traditional (Rite I) language");
+  const track = sel("svc.track", "1", [["1", "Track 1"], ["2", "Track 2"]], "Season after Pentecost: which Old Testament track");
+  const bible = sel("svc.bible", "NRSVue", [["NRSVue", "NRSVue"], ["NRSV", "NRSV"]], "Translation for reading texts you paste in");
+  const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
+  return {
+    row: el("div.home-row.three", {}, field("Rite", rite), field("Readings", track), field("Bible", bible)),
+    value: () => ({ rite: rite.value, track: Number(track.value), bible: bible.value }),
+  };
 }
 
 function render() {
@@ -96,9 +117,15 @@ function render() {
   date.addEventListener("change", updateDay);
   updateDay();
   const newTemplate = templateSelect();
+  const newOpts = serviceOptions();
   const create = async () => {
     if (!date.value) return toast("Choose a date", "warn");
-    const plan = await call("service_create", { date: date.value, title: title.value || null, template: newTemplate.value || null });
+    const plan = await call("service_create", {
+      date: date.value,
+      title: title.value || null,
+      template: newTemplate.value || null,
+      options: newOpts.value(),
+    });
     if (plan) {
       hideHome();
       toast("Service created. It saves automatically as you work.");
@@ -108,8 +135,14 @@ function render() {
   // ---- Schedule ----
   const weeks = el("select", {}, [2, 3, 4, 5, 6, 8].map((n) => el("option", { value: n, selected: n === 4 }, `${n} Sundays`)));
   const schedTemplate = templateSelect();
+  const schedOpts = serviceOptions();
   const schedule = async () => {
-    const made = await call("services_schedule", { from: now, weeks: Number(weeks.value), template: schedTemplate.value || null });
+    const made = await call("services_schedule", {
+      from: now,
+      weeks: Number(weeks.value),
+      template: schedTemplate.value || null,
+      options: schedOpts.value(),
+    });
     if (made === undefined) return;
     toast(made.length ? `Scheduled ${made.length} service${made.length === 1 ? "" : "s"}` : "Those Sundays already have services");
     showHome();
@@ -139,6 +172,7 @@ function render() {
           el("div.home-row", {}, field("Date", date), field("Title", title)),
           info,
           field("Start from", newTemplate),
+          newOpts.row,
           el("div.home-card-actions", {}, el("button.primary", { onclick: create }, "Create & open")),
         ),
         el(
@@ -148,9 +182,10 @@ function render() {
           el(
             "p.muted.small",
             {},
-            "Creates a service for each coming Sunday that does not have one yet, named for the day in the church year. Readings and the collect are added later with Import propers.",
+            "Creates a service for each coming Sunday that does not have one yet, named for the day in the church year, with its Collect, readings and psalm from the lectionary.",
           ),
           el("div.home-row", {}, field("How far ahead", weeks), field("Start from", schedTemplate)),
+          schedOpts.row,
           el("div.home-card-actions", {}, el("button.primary", { onclick: schedule }, "Schedule")),
         ),
       ),
@@ -195,7 +230,7 @@ function row(s) {
       "div.svc-badges",
       {},
       current ? el("span.badge.live-open", {}, "Open") : null,
-      s.needs_propers ? el("span.badge.needs", { title: "No readings yet: open it and use + Add → Import propers" }, "Readings needed") : null,
+      s.needs_propers ? el("span.badge.needs", { title: "No readings yet: open it and use Library → Propers…" }, "Readings needed") : null,
     ),
     el(
       "button.icon.danger",

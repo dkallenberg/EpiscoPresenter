@@ -44,42 +44,73 @@ on them in worship.
 Images in the media library also appear in every background picker, and the
 editor's **Choose…** buttons for music images open the media library first.
 
-## Import propers (readings, collect and psalm)
+## Propers
 
-The lectionary site (lectionary.episcopalchurch.org) blocks automated access,
-so the app does not download from it. Instead:
+**Library → Propers…** (also in the timeline's **+ Add** menu) gives the
+Collect of the Day, readings and psalm for a date.
 
-1. Open the day's page in your web browser.
-2. Select all (⌘A) and copy (⌘C).
-3. In the app, select the cue the items should follow (usually the
-   Salutation), open **+ Add → Import propers…**, paste (⌘V), and click
-   **Find readings & collect**.
+### From the lectionary (default)
 
-The app reads the page's structure:
+The date starts at the open service's date. The app names the day in the
+church year and looks it up in the parish's Revised Common Lectionary
+reference (`library/lectionary/rcl.md`):
 
-* **The collect.** The page gives **Rite I** and **Rite II**. The **Collect**
-  selector at the top chooses which one is ticked (Rite II by default, and the
-  app remembers your choice).
-* **The readings.** In the season after Pentecost, the **Readings** selector
-  chooses **Track 1** or **Track 2** (remembered too). The epistle and Gospel
-  belong to both tracks. Scripture references are taken only from the
-  headings ("Old Testament: Judges 4:1-7"), never from the reading texts.
-* **The psalm**, with all its verses. Optionally type an **antiphon**, and
-  choose whether it repeats only at the start and end or also every 2, 4 or 6
-  verses.
+* **Sundays and seasons** of Years A, B and C, with **Track 1** and
+  **Track 2** in the Season after Pentecost (Propers 3–29, chosen by the date
+  as "the Sunday closest to …").
+* **Holy days.** The Prayer Book's precedence rules (BCP pp. 15–17) pick the
+  observance: Principal Feasts take precedence over Sundays; the Presentation,
+  Transfiguration and Holy Cross replace a Sunday after the Epiphany or after
+  Pentecost; other holy days falling on a Sunday are offered under
+  **Observance** but do not replace it; All Saints' Day is also offered on
+  the Sunday after November 1.
+* **Observance** also lists the Common of Saints and the Lesser Feasts for
+  the date, for weekday services.
 
-Change any tick or item type, then click **Add to service**:
+Each item is listed with a tick box:
 
-| Item | Becomes |
+| Item | From |
 | --- | --- |
-| Collect | Collect of the Day: the day's name as heading, the collect, People: **Amen.** |
-| First / Second Reading | title slide ("The First Reading" + citation), then Reader: *The word of the Lord.* People: **Thanks be to God.** |
-| Psalm | verses two per slide, with the verse numbers at the left. Verses alternate choir (plain) and congregation (**bold**), starting with the choir, with no "choir"/"congregation" labels. The antiphon, if any, is bold on its own slides. |
-| Gospel | title slide, both Gospel acclamations, naming the evangelist |
+| Collect of the Day | The 1979 Prayer Book, in **Rite I** and **Rite II** (the **Collect** picker chooses; it starts at the service's rite). Where the book gives a choice ("or this", e.g. Christmas, Easter Day), the others are listed unticked. |
+| Readings | Citations from the lectionary. **Readings** chooses Track 1 or 2 (starting at the service's track). Alternatives ("or …") are listed unticked. |
+| Psalm | The verses from the **1979 Psalter**, with optional verses `[…]` included; canticles (e.g. *Canticle 15: Magnificat*) from the Daily Office, in their traditional form in a Rite I service. |
+| Liturgy of the Palms | On Palm Sunday, unticked. |
 
-Reading texts are not imported: the screens show only citations and
-responses, and the NRSV text is copyrighted. The collects and psalms are from
-the 1979 Book of Common Prayer.
+**Add to service** puts the ticked items after the selected cue. Gospel
+responses follow the service's rite ("Glory to you, Lord Christ" or "Glory be
+to thee, O Lord").
+
+**Corrections to the reference.** Checked against the Prayer Book's own
+lectionary tables, the parish document had three errors, corrected in the
+app's copy (and listed at its top): in Year A the readings for Propers 4–28
+were each listed one Proper early; Proper 3 repeated Proper 4 in all three
+years (it now has the Eighth Sunday after the Epiphany readings); and Year C
+Proper 4 Track 1 repeated Track 2 (now 1 Kings 18:20-21 [22-29] 30-39 with
+Psalm 96).
+
+### Paste a page
+
+The **Paste a page** tab still reads a lectionary web page pasted in (for
+anything the reference does not cover).
+
+### Reading texts
+
+The NRSV and NRSVue are copyright the National Council of Churches, so the
+app does not include or download their text. To show a reading's text:
+
+1. Select the reading (or the Gospel) and open the **Editor**.
+2. In **Reading text**, choose **NRSVue** or **NRSV** and click
+   **Open *citation* ↗**. Your browser opens the passage (Bible Gateway for the
+   NRSVue, the Oremus Bible Browser for the NRSV).
+3. Copy the passage, paste it into the box and click **Apply**.
+
+The app removes the reference and version lines, section headings, verse
+numbers, footnote and cross-reference markers, and the footnotes and copyright
+notice at the end, then lays the text out about 30–70 words to a slide
+(**Slides**) between the title slide (or the Gospel's announcement) and the
+closing response. The version's initials, e.g. "(NRSVue)", follow the last
+slide, as the NCC asks for use in services. **Remove text** goes back to the
+citation and responses only.
 
 ### Psalm layout (after importing)
 
@@ -111,7 +142,7 @@ In the block list:
 A verse is a block whose role is its number (`[1]`, `[2]` … in the `.ewm`
 file).
 
-**Psalm with no verses?** If the import dialog says no verses were found (or a
+**Psalm with no verses?** If the Propers dialog says no verses were found (or a
 psalm was imported with an older version and shows only its title), paste
 the verses into the **Paste verses** box in the Psalm layout panel and click
 **Apply**. Copy them from the lectionary page or anywhere else: each verse
