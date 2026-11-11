@@ -16,6 +16,7 @@
         <button id="btn-save">Save Service</button>
       </div>
       <span id="service-title" class="service-title"></span>
+      <button id="btn-settings" class="small" title="Service title, date, season, colour, announcements deck, stream key colour">⚙ Service</button>
       <span class="spacer"></span>
       <span id="stage-banner" class="stage-banner" hidden></span>
       <span id="link" class="link">…</span>
@@ -45,6 +46,10 @@
           <button data-tab="slides" class="active">Slides</button>
           <button data-tab="editor">Editor</button>
           <button data-tab="source">Source</button>
+          <div class="seg" id="thumb-toggle" title="Which output the slide thumbnails show">
+            <button data-thumbs="sanctuary" class="active">Sanctuary</button>
+            <button data-thumbs="stream">Live stream</button>
+          </div>
         </nav>
         <div id="tab-slides" class="tab active">
           <div id="slide-grid" class="slide-grid"></div>

@@ -3,15 +3,16 @@
 use std::path::{Path, PathBuf};
 
 use episco_core::ewm::{self, Parsed};
+use episco_core::look::{default_look, BUILTIN_BACKGROUNDS, DEFAULT_KEY_COLOR};
 use episco_core::role::RoleStyle;
 use episco_core::service::Loaded;
 use episco_core::{
-    AnnouncementMode, Command, Cue, CueOverrides, ElementCategory, LiturgicalColor, LiturgyDocument, Role,
-    SanctuaryLayout, Season, Service, StreamZone,
+    AnnouncementMode, Command, Cue, CueLooks, CueOverrides, ElementCategory, Layout, LiturgicalColor, LiturgyDocument,
+    Look, Output, Role, Season, Service,
 };
 use episco_sync::NodeConfig;
-use serde::Serialize;
-use tauri::{AppHandle, State};
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::engine::{Engine, Snapshot};
@@ -47,8 +48,8 @@ pub struct RoleInfo {
 #[derive(Serialize)]
 pub struct CategoryInfo {
     key: &'static str,
-    stream_zone: StreamZone,
-    sanctuary_layout: SanctuaryLayout,
+    /// Built-in looks for this type, as the "Default" choice shows them.
+    defaults: CueLooks,
 }
 
 #[derive(Serialize)]
@@ -71,6 +72,9 @@ pub struct Vocabulary {
     categories: Vec<CategoryInfo>,
     seasons: Vec<SeasonInfo>,
     colors: Vec<ColorInfo>,
+    layouts: Vec<Layout>,
+    builtin_backgrounds: Vec<&'static str>,
+    default_key_color: &'static str,
 }
 
 /// Option lists for the editor's selectors, with their formatting.
@@ -85,8 +89,10 @@ pub fn vocabulary() -> Vocabulary {
             .into_iter()
             .map(|c| CategoryInfo {
                 key: c.key(),
-                stream_zone: c.stream_zone(),
-                sanctuary_layout: c.sanctuary_layout(),
+                defaults: CueLooks {
+                    sanctuary: default_look(c, Output::Sanctuary),
+                    stream: default_look(c, Output::Stream),
+                },
             })
             .collect(),
         seasons: Season::ALL.into_iter().map(|s| SeasonInfo { key: s, label: s.label() }).collect(),
@@ -94,6 +100,9 @@ pub fn vocabulary() -> Vocabulary {
             .into_iter()
             .map(|c| ColorInfo { key: c.label(), swatch: c.swatch(), background: c.default_background() })
             .collect(),
+        layouts: Layout::ALL.to_vec(),
+        builtin_backgrounds: BUILTIN_BACKGROUNDS.to_vec(),
+        default_key_color: DEFAULT_KEY_COLOR,
     }
 }
 
@@ -197,9 +206,13 @@ const EXAMPLE_PLAN: &str = include_str!("../../examples/service.toml");
 const EXAMPLE_FILES: &[(&str, &str)] = &[
     ("liturgies/hymn-436.ewm", include_str!("../../examples/liturgies/hymn-436.ewm")),
     ("liturgies/opening-acclamation.ewm", include_str!("../../examples/liturgies/opening-acclamation.ewm")),
+    ("liturgies/collect-for-purity.ewm", include_str!("../../examples/liturgies/collect-for-purity.ewm")),
     ("liturgies/first-reading.ewm", include_str!("../../examples/liturgies/first-reading.ewm")),
     ("liturgies/psalm-78.ewm", include_str!("../../examples/liturgies/psalm-78.ewm")),
+    ("liturgies/gospel.ewm", include_str!("../../examples/liturgies/gospel.ewm")),
+    ("liturgies/sermon.ewm", include_str!("../../examples/liturgies/sermon.ewm")),
     ("liturgies/sursum-corda.ewm", include_str!("../../examples/liturgies/sursum-corda.ewm")),
+    ("liturgies/dismissal.ewm", include_str!("../../examples/liturgies/dismissal.ewm")),
 ];
 
 /// Loads the example service compiled into the app (works on any machine).
@@ -248,7 +261,7 @@ pub async fn add_items(
         let mut ids = Vec::new();
         for (at, (path, doc)) in (start..).zip(parsed) {
             let stem = path.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let cue = Cue::liturgy(s.unique_id(&stem), doc, Some(path), CueOverrides::default(), s.color);
+            let cue = Cue::liturgy(s.unique_id(&stem), doc, Some(path), CueOverrides::default());
             ids.push(s.insert_cue(at, cue));
         }
         Ok(ids)
@@ -279,11 +292,11 @@ pub fn new_item(engine: State<'_, Engine>, after: Option<usize>, category: Eleme
     engine.edit_service(|s| {
         let at = after.map(|a| a + 1).unwrap_or(s.cues.len());
         let cue = if category == ElementCategory::Announcements {
-            Cue::announcements("announcements", AnnouncementMode::SinglePass, CueOverrides::default(), s.color)
+            Cue::announcements("announcements", AnnouncementMode::SinglePass, CueOverrides::default())
         } else {
             let mut doc: LiturgyDocument = template(category).parse().map_err(|e| format!("{e}"))?;
             doc.meta.category = Some(category);
-            let mut cue = Cue::liturgy("", doc, None, CueOverrides::default(), s.color);
+            let mut cue = Cue::liturgy("", doc, None, CueOverrides::default());
             cue.modified = true;
             cue
         };
@@ -313,6 +326,147 @@ pub fn set_announcement_mode(engine: State<'_, Engine>, id: String, mode: Announ
         s.modified = true;
         Ok(())
     })
+}
+
+/// Sets a cue's own look on one output (an empty look clears the override).
+#[tauri::command]
+pub fn set_cue_look(engine: State<'_, Engine>, id: String, output: Output, look: Look) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let mut overrides = s.cue(&id).ok_or("no such cue")?.overrides.clone();
+        *overrides.looks.get_mut(output) = look;
+        s.set_overrides(&id, overrides).map_err(|e| e.to_string())
+    })
+}
+
+/// Sets the service's default look for every item of a type on one output.
+#[tauri::command]
+pub fn set_default_look(
+    engine: State<'_, Engine>,
+    category: ElementCategory,
+    output: Output,
+    look: Look,
+) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        s.set_default_look(category, output, look);
+        Ok(())
+    })
+}
+
+#[derive(Deserialize)]
+pub struct ServiceDetails {
+    title: String,
+    date: Option<String>,
+    season: Option<Season>,
+    color: Option<LiturgicalColor>,
+    announcements_deck: Option<String>,
+    stream_key: Option<String>,
+}
+
+/// Edits the service's own settings.
+#[tauri::command]
+pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -> CmdResult<()> {
+    let clean = |v: Option<String>| v.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    engine.edit_service(|s| {
+        s.title = details.title.trim().to_string();
+        s.date = clean(details.date);
+        s.season = details.season;
+        s.color = details.color.or_else(|| details.season.map(Season::default_color));
+        s.announcements_deck = clean(details.announcements_deck);
+        s.stream_key = clean(details.stream_key).filter(|k| !k.eq_ignore_ascii_case(DEFAULT_KEY_COLOR));
+        s.modified = true;
+        s.rebuild_all();
+        Ok(())
+    })
+}
+
+// ---- background library --------------------------------------------------
+
+const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "svg", "webp"];
+
+#[derive(Serialize)]
+pub struct BackgroundFile {
+    /// What to store in a look: relative to the plan folder when inside it.
+    value: String,
+    name: String,
+    /// Absolute path, for thumbnails.
+    path: PathBuf,
+}
+
+/// Library folders: `backgrounds/` beside the service plan (if saved) and
+/// the app's own `backgrounds/` folder (created on demand).
+fn library_dirs(app: &AppHandle, engine: &Engine) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(dir) = plan_dir(engine) {
+        dirs.push(dir.join("backgrounds"));
+    }
+    if let Ok(d) = app.path().app_data_dir() {
+        dirs.push(d.join("backgrounds"));
+    }
+    dirs
+}
+
+fn plan_dir(engine: &Engine) -> Option<PathBuf> {
+    engine.service()?.plan_path.as_deref()?.parent().map(Path::to_path_buf)
+}
+
+/// How a picked file is referenced from the service.
+fn background_value(engine: &Engine, path: &Path) -> String {
+    let rel = plan_dir(engine).and_then(|d| path.strip_prefix(d).ok().map(Path::to_path_buf));
+    rel.as_deref().unwrap_or(path).to_string_lossy().replace('\\', "/")
+}
+
+fn is_image(p: &Path) -> bool {
+    p.extension().and_then(|e| e.to_str()).is_some_and(|e| IMAGE_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
+}
+
+/// Images in the background library folders.
+#[tauri::command]
+pub fn list_backgrounds(app: AppHandle, engine: State<'_, Engine>) -> Vec<BackgroundFile> {
+    let mut out = Vec::new();
+    for dir in library_dirs(&app, &engine) {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        let mut files: Vec<PathBuf> =
+            entries.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| is_image(p)).collect();
+        files.sort();
+        for path in files {
+            let name = path.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            out.push(BackgroundFile { value: background_value(&engine, &path), name, path });
+        }
+    }
+    out
+}
+
+/// Copies images chosen in a file dialog into the library (beside the plan
+/// if it has been saved, else the app's folder). Returns the new entries.
+#[tauri::command]
+pub async fn import_backgrounds(app: AppHandle, engine: State<'_, Engine>) -> CmdResult<Vec<BackgroundFile>> {
+    let picked = app.dialog().file().add_filter("Image", &IMAGE_EXTENSIONS).blocking_pick_files().unwrap_or_default();
+    let dir = library_dirs(&app, &engine).into_iter().next().ok_or("no library folder is available")?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let mut out = Vec::new();
+    for file in picked {
+        let src = file.into_path().map_err(|e| e.to_string())?;
+        let name = src.file_name().ok_or("bad file name")?;
+        let dest = dir.join(name);
+        if src != dest {
+            std::fs::copy(&src, &dest).map_err(|e| format!("could not copy {}: {e}", src.display()))?;
+        }
+        let stem = dest.file_stem().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+        out.push(BackgroundFile { value: background_value(&engine, &dest), name: stem, path: dest });
+    }
+    Ok(out)
+}
+
+/// Picks any image file as a background without copying it.
+#[tauri::command]
+pub async fn pick_background(app: AppHandle, engine: State<'_, Engine>) -> CmdResult<Option<String>> {
+    let mut dialog = app.dialog().file().add_filter("Image", &IMAGE_EXTENSIONS);
+    if let Some(dir) = plan_dir(&engine) {
+        dialog = dialog.set_directory(dir);
+    }
+    let Some(file) = dialog.blocking_pick_file() else { return Ok(None) };
+    let path = file.into_path().map_err(|e| e.to_string())?;
+    Ok(Some(background_value(&engine, &path)))
 }
 
 #[tauri::command]

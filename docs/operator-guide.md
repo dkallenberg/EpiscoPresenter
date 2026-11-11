@@ -11,6 +11,7 @@ The control window has three panes: the **service timeline** (left), the
 | Open… | Opens a service plan (`.toml`). |
 | Example | Loads the built-in sample service. |
 | Save Service | Saves every changed item that already has a file, then the plan. Shift-click for *Save As*. A ● means there are unsaved changes. |
+| ⚙ Service | Title, date, season, colour, announcements deck and the stream key colour. |
 
 The right end shows the node's role and network status (and latency on a
 slave). A stage message, when one is active, is shown here on every node.
@@ -23,7 +24,8 @@ slave). A stage message, when one is active, is shown here on every node.
   * **LIVE 2/5**: on air, and which slide;
   * the **slide count**, or **GS loop / GS 1×** for a Google Slides cue;
   * **●**: unsaved changes;
-  * a **colour bar**: its liturgical colour (hover for the background image).
+  * a **background thumbnail**: the sanctuary look, with the stream look
+    inset at the corner (hover for the names).
 * **Click** selects a cue (for the editor and slide grid), **double-click** puts
   it on air, **drag** reorders. Hover a row for ↑ ↓ ✕.
 * **+ Add** inserts after the selected cue: existing `.ewm` files (several at
@@ -31,13 +33,31 @@ slave). A stage message, when one is active, is shown here on every node.
 
 ## Slides tab
 
-Every slide of the service as it will look on the sanctuary screen, grouped by
-cue and numbered. Click a slide to put it on air. The live slide has a red frame.
+Every slide of the service, grouped by cue and numbered. The **Sanctuary / Live
+stream** switch at the top right picks which output the thumbnails show. Click
+a slide to put it on air. The live slide has a red frame.
 
 ## Editor tab
 
 Edits the selected item. Changes reach every output about a third of a second
 after you stop typing.
+
+**Backgrounds & layout** (the top section) has a card for each output. Each card
+has a live preview and these settings:
+
+* **Background**: opens a picker with the built-in designs (drawn in the
+  liturgical colour), the key colour, black, and your library images. **Choose
+  image file…** uses any image where it is; **Import to library…** copies
+  images into the `backgrounds/` folder beside the service plan.
+* **Layout**, **Text** and **Fit**. *Auto* shows what the item gets from its
+  type.
+* **Use for all … items**: makes this look the service default for every item
+  of the same type (for example, every Collect), so you set each background
+  once.
+* **Reset**: returns the item to its type's default. A **custom** badge marks
+  an item with its own look.
+
+See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 
 * **Header fields** (title, type, season, colour, background, citation, hymn #)
   are saved in the `.ewm` file. **Timeline label** is saved in the service plan

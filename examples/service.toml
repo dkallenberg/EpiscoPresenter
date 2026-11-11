@@ -1,4 +1,8 @@
 # Example service plan. Paths are relative to this file.
+#
+# Looks (background, layout, text tone) come from built-in defaults per item
+# type. Override them for every item of a type with [looks.<type>.sanctuary]
+# / [looks.<type>.stream], or for one item with [cue.sanctuary] / [cue.stream].
 title = "Holy Eucharist, Rite II — Proper 27"
 date = "2026-11-08"
 season = "Pentecost"
@@ -6,10 +10,13 @@ announcements_deck = "https://docs.google.com/presentation/d/e/EXAMPLE/pub"
 
 [[cue]]
 file = "liturgies/hymn-436.ewm"
-title = "Processional Hymn"
+title = "Entrance Hymn"
 
 [[cue]]
 file = "liturgies/opening-acclamation.ewm"
+
+[[cue]]
+file = "liturgies/collect-for-purity.ewm"
 
 [[cue]]
 file = "liturgies/first-reading.ewm"
@@ -18,7 +25,20 @@ file = "liturgies/first-reading.ewm"
 file = "liturgies/psalm-78.ewm"
 
 [[cue]]
+file = "liturgies/gospel.ewm"
+
+[[cue]]
+file = "liturgies/sermon.ewm"
+
+[[cue]]
 file = "liturgies/sursum-corda.ewm"
 
 [[cue]]
 announcements = "single_pass"
+
+[[cue]]
+file = "liturgies/dismissal.ewm"
+
+# The dismissal is a prayer, but on the stream it is a lower third.
+[cue.stream]
+layout = "lower_third"

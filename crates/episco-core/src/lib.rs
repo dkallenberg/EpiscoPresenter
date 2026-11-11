@@ -1,7 +1,8 @@
 //! Core data model for EpiscoPresenter.
 //!
-//! * [`role`], [`season`], [`category`] — liturgical vocabulary and the
-//!   presentation rules derived from it.
+//! * [`role`], [`season`], [`category`] — liturgical vocabulary.
+//! * [`look`] — backgrounds and text layouts per output, with defaults per
+//!   item type.
 //! * [`document`] — a parsed liturgy item ([`LiturgyDocument`]) and slides.
 //! * [`ewm`] — the Episcopal Worship Markdown reader / writer.
 //! * [`service`] — a service plan (ordered cues) and its on-disk TOML format.
@@ -11,13 +12,15 @@
 pub mod category;
 pub mod document;
 pub mod ewm;
+pub mod look;
 pub mod role;
 pub mod season;
 pub mod service;
 pub mod state;
 
-pub use category::{ElementCategory, SanctuaryLayout, StreamZone};
+pub use category::ElementCategory;
 pub use document::{Block, FrontMatter, Line, LiturgyDocument, Slide, Span};
+pub use look::{CueLooks, Fit, Layout, Look, Output, ResolvedLook, TextTone};
 pub use role::Role;
 pub use season::{LiturgicalColor, Season};
 pub use service::{AnnouncementMode, Cue, CueContent, CueOverrides, Service};

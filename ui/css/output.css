@@ -1,9 +1,11 @@
-/* Shared stage styles for output windows and control-window previews. */
+/* Output stage styles: shared by output windows and control-window previews.
+ *
+ * Coordinates are on the 1920x1080 stage. Text boxes match the parish slide
+ * designs (see docs/backgrounds.md), so custom PNG backgrounds that follow
+ * the same templates line up with the text. Font sizes scale by --fit, which
+ * render.js lowers until long text fits its box. */
 
-.stage-host {
-  position: relative;
-  overflow: hidden;
-}
+.stage-host { position: relative; overflow: hidden; }
 
 .stage {
   position: absolute;
@@ -13,148 +15,120 @@
   height: 1080px;
   transform-origin: 0 0;
   overflow: hidden;
-  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-}
-
-/* ---------- Sanctuary ---------- */
-
-.sanctuary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: #000;
+  --fit: 1;
 }
 
-.sanctuary.blackout {
-  background: #000 !important;
+.bg { position: absolute; inset: 0; }
+
+.box {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  font-size: calc(var(--body) * var(--fit));
+  line-height: 1.25;
 }
 
-.sanctuary .text-panel {
-  max-width: 1680px;
-  max-height: 960px;
-  padding: 40px 64px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.86);
-  text-align: center;
+/* Speaker rows: one grid so role labels line up in a column. */
+.rows {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 0.55em;
+  row-gap: 0.28em;
+  align-items: baseline;
 }
+.row { display: contents; }
+.row.span > .text { grid-column: 1 / -1; }
+.label { font-size: calc(var(--label) * var(--fit)); font-style: italic; white-space: nowrap; }
+.label.number { font-style: normal; font-weight: 700; font-size: 1em; }
+.rubric, .score, .score-missing { grid-column: 1 / -1; }
+.rubric { font-style: italic; font-size: calc(var(--label) * var(--fit)); padding-left: 2.6em; }
+.people .text { font-weight: 700; }
 
-.sanctuary .block {
-  margin: 18px 0;
-}
-
-.sanctuary .role-label {
-  font-size: 64px; /* 48pt */
-  font-style: italic;
-  color: #404040;
-}
-
-.sanctuary .block-text {
-  font-size: 73px; /* 55pt */
-  line-height: 1.2;
-  color: #404040;
-}
-
-.sanctuary .block.people .block-text {
-  color: #000;
-  font-weight: 700;
-}
-
-.sanctuary .score {
-  display: block;
-  width: 100%;
-  max-height: 900px;
-  object-fit: contain;
-  background: #fff;
-}
-
+.score { display: block; max-width: 100%; max-height: 520px; object-fit: contain; background: #fff; justify-self: center; }
 .score-missing {
-  padding: 60px 80px;
-  font-size: 56px;
+  padding: 0.5em 1em;
   font-style: italic;
   color: #555;
   background: rgba(255, 255, 255, 0.9);
   border: 6px dashed #999;
-  border-radius: 16px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  justify-self: center;
 }
 
-.sanctuary.lyrics .text-panel {
-  background: transparent;
+.title-card { align-items: center; text-align: center; }
+.title-small { font-size: 1em; }
+.title-big { font-size: 1.75em; }
+
+/* ---------------- Sanctuary ---------------- */
+
+.out-sanctuary { font-family: Tahoma, Verdana, "DejaVu Sans", sans-serif; --body: 73px; --label: 64px; }
+
+/* Between the top and bottom glass bands. */
+.out-sanctuary.layout-centered .box,
+.out-sanctuary.layout-left_panel .box,
+.out-sanctuary.layout-left_panel_wide .box,
+.out-sanctuary.layout-bottom_bar .box { left: 70px; right: 70px; top: 135px; bottom: 135px; }
+
+.s-header { display: flex; justify-content: space-between; font-size: 0.95em; margin-bottom: 0.3em; }
+
+.out-sanctuary.layout-lyrics { font-family: Arial, Helvetica, "Liberation Sans", sans-serif; --body: 76px; }
+.out-sanctuary.layout-lyrics .box { left: 110px; right: 110px; top: 70px; bottom: 90px; text-align: center; line-height: 1.6; }
+.out-sanctuary.layout-lyrics .rows { display: block; }
+.out-sanctuary.layout-lyrics .text { margin: 0.3em 0; font-weight: 700; }
+.lyrics-caption { position: absolute; left: 12px; bottom: 8px; font: 18px Arial, sans-serif; color: #fff; }
+
+.out-sanctuary.tone-dark { color: #404040; }
+.out-sanctuary.tone-dark .people .text { color: #000; }
+.out-sanctuary.tone-light { color: #fff; }
+
+/* ---------------- Live stream ---------------- */
+
+.out-stream { font-family: Calibri, Carlito, "Segoe UI", "Open Sans", "Helvetica Neue", Arial, sans-serif; --body: 52px; --label: 30px; }
+
+.out-stream.layout-left_panel .box { left: 74px; width: 800px; top: 22px; bottom: 22px; justify-content: flex-start; }
+.out-stream.layout-left_panel_wide .box { left: 74px; width: 960px; top: 22px; bottom: 80px; justify-content: flex-start; }
+.out-stream.layout-bottom_bar .box { left: 56px; right: 56px; top: 672px; bottom: 64px; --body: 50px; }
+.out-stream.layout-centered .box,
+.out-stream.layout-lyrics .box { left: 80px; right: 80px; top: 80px; bottom: 80px; }
+
+.header { margin-bottom: 0.35em; }
+.header-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6em; }
+.header-title { font-size: 1.15em; font-weight: 700; }
+.header-sub { font-size: 0.82em; font-weight: 700; font-style: italic; }
+.ref { font-size: calc(30px * var(--fit)); font-weight: 700; white-space: nowrap; }
+.tag {
+  position: absolute; left: 62px; top: 298px; width: 490px; height: 92px;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 50px;
 }
+.credits { position: absolute; left: 74px; bottom: 14px; font-size: 22px; font-weight: 700; line-height: 1.3; }
 
-.sanctuary.lyrics .block-text,
-.sanctuary.lyrics .block.people .block-text {
-  color: #fff;
-  font-weight: 400;
-}
+.out-stream.tone-light { color: #f6efc4; }
+.out-stream.tone-light .header,
+.out-stream.tone-light .people .text,
+.out-stream.tone-light .label.number { color: #fff; }
+.out-stream.tone-dark { color: #2b2b2b; }
+.out-stream.tone-dark .header { color: #111; }
+.out-stream.tone-dark .people .text { color: #000; }
+.out-stream.cat-hymn .label.number { color: inherit; }
 
-.title-card {
-  font-size: 96px;
-  color: #fff;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
-  text-align: center;
-  padding: 0 120px;
-}
-
-/* ---------- Live stream overlay ---------- */
-
-.stream {
-  background: transparent;
-  font-family: "Helvetica Neue", Arial, sans-serif;
-}
-
-.stream .zone {
-  position: absolute;
-  box-sizing: border-box;
-  color: #fff;
-  background: rgba(10, 10, 20, 0.78);
-}
-
-/* Left 45%; right 55% stays open for the camera. */
-.stream .left-panel {
-  left: 0;
-  top: 0;
-  width: 45%;
-  height: 100%;
-  padding: 80px 64px;
-  display: flex;
-  flex-direction: column;
+/* Lower third: inside the framed bar at the bottom-left. */
+.box.lt {
+  left: 76px; width: 1232px; top: 850px; height: 172px;
+  color: #fff; --body: 50px; --label: 30px;
   justify-content: center;
-  font-size: 52px;
-  line-height: 1.25;
 }
-
-/* Bottom 28% full-width bar. */
-.stream .bottom-bar {
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 28%;
-  padding: 28px 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  font-size: 46px;
-  line-height: 1.2;
-  text-align: center;
-}
-
-.stream .block {
-  margin: 10px 0;
-}
-
-.stream .block.people .block-text {
-  font-weight: 700;
-}
-
-.stream .lower-third {
-  left: 96px;
-  bottom: 96px;
-  padding: 22px 40px;
-  border-left: 10px solid #c9a646;
-  border-radius: 6px;
-}
-
-.stream .badge-title {
-  font-size: 44px;
-  font-weight: 600;
-}
+.lt .rows { row-gap: 0.15em; }
+.lt .label { color: #fff; }
+.lt-label { font-size: calc(30px * var(--fit)); font-weight: 700; }
+.lt-main { font-size: 1.08em; text-align: center; }
+.lt-label-big { font-size: 1.1em; font-weight: 700; }
+.lt-center { align-items: center; text-align: center; }
+.lt-center .rows { display: block; }
+.lt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6em; }
+.lt-title { font-size: 1.1em; font-weight: 700; }

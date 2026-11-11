@@ -121,6 +121,7 @@ Commands:
 | Vocabulary / text | `vocabulary`, `parse_ewm`, `format_ewm` |
 | Service | `new_service`, `open_service`, `load_example_service`, `save_service` |
 | Items | `add_items`, `new_item`, `update_cue_document`, `set_cue_overrides`, `set_announcement_mode`, `move_cue`, `remove_cue`, `save_cue` |
+| Looks | `set_cue_look`, `set_default_look`, `set_service_details`, `list_backgrounds`, `import_backgrounds`, `pick_background` |
 | Dialogs | `confirm`, `pick_image` |
 
 All edits go through `SyncHub::edit_service`, which broadcasts the new

@@ -9,6 +9,7 @@
 
 import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom } from "/js/control/richtext.js";
+import { lookPanel } from "/js/control/looks.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
 const SEND_DELAY_MS = 350;
@@ -105,6 +106,7 @@ export function initEditor() {
       // The on-air item may have changed: release or hold pending edits.
       if (ed.held && !isOnAir()) flush(false);
       renderStatus();
+      refreshLooks(c);
     }
   });
 }
@@ -120,8 +122,10 @@ function load(c, force) {
   }
   const incoming = c.content.kind === "liturgy" ? c.content.document : null;
   if (!force && c.id === ed.id) {
+    refreshLooks(c);
     if (ed.dirty || ed.held) return renderStatus(); // ours is newer
     if (incoming && ed.doc && canon(incoming) === canon(ed.doc)) return renderStatus();
+    if (!incoming) return renderStatus();
   }
   // Switching away from a cue with unsent edits: send them first.
   if (force && ed.dirty && ed.id && ed.id !== c.id) flush(true);
@@ -136,9 +140,20 @@ function load(c, force) {
 function render(c) {
   const ro = app.readonly;
   root.classList.toggle("readonly", ro);
-  if (c.content.kind === "announcements") return root.replaceChildren(header(c), announcementsPanel(c));
-  root.replaceChildren(header(c), el("div#live-banner.live-banner", { hidden: true }), metaForm(c), blockList());
+  const looks = el("div#look-slot");
+  if (c.content.kind === "announcements") {
+    root.replaceChildren(header(c), announcementsPanel(c), looks);
+  } else {
+    root.replaceChildren(header(c), el("div#live-banner.live-banner", { hidden: true }), looks, metaForm(c), blockList());
+  }
+  refreshLooks(c);
   renderStatus();
+}
+
+/** Re-renders the backgrounds & layout panel (cheap; keeps the editor intact). */
+function refreshLooks(c) {
+  const slot = document.getElementById("look-slot");
+  if (slot && c) slot.replaceChildren(lookPanel(c));
 }
 
 function header(c) {
@@ -253,7 +268,6 @@ function metaForm(c) {
         changed();
       }),
     ),
-    field("Background", textInput("default_background", c.background ?? "From colour")),
   ];
   if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
   if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
@@ -281,7 +295,7 @@ function metaForm(c) {
           el("button.link", { disabled: app.readonly, onclick: () => setOverride.flush({ category: undefined }) }, "use file’s type"),
         )
       : null,
-    el("span.note.muted", {}, `Lower third: “${c.caption}” · Stream zone: ${titleCase(c.stream_zone)}`),
+    el("span.note.muted", {}, `Lower third: “${c.caption}”`),
   );
   return el("div.meta-form", {}, el("div.meta-grid", {}, fields), planRow);
 }

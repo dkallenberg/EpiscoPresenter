@@ -80,3 +80,19 @@ export function assetUrl(cue, src) {
   }
   return T?.core?.convertFileSrc ? T.core.convertFileSrc(path) : path;
 }
+
+/**
+ * URL for a background image value from a look: relative paths resolve
+ * against the service plan's folder.
+ */
+export function backgroundUrl(service, value) {
+  if (!value || /^(https?:|data:|asset:|blob:)/i.test(value)) return value;
+  const absolute = value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
+  let path = value;
+  if (!absolute) {
+    const plan = service?.plan_path;
+    if (!plan) return value;
+    path = plan.replace(/[^\\/]*$/, "") + value;
+  }
+  return T?.core?.convertFileSrc ? T.core.convertFileSrc(path) : path;
+}

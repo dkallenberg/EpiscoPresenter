@@ -169,7 +169,7 @@ async fn edits_follow_the_on_air_cue_and_reach_clients() {
     // Insert a cue in front: the on-air slide moves to index 1 with it.
     hub.edit_service(|s| {
         let doc = ewm::parse("---\ntitle: Opening\n---\n[Celebrant] Blessed be God.\n").unwrap().document;
-        s.insert_cue(0, episco_core::Cue::liturgy("", doc, None, Default::default(), None));
+        s.insert_cue(0, episco_core::Cue::liturgy("", doc, None, Default::default()));
         Ok::<_, String>(())
     })
     .unwrap();

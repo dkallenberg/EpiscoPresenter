@@ -162,38 +162,60 @@ pub struct Slide {
     /// Nearest preceding heading, carried onto each slide of a section.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heading: Option<String>,
+    /// True for the first slide after a heading (where a header is shown).
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub section_start: bool,
+    /// Empty for a *title slide*: a heading followed directly by a slide
+    /// break, shown as a title card (e.g. "First Reading" + citation).
     pub blocks: Vec<Block>,
+}
+
+impl Slide {
+    pub fn is_title(&self) -> bool {
+        self.blocks.is_empty() && self.heading.is_some()
+    }
 }
 
 impl LiturgyDocument {
     /// Splits the body into slides.
     ///
-    /// A new slide begins at every explicit `---` break and at every heading.
-    /// Headings are not repeated as blocks; they become the slide's `heading`
-    /// (and carry over to following slides until the next heading).
-    /// Slides with no content are dropped.
+    /// * A new slide begins at every `---` break and at every heading.
+    /// * Headings are not blocks on the slide; they become the slide's
+    ///   `heading`, carried onto following slides until the next heading.
+    /// * A heading with no content before the next break (or the end) makes
+    ///   a title slide.
+    /// * Other empty slides are dropped.
     pub fn slides(&self) -> Vec<Slide> {
         let mut slides = Vec::new();
         let mut heading: Option<String> = None;
         let mut current: Vec<Block> = Vec::new();
+        // A heading was seen and nothing has been emitted for it yet.
+        let mut fresh = false;
 
-        let flush = |slides: &mut Vec<Slide>, current: &mut Vec<Block>, heading: &Option<String>| {
-            if !current.is_empty() {
-                slides.push(Slide { heading: heading.clone(), blocks: std::mem::take(current) });
+        let flush = |slides: &mut Vec<Slide>, current: &mut Vec<Block>, heading: &Option<String>, fresh: &mut bool| {
+            if !current.is_empty() || (*fresh && heading.is_some()) {
+                slides.push(Slide { heading: heading.clone(), section_start: *fresh, blocks: std::mem::take(current) });
+                *fresh = false;
             }
         };
 
         for block in &self.blocks {
             match block {
-                Block::SlideBreak => flush(&mut slides, &mut current, &heading),
+                Block::SlideBreak => flush(&mut slides, &mut current, &heading, &mut fresh),
                 Block::Heading { text, .. } => {
-                    flush(&mut slides, &mut current, &heading);
+                    if !current.is_empty() {
+                        flush(&mut slides, &mut current, &heading, &mut fresh);
+                    } else if fresh {
+                        // Two headings in a row: the first becomes a title slide.
+                        flush(&mut slides, &mut current, &heading, &mut fresh);
+                    }
                     heading = Some(text.clone());
+                    fresh = true;
                 }
                 other => current.push(other.clone()),
             }
         }
-        flush(&mut slides, &mut current, &heading);
+        flush(&mut slides, &mut current, &heading, &mut fresh);
         slides
     }
 }
@@ -250,7 +272,40 @@ mod tests {
         assert_eq!(slides.len(), 3);
         assert_eq!(slides[0].heading, None);
         assert_eq!(slides[1].heading.as_deref(), Some("Sanctus"));
+        assert!(slides[1].section_start);
         assert_eq!(slides[2].heading.as_deref(), Some("Sanctus"));
+        assert!(!slides[2].section_start);
         assert_eq!(slides[2].blocks[0].plain_text(), "C");
+    }
+
+    #[test]
+    fn heading_followed_by_break_is_a_title_slide() {
+        let doc = LiturgyDocument {
+            meta: FrontMatter::default(),
+            blocks: vec![
+                Block::Heading { level: 1, text: "First Reading".into() },
+                Block::SlideBreak,
+                Block::speech(Role::Reader, ["The Word of the Lord."]),
+                Block::Heading { level: 1, text: "Antiphon".into() },
+                Block::Heading { level: 1, text: "Verse".into() },
+                Block::speech(Role::People, ["x"]),
+                Block::Heading { level: 1, text: "End".into() },
+            ],
+        };
+        let slides = doc.slides();
+        let shape: Vec<(Option<&str>, bool, usize)> =
+            slides.iter().map(|s| (s.heading.as_deref(), s.section_start, s.blocks.len())).collect();
+        assert_eq!(
+            shape,
+            vec![
+                (Some("First Reading"), true, 0),
+                (Some("First Reading"), false, 1),
+                (Some("Antiphon"), true, 0),
+                (Some("Verse"), true, 1),
+                (Some("End"), true, 0),
+            ]
+        );
+        assert!(slides[0].is_title());
+        assert!(!slides[1].is_title());
     }
 }

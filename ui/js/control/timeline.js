@@ -1,6 +1,8 @@
 // Left pane: the service cue timeline.
 
 import { send } from "/js/bridge.js";
+import { backgroundName } from "/js/control/looks.js";
+import { backgroundCss } from "/js/render.js";
 import { app, call, el, reportWarnings, slideCount, titleCase } from "/js/control/util.js";
 
 const ICONS = {
@@ -147,7 +149,6 @@ function cueRow(cue, i, active, count) {
   const n = slideCount(cue);
   const isAnn = cue.content.kind === "announcements";
   const mode = isAnn ? cue.content.mode : null;
-  const colorKey = (cue.color ?? "none").toLowerCase();
 
   const icons = el(
     "div.cue-icons",
@@ -161,9 +162,15 @@ function cueRow(cue, i, active, count) {
           `${onAir ? "▶ " : ""}GS ${mode === "loop" ? "loop" : "1×"}`,
         )
       : el("span.badge.count", { title: `${n} slide${n === 1 ? "" : "s"}` }, `${cue.content.slides.length}`),
-    el(`span.swatch.color-${colorKey}`, {
-      title: `${cue.color ?? "No colour"}${cue.background ? ` · ${cue.background}` : ""}`,
-    }),
+  );
+  // Background thumbnails: sanctuary, with the stream look inset.
+  const thumb = el(
+    "span.cue-thumb",
+    {
+      title: `${cue.color ?? "No colour"}\nSanctuary: ${backgroundName(cue.sanctuary.background)} · ${cue.sanctuary.layout.replace(/_/g, " ")}\nStream: ${backgroundName(cue.stream.background)} · ${cue.stream.layout.replace(/_/g, " ")}`,
+      style: { background: backgroundCss(app.service, cue, cue.sanctuary.background, cue.sanctuary.fit) },
+    },
+    el("span.cue-thumb-stream", { style: { background: backgroundCss(app.service, cue, cue.stream.background, cue.stream.fit) } }),
   );
 
   const tools = app.readonly
@@ -189,6 +196,7 @@ function cueRow(cue, i, active, count) {
       ondblclick: () => send({ type: "go_to", cue: i, slide: 0 }),
     },
     el("span.cue-num", {}, String(i + 1)),
+    thumb,
     el(
       "div.cue-body",
       {},

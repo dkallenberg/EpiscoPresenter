@@ -20,13 +20,15 @@
 //! which is what the operator UI renders and what the master node sends to
 //! other nodes. [`Service::to_plan_toml`] writes it back.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::category::{ElementCategory, SanctuaryLayout, StreamZone};
+use crate::category::ElementCategory;
 use crate::document::{LiturgyDocument, Slide};
 use crate::ewm;
+use crate::look::{default_look, CueLooks, Look, Output, ResolvedLook, DEFAULT_KEY_COLOR};
 use crate::season::{LiturgicalColor, Season};
 use crate::state::CuePosition;
 
@@ -47,6 +49,12 @@ pub struct Service {
     /// Published Google Slides URL used for announcement loops.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub announcements_deck: Option<String>,
+    /// Colour the stream's lower thirds are keyed on (default blue).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream_key: Option<String>,
+    /// Default looks per item type (`[looks.<type>]` in the plan).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub looks: BTreeMap<ElementCategory, CueLooks>,
     /// The plan file this service was loaded from / last saved to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_path: Option<PathBuf>,
@@ -67,16 +75,16 @@ pub struct Cue {
     /// Timeline label: the plan's `title` override, else the document title.
     pub title: String,
     pub category: ElementCategory,
-    /// Effective colour (document, else service, else none).
+    /// Effective colour (document, else service, else none). Built-in
+    /// backgrounds are drawn in this colour.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<LiturgicalColor>,
-    /// Effective background image (override, else document, else colour default).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub background: Option<String>,
     /// Lower-third badge text, e.g. `Hymn 436: Lift Up Your Heads`.
     pub caption: String,
-    pub stream_zone: StreamZone,
-    pub sanctuary_layout: SanctuaryLayout,
+    /// Effective look on the sanctuary screen.
+    pub sanctuary: ResolvedLook,
+    /// Effective look on the live stream.
+    pub stream: ResolvedLook,
     /// Values set on the cue in the plan, which win over the document.
     #[serde(default)]
     pub overrides: CueOverrides,
@@ -86,15 +94,23 @@ pub struct Cue {
     pub content: CueContent,
 }
 
-/// Plan-level settings for one cue (`title`, `type`, `background` in TOML).
+/// Plan-level settings for one cue (`title`, `type`, `[cue.sanctuary]`,
+/// `[cue.stream]` in TOML).
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct CueOverrides {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<ElementCategory>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub background: Option<String>,
+    #[serde(default, skip_serializing_if = "CueLooks::is_empty")]
+    pub looks: CueLooks,
+}
+
+/// What a cue needs from its service to resolve its derived fields.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct BuildContext<'a> {
+    pub color: Option<LiturgicalColor>,
+    pub looks: Option<&'a BTreeMap<ElementCategory, CueLooks>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -123,69 +139,59 @@ pub enum AnnouncementMode {
 
 impl Cue {
     /// A cue showing an `.ewm` document.
+    ///
+    /// Derived fields are computed without service context; inserting the
+    /// cue into a [`Service`] recomputes them with the service's colour and
+    /// default looks.
     pub fn liturgy(
         id: impl Into<String>,
         document: LiturgyDocument,
         source: Option<PathBuf>,
         overrides: CueOverrides,
-        service_color: Option<LiturgicalColor>,
     ) -> Cue {
         Cue::assemble(
             id.into(),
             overrides,
             CueContent::Liturgy { source, document: Box::new(document), slides: Vec::new() },
-            service_color,
         )
     }
 
     /// A cue that runs the announcements deck.
-    pub fn announcements(
-        id: impl Into<String>,
-        mode: AnnouncementMode,
-        overrides: CueOverrides,
-        service_color: Option<LiturgicalColor>,
-    ) -> Cue {
-        Cue::assemble(id.into(), overrides, CueContent::Announcements { mode }, service_color)
+    pub fn announcements(id: impl Into<String>, mode: AnnouncementMode, overrides: CueOverrides) -> Cue {
+        Cue::assemble(id.into(), overrides, CueContent::Announcements { mode })
     }
 
-    fn assemble(
-        id: String,
-        overrides: CueOverrides,
-        content: CueContent,
-        service_color: Option<LiturgicalColor>,
-    ) -> Cue {
+    fn assemble(id: String, overrides: CueOverrides, content: CueContent) -> Cue {
+        let placeholder = ResolvedLook::complete(&Look::default());
         let mut cue = Cue {
             id,
             title: String::new(),
             category: ElementCategory::Other,
             color: None,
-            background: None,
             caption: String::new(),
-            stream_zone: StreamZone::LowerThird,
-            sanctuary_layout: SanctuaryLayout::SeasonalBackground,
+            sanctuary: placeholder.clone(),
+            stream: placeholder,
             overrides,
             modified: false,
             content,
         };
-        cue.rebuild(service_color);
+        cue.rebuild(&BuildContext::default());
         cue
     }
 
-    /// Recomputes every derived field from the content and overrides.
-    pub fn rebuild(&mut self, service_color: Option<LiturgicalColor>) {
+    /// Recomputes every derived field from the content, the overrides and
+    /// the service context.
+    pub fn rebuild(&mut self, ctx: &BuildContext) {
         let o = &self.overrides;
+        let mut file_background = None;
         match &mut self.content {
             CueContent::Liturgy { document, slides, .. } => {
                 *slides = document.slides();
                 let meta = &document.meta;
                 self.category = o.category.unwrap_or_else(|| meta.effective_category());
-                self.color = meta.effective_color().or(service_color);
+                self.color = meta.effective_color().or(ctx.color);
                 self.title = o.title.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| meta.title.clone());
-                self.background = o
-                    .background
-                    .clone()
-                    .or_else(|| meta.default_background.clone())
-                    .or_else(|| self.color.map(LiturgicalColor::default_background));
+                file_background = meta.default_background.clone();
                 // The caption names the item itself (the hymn's real title),
                 // not the timeline label ("Processional Hymn").
                 let mut caption_meta = meta.clone();
@@ -197,17 +203,34 @@ impl Cue {
             }
             CueContent::Announcements { .. } => {
                 self.category = o.category.unwrap_or(ElementCategory::Announcements);
-                self.color = service_color;
+                self.color = ctx.color;
                 self.title = o.title.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| "Announcements".into());
-                self.background = o.background.clone();
                 self.caption = self.title.clone();
             }
         }
         if self.title.is_empty() {
             self.title = "Untitled".into();
         }
-        self.stream_zone = self.category.stream_zone();
-        self.sanctuary_layout = self.category.sanctuary_layout();
+
+        // Looks: built-in default < service default < file < cue override.
+        let service_default = ctx.looks.and_then(|m| m.get(&self.category));
+        for output in Output::ALL {
+            let mut look = default_look(self.category, output);
+            if let Some(d) = service_default {
+                look = look.layered(d.get(output));
+            }
+            if output == Output::Sanctuary {
+                if let Some(bg) = &file_background {
+                    look = look.layered(&Look { background: Some(bg.clone()), ..Default::default() });
+                }
+            }
+            look = look.layered(self.overrides.looks.get(output));
+            let resolved = ResolvedLook::complete(&look);
+            match output {
+                Output::Sanctuary => self.sanctuary = resolved,
+                Output::Stream => self.stream = resolved,
+            }
+        }
     }
 
     /// Number of navigable positions in this cue. Always at least 1 so that an
@@ -255,6 +278,36 @@ impl Service {
         self.cues.iter().find(|c| c.id == id)
     }
 
+    /// The context cues are resolved in.
+    pub fn context(&self) -> BuildContext<'_> {
+        BuildContext { color: self.color, looks: Some(&self.looks) }
+    }
+
+    /// Recomputes every cue's derived fields (after service-wide changes).
+    pub fn rebuild_all(&mut self) {
+        let ctx = BuildContext { color: self.color, looks: Some(&self.looks) };
+        for cue in &mut self.cues {
+            cue.rebuild(&ctx);
+        }
+    }
+
+    /// The colour lower thirds are keyed on.
+    pub fn key_color(&self) -> &str {
+        self.stream_key.as_deref().unwrap_or(DEFAULT_KEY_COLOR)
+    }
+
+    /// Sets (or with an empty look, clears) the service default look for
+    /// every item of `category` on `output`.
+    pub fn set_default_look(&mut self, category: ElementCategory, output: Output, look: Look) {
+        let entry = self.looks.entry(category).or_default();
+        *entry.get_mut(output) = look;
+        if entry.is_empty() {
+            self.looks.remove(&category);
+        }
+        self.modified = true;
+        self.rebuild_all();
+    }
+
     /// True if anything needs saving.
     pub fn has_unsaved_changes(&self) -> bool {
         self.modified || self.cues.iter().any(|c| c.modified)
@@ -281,8 +334,8 @@ impl Service {
             ..Default::default()
         };
         let id = service.unique_id(&document.meta.title);
-        let cue = Cue::liturgy(id, document, source, CueOverrides::default(), service.color);
-        service.cues.push(cue);
+        service.cues.push(Cue::liturgy(id, document, source, CueOverrides::default()));
+        service.rebuild_all();
         service
     }
 
@@ -290,8 +343,9 @@ impl Service {
 
     /// Replaces a liturgy cue's document and marks the cue modified.
     pub fn set_document(&mut self, id: &str, document: LiturgyDocument) -> Result<(), ServiceError> {
-        let color = self.color;
-        let cue = self.cue_mut(id)?;
+        let i = self.position(id)?;
+        let Service { cues, color, looks, .. } = self;
+        let cue = &mut cues[i];
         match &mut cue.content {
             CueContent::Liturgy { document: d, .. } => **d = document,
             CueContent::Announcements { .. } => {
@@ -299,16 +353,16 @@ impl Service {
             }
         }
         cue.modified = true;
-        cue.rebuild(color);
+        cue.rebuild(&BuildContext { color: *color, looks: Some(looks) });
         Ok(())
     }
 
     /// Sets a cue's plan-level overrides.
     pub fn set_overrides(&mut self, id: &str, overrides: CueOverrides) -> Result<(), ServiceError> {
-        let color = self.color;
-        let cue = self.cue_mut(id)?;
-        cue.overrides = overrides;
-        cue.rebuild(color);
+        let i = self.position(id)?;
+        let Service { cues, color, looks, .. } = self;
+        cues[i].overrides = overrides;
+        cues[i].rebuild(&BuildContext { color: *color, looks: Some(looks) });
         self.modified = true;
         Ok(())
     }
@@ -334,7 +388,7 @@ impl Service {
         } else if self.index_of(&cue.id).is_some() {
             cue.id = self.unique_id(&cue.id);
         }
-        cue.rebuild(self.color);
+        cue.rebuild(&self.context());
         let id = cue.id.clone();
         self.cues.insert(index.min(self.cues.len()), cue);
         self.modified = true;
@@ -366,6 +420,10 @@ impl Service {
         let cue = after.index_of(id)?;
         let slide = pos.slide.min(after.cues[cue].slide_count() - 1);
         Some(CuePosition { cue, slide })
+    }
+
+    fn position(&self, id: &str) -> Result<usize, ServiceError> {
+        self.index_of(id).ok_or_else(|| ServiceError::Edit(format!("no cue `{id}`")))
     }
 
     fn cue_mut(&mut self, id: &str) -> Result<&mut Cue, ServiceError> {
@@ -420,21 +478,28 @@ impl Service {
             season,
             color,
             announcements_deck: plan.announcements_deck,
+            stream_key: plan.stream_key,
+            looks: plan.looks,
             ..Default::default()
         };
 
         for (i, pc) in plan.cues.into_iter().enumerate() {
             let n = i + 1;
             let cue_err = |message: String| ServiceError::Cue { cue: n, message };
+            let mut looks = CueLooks { sanctuary: pc.sanctuary, stream: pc.stream };
+            // `background = "…"` (older plans) is the sanctuary background.
+            if looks.sanctuary.background.is_none() {
+                looks.sanctuary.background = pc.background;
+            }
             let overrides = CueOverrides {
                 title: pc.title,
                 category: pc.category.as_deref().map(str::parse::<ElementCategory>).transpose().map_err(cue_err)?,
-                background: pc.background,
+                looks,
             };
             let cue = match (&pc.file, pc.announcements) {
                 (Some(_), Some(_)) => return Err(cue_err("a cue may have `file` or `announcements`, not both".into())),
                 (None, None) => return Err(cue_err("a cue needs `file` or `announcements`".into())),
-                (None, Some(mode)) => Cue::announcements(service.unique_id("announcements"), mode, overrides, color),
+                (None, Some(mode)) => Cue::announcements(service.unique_id("announcements"), mode, overrides),
                 (Some(file), None) => {
                     let (src, resolved) = read(file).map_err(cue_err)?;
                     let parsed = ewm::parse(&src).map_err(|e| cue_err(format!("{}: {e}", file.display())))?;
@@ -442,11 +507,12 @@ impl Service {
                         parsed.warnings.iter().map(|w| format!("{}:{}: {}", file.display(), w.line, w.message)),
                     );
                     let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("item");
-                    Cue::liturgy(service.unique_id(stem), parsed.document, resolved, overrides, color)
+                    Cue::liturgy(service.unique_id(stem), parsed.document, resolved, overrides)
                 }
             };
             service.cues.push(cue);
         }
+        service.rebuild_all();
         Ok(Loaded { service, warnings })
     }
 
@@ -476,8 +542,10 @@ impl Service {
                     file,
                     title: cue.overrides.title.clone(),
                     category: cue.overrides.category.map(|c| c.key().to_string()),
-                    background: cue.overrides.background.clone(),
+                    background: None,
                     announcements,
+                    sanctuary: cue.overrides.looks.sanctuary.clone(),
+                    stream: cue.overrides.looks.stream.clone(),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -489,6 +557,8 @@ impl Service {
             // Only write a colour that differs from the season default.
             color: self.color.filter(|c| Some(*c) != self.season.map(Season::default_color)).map(|c| c.label().into()),
             announcements_deck: self.announcements_deck.clone(),
+            stream_key: self.stream_key.clone(),
+            looks: self.looks.clone(),
             cues,
         };
         toml::to_string(&plan).map_err(|e| ServiceError::Plan(e.to_string()))
@@ -528,6 +598,11 @@ struct ServicePlan {
     color: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     announcements_deck: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    stream_key: Option<String>,
+    // Tables must follow plain values in TOML.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    looks: BTreeMap<ElementCategory, CueLooks>,
     #[serde(default, rename = "cue")]
     cues: Vec<PlanCue>,
 }
@@ -545,6 +620,10 @@ struct PlanCue {
     background: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     announcements: Option<AnnouncementMode>,
+    #[serde(default, skip_serializing_if = "Look::is_empty")]
+    sanctuary: Look,
+    #[serde(default, skip_serializing_if = "Look::is_empty")]
+    stream: Look,
 }
 
 fn slug(s: &str) -> String {
@@ -563,6 +642,7 @@ fn slug(s: &str) -> String {
 mod tests {
     use super::*;
     use crate::document::Block;
+    use crate::look::{Layout, TextTone};
     use crate::role::Role;
 
     fn write(dir: &Path, name: &str, body: &str) {
@@ -615,15 +695,16 @@ mod tests {
         assert_eq!(s.cues[0].id, "hymn");
         assert_eq!(s.cues[0].source(), Some(dir.join("hymn.ewm").as_path()));
         assert_eq!(s.cues[0].color, Some(LiturgicalColor::Red));
-        assert_eq!(s.cues[0].background.as_deref(), Some("red_stained_glass.png"));
+        assert_eq!(s.cues[0].sanctuary.layout, Layout::Lyrics);
         assert_eq!(s.cues[0].title, "Processional Hymn");
         assert_eq!(s.cues[0].caption, "Hymn 436: Lift Up Your Heads");
-        assert_eq!(s.cues[0].stream_zone, StreamZone::LeftPanel);
+        assert_eq!(s.cues[0].stream.layout, Layout::LeftPanelWide);
         // Plan override wins over the file's `type:` and re-derives the zone.
         assert_eq!(s.cues[1].category, ElementCategory::Psalm);
-        assert_eq!(s.cues[1].stream_zone, StreamZone::BottomBar);
+        assert_eq!(s.cues[1].stream.layout, Layout::BottomBar);
         assert_eq!(s.cues[1].color, Some(LiturgicalColor::Green));
-        assert_eq!(s.cues[1].background.as_deref(), Some("custom.png"));
+        // `background = …` in a cue is the sanctuary background.
+        assert_eq!(s.cues[1].sanctuary.background, "custom.png");
         assert_eq!(s.cues[2].id, "announcements");
         assert!(matches!(s.cues[2].content, CueContent::Announcements { mode: AnnouncementMode::SinglePass }));
 
@@ -649,7 +730,7 @@ mod tests {
         assert_eq!(cue.slide_count(), 3);
         assert_eq!(cue.title, "Lift Up Your Hearts");
         assert_eq!(cue.category, ElementCategory::Psalm, "override survives edits");
-        assert_eq!(cue.background.as_deref(), Some("custom.png"));
+        assert_eq!(cue.sanctuary.background, "custom.png");
         assert!(s.set_document("announcements", LiturgyDocument::default()).is_err());
 
         s.mark_cue_saved("sursum", dir.join("sursum.ewm")).unwrap();
@@ -664,7 +745,7 @@ mod tests {
         let mut s = before.clone();
 
         let doc: LiturgyDocument = "---\ntitle: Lift Up Your Heads\n---\nx\n".parse().unwrap();
-        let id = s.insert_cue(0, Cue::liturgy("hymn", doc, None, CueOverrides::default(), None));
+        let id = s.insert_cue(0, Cue::liturgy("hymn", doc, None, CueOverrides::default()));
         assert_eq!(id, "hymn-2", "ids stay unique");
         assert_eq!(s.cues[1].id, "hymn");
         s.move_cue("announcements", 0).unwrap();
@@ -694,9 +775,60 @@ mod tests {
 
         // An unsaved item blocks saving the plan, with a clear message.
         let mut s2 = s.clone();
-        s2.insert_cue(0, Cue::liturgy("", LiturgyDocument::default(), None, CueOverrides::default(), None));
+        s2.insert_cue(0, Cue::liturgy("", LiturgyDocument::default(), None, CueOverrides::default()));
         let err = s2.to_plan_toml(&dir.join("service.toml")).unwrap_err();
         assert!(err.to_string().contains("Untitled"), "{err}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn looks_layer_service_defaults_and_cue_overrides() {
+        let dir = fixture("looks");
+        let plan = r##"
+            title = "Eucharist"
+            season = "Pentecost"
+            stream_key = "#00ff00"
+            [looks.psalm.sanctuary]
+            background = "backgrounds/prayer.png"
+            [looks.hymn.stream]
+            background = "backgrounds/hymn-panel.png"
+            [[cue]]
+            file = "hymn.ewm"
+            [[cue]]
+            file = "sursum.ewm"
+            background = "custom.png"
+            type = "psalm"
+            [cue.stream]
+            tone = "dark"
+        "##;
+        std::fs::write(dir.join("service.toml"), plan).unwrap();
+        let mut s = Service::load_plan(dir.join("service.toml")).unwrap().service;
+        assert_eq!(s.key_color(), "#00ff00");
+
+        // Service default for hymns on the stream, layout kept from the built-in.
+        assert_eq!(s.cues[0].stream.background, "backgrounds/hymn-panel.png");
+        assert_eq!(s.cues[0].stream.layout, Layout::LeftPanelWide);
+        // Cue 2 is a psalm (plan override): the service psalm default is
+        // overridden by the cue's own `background` on the sanctuary.
+        assert_eq!(s.cues[1].sanctuary.background, "custom.png");
+        assert_eq!(s.cues[1].stream.tone, TextTone::Dark);
+
+        // Changing a service default re-resolves every cue of that type.
+        s.set_default_look(
+            ElementCategory::Psalm,
+            Output::Stream,
+            Look { layout: Some(Layout::LowerThird), ..Default::default() },
+        );
+        assert_eq!(s.cues[1].stream.layout, Layout::LowerThird);
+        assert_eq!(s.cues[1].stream.background, "key");
+        assert_eq!(s.cues[1].stream.tone, TextTone::Dark, "cue override still wins");
+
+        // Everything survives a save / load round trip.
+        let toml = s.to_plan_toml(&dir.join("service.toml")).unwrap();
+        let again = Service::from_plan_str(&toml, &dir).unwrap().service;
+        assert_eq!(again.looks, s.looks);
+        assert_eq!(again.stream_key, s.stream_key);
+        assert_eq!(again.cues, s.cues);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

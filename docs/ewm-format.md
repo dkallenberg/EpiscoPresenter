@@ -37,10 +37,15 @@ escapes, or `'...'` with `''` for a quote). Lines starting with `#` are comments
 | `citation` | Scripture reference for lower-thirds and bulletins | e.g. `Joshua 24:1-3a` |
 | `hymn_number` | Hymnal number | e.g. `436`, `S 125` |
 | `tune` | Hymn tune name | text |
+| `words`, `music`, `setting` | Hymn credits, shown at the foot of the stream slide | text |
 
 If `color` is omitted it follows the season (Advent → Blue, Christmas/Easter →
 White, Epiphany/Pentecost → Green, Lent → Violet, Holy Week → Red). If
 `default_background` is omitted it is `<color>_stained_glass.png`.
+
+`citation` is also the reference shown in a stream slide's header: a
+scripture reference for readings, or a prayer book page such as `BCP 355`.
+For hymns the header shows `Hymn <hymn_number>`.
 
 Unknown keys are kept as-is and written back when the file is saved. An invalid
 `season`, `color` or `type` produces a warning and is likewise preserved.
@@ -92,6 +97,11 @@ Role names are case-insensitive:
 | `People` | `All`, `Congregation` | 55pt **bold**, `#000000`; included in bulletins |
 | `Rubric` | | instructions; not projected |
 
+A **number** in place of a role, such as `[1]`, `[2]` or `[12a]`, is a
+**verse number**. It shows in the label column, in bold and upright, on the
+stream and on the sanctuary screen (except in hymn lyrics there). Use it for
+psalm verses and hymn stanzas.
+
 Any other name (e.g. `[Cantor]`) is kept as a custom role and rendered like an
 officiant. Role labels are drawn at 48pt italic.
 
@@ -122,8 +132,24 @@ backslash: `\[Not a role]`, `\# not a heading`.
 ### Slides
 
 The body becomes slides by splitting at every `---` break and every heading.
-Empty slides are dropped. A heading labels its own slide and every later slide
-until the next heading.
+A heading labels its own slide and every later slide until the next heading.
+Its first slide shows it as a header (for example "Psalm 78:1-7 … Antiphon").
+
+A heading followed directly by a `---` break, or by another heading, makes a
+**title slide**. On the sanctuary screen it shows the heading with the
+citation large beneath it; on the stream it shows as a lower-third title.
+
+```markdown
+# The First Reading
+---
+[Lector] The word of the Lord.
+[People] **Thanks be to God.**
+```
+
+Other empty slides are dropped.
+
+How slides look (background, layout and text colours) is set per cue and per
+output, not in the `.ewm` file. See [backgrounds.md](backgrounds.md).
 
 ## Diagnostics
 
@@ -152,7 +178,8 @@ announcements_deck = "https://docs.google.com/presentation/d/e/…/pub"
 file = "liturgies/hymn-436.ewm"
 title = "Processional Hymn"          # optional: setlist label
 type = "hymn"                        # optional: overrides the file's type
-background = "advent_window.png"     # optional: overrides the background
+[cue.sanctuary]                      # optional: this item's look (see backgrounds.md)
+background = "backgrounds/advent_window.png"
 
 [[cue]]
 announcements = "single_pass"        # or "loop": the Google Slides deck

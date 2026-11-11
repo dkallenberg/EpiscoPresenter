@@ -35,5 +35,5 @@ fn every_example_ewm_parses_without_warnings() {
 fn example_service_plan_loads() {
     let loaded = Service::load_plan(examples_dir().join("service.toml")).unwrap();
     assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
-    assert_eq!(loaded.service.cues.len(), 6);
+    assert_eq!(loaded.service.cues.len(), 10);
 }

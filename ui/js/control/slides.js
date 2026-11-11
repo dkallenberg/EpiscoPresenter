@@ -3,14 +3,23 @@
 // changes just move the on-air highlight.
 
 import { send } from "/js/bridge.js";
-import { mountStage, renderSanctuary } from "/js/render.js";
+import { mountStage, renderOutput } from "/js/render.js";
 import { app, el, slideSummary } from "/js/control/util.js";
 
 let grid;
 let builtFor = null; // service object the grid was built from
+let output = "sanctuary"; // which output the thumbnails show
 
 export function initSlides() {
   grid = document.getElementById("slide-grid");
+  document.querySelectorAll("[data-thumbs]").forEach((b) =>
+    b.addEventListener("click", () => {
+      output = b.dataset.thumbs;
+      document.querySelectorAll("[data-thumbs]").forEach((x) => x.classList.toggle("active", x === b));
+      build();
+      highlight(false);
+    }),
+  );
   app.on((what) => {
     if (what === "service" || builtFor !== app.service) build();
     if (what !== "link") highlight(what === "selection");
@@ -24,6 +33,7 @@ function build() {
     grid.replaceChildren(el("p.muted", {}, app.service ? "This service has no items yet. Use + Add in the timeline." : ""));
     return;
   }
+  const jobs = [];
   const sections = cues.map((cue, ci) => {
     const slides = cue.content.kind === "liturgy" && cue.content.slides.length ? cue.content.slides : [null];
     const cards = slides.map((slide, si) => {
@@ -46,10 +56,12 @@ function build() {
           slide?.heading ?? (cue.content.kind === "announcements" ? "Google Slides deck" : ""),
         ),
       );
-      // Render the slide as it will look on the sanctuary screen.
-      const stage = mountStage(thumb);
-      const snap = { service: app.service, state: { revision: 0 } };
-      renderSanctuary(stage, snap, { cue, slide, pos: { cue: ci, slide: si } });
+      // Rendered once attached, so text can be measured and fitted.
+      jobs.push(() => {
+        const stage = mountStage(thumb);
+        const snap = { service: app.service, state: { revision: 0 } };
+        renderOutput(stage, snap, { cue, slide, pos: { cue: ci, slide: si } }, output);
+      });
       return card;
     });
     return el(
@@ -66,6 +78,7 @@ function build() {
     );
   });
   grid.replaceChildren(...sections);
+  jobs.forEach((render) => render());
 }
 
 function highlight(scrollToSelection) {

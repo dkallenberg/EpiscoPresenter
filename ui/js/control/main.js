@@ -2,6 +2,7 @@
 
 import { connectStore, inTauri, invoke, send } from "/js/bridge.js";
 import { initEditor } from "/js/control/editor.js";
+import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
 import { initStage } from "/js/control/stage.js";
 import { initTimeline } from "/js/control/timeline.js";
@@ -10,11 +11,13 @@ import { app, call, reportWarnings, toast } from "/js/control/util.js";
 const $ = (id) => document.getElementById(id);
 
 // ---------- tabs ----------
-document.querySelectorAll(".tabs button").forEach((b) =>
+document.body.classList.add("slides-tab");
+document.querySelectorAll(".tabs button[data-tab]").forEach((b) =>
   b.addEventListener("click", () => {
-    document.querySelectorAll(".tabs button, .tab").forEach((x) => x.classList.remove("active"));
+    document.querySelectorAll(".tabs button[data-tab], .tab").forEach((x) => x.classList.remove("active"));
     b.classList.add("active");
     $(`tab-${b.dataset.tab}`).classList.add("active");
+    document.body.classList.toggle("slides-tab", b.dataset.tab === "slides");
   }),
 );
 
@@ -44,6 +47,7 @@ $("btn-example").addEventListener("click", async () => {
   if (w) reportWarnings(w);
 });
 $("btn-save").addEventListener("click", (e) => saveService(e.shiftKey));
+$("btn-settings").addEventListener("click", openServiceSettings);
 document.addEventListener("keydown", (e) => {
   // ⌘S saves the selected item (editor.js); ⌥⌘S saves the whole service.
   if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "s") {
@@ -85,6 +89,7 @@ function renderTopbar() {
   $("btn-save").classList.toggle("unsaved", Boolean(hasUnsaved()));
   $("btn-save").title = s?.plan_path ? `Save ${s.plan_path} (⌥⌘S; shift-click for Save As)` : "Save service as… (⌥⌘S)";
   for (const id of ["btn-new", "btn-open", "btn-example", "btn-save"]) $(id).disabled = app.readonly;
+  $("btn-settings").disabled = app.readonly || !s;
   $("btn-save").disabled = app.readonly || !s;
 
   const link = app.snap.link ?? {};

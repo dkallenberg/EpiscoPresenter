@@ -1,4 +1,4 @@
-//! Service element categories and the output layouts they select.
+//! Service element categories (what kind of item a cue is).
 
 use std::fmt;
 use std::str::FromStr;
@@ -7,10 +7,9 @@ use serde::{Deserialize, Serialize};
 
 /// What kind of service element a cue / liturgy file represents.
 ///
-/// The category drives layout selection on both outputs (see
-/// [`ElementCategory::stream_zone`] and [`ElementCategory::sanctuary_layout`])
-/// and the bulletin filter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+/// The category picks the default look on both outputs
+/// ([`crate::look::default_look`]) and drives the bulletin filter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ElementCategory {
     Announcements,
@@ -63,32 +62,6 @@ impl ElementCategory {
             ElementCategory::Other => "other",
         }
     }
-
-    /// Overlay zone used on the live-stream output.
-    pub fn stream_zone(self) -> StreamZone {
-        match self {
-            ElementCategory::Acclamation
-            | ElementCategory::Prayer
-            | ElementCategory::Collect
-            | ElementCategory::Hymn => StreamZone::LeftPanel,
-            ElementCategory::Psalm | ElementCategory::Gospel | ElementCategory::EucharisticPrayer => {
-                StreamZone::BottomBar
-            }
-            ElementCategory::Reading
-            | ElementCategory::Homily
-            | ElementCategory::Anthem
-            | ElementCategory::Announcements
-            | ElementCategory::Other => StreamZone::LowerThird,
-        }
-    }
-
-    /// Layout used on the sanctuary display.
-    pub fn sanctuary_layout(self) -> SanctuaryLayout {
-        match self {
-            ElementCategory::Hymn => SanctuaryLayout::LyricsOnBlack,
-            _ => SanctuaryLayout::SeasonalBackground,
-        }
-    }
 }
 
 impl fmt::Display for ElementCategory {
@@ -121,42 +94,9 @@ impl FromStr for ElementCategory {
     }
 }
 
-/// Live-stream overlay zone (keeps the camera feed clear).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StreamZone {
-    /// Text restricted to the left 45% of the canvas; right 55% left open.
-    LeftPanel,
-    /// Full-width bar across the bottom 25-30% of the canvas.
-    BottomBar,
-    /// Minimal lower-third citation / info badge.
-    LowerThird,
-}
-
-/// Sanctuary display layout family.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SanctuaryLayout {
-    /// Centered text on the seasonal stained-glass background.
-    SeasonalBackground,
-    /// Centered white text on solid black (hymn lyrics).
-    LyricsOnBlack,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn zones_follow_spec() {
-        assert_eq!(ElementCategory::Prayer.stream_zone(), StreamZone::LeftPanel);
-        assert_eq!(ElementCategory::Hymn.stream_zone(), StreamZone::LeftPanel);
-        assert_eq!(ElementCategory::Psalm.stream_zone(), StreamZone::BottomBar);
-        assert_eq!(ElementCategory::EucharisticPrayer.stream_zone(), StreamZone::BottomBar);
-        assert_eq!(ElementCategory::Reading.stream_zone(), StreamZone::LowerThird);
-        assert_eq!(ElementCategory::Anthem.stream_zone(), StreamZone::LowerThird);
-        assert_eq!(ElementCategory::Hymn.sanctuary_layout(), SanctuaryLayout::LyricsOnBlack);
-    }
 
     #[test]
     fn parses_keys_and_aliases() {
