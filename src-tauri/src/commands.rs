@@ -401,6 +401,8 @@ fn library_dirs(app: &AppHandle, engine: &Engine) -> Vec<PathBuf> {
     }
     if let Ok(d) = app.path().app_data_dir() {
         dirs.push(d.join("backgrounds"));
+        // Images in the media library can be backgrounds too.
+        dirs.push(d.join("media"));
     }
     dirs
 }

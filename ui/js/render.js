@@ -9,6 +9,7 @@
 
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
 import { artworkUrl, builtinUrl, lowerThirdFrameUrl } from "/js/backgrounds.js";
+import { isAntiphonSlide, resolveTemplate, slideTypeFor } from "/js/templates.js";
 
 const STAGE_W = 1920;
 const STAGE_H = 1080;
@@ -64,7 +65,44 @@ function paintLowerThirdFrame(stage, service, color) {
   stage.append(layer);
 }
 
-function paintBackground(stage, service, cue, look) {
+export const isVideo = (value) => /\.(mp4|m4v|mov|webm|ogv)$/i.test(value ?? "");
+
+/** A video background. In the output windows it plays (with sound on the
+ *  sanctuary screen only); in previews it shows a still frame. The playing
+ *  element is reused across re-renders so the video never restarts. */
+function videoLayer(stage, service, look, opts) {
+  const src = backgroundUrl(service, look.background);
+  const keep = opts.keepVideo;
+  const fit = { fill: "cover", fit: "contain", stretch: "fill" }[look.fit] ?? "cover";
+  if (opts.live && keep && keep.dataset.src === src) {
+    keep.style.objectFit = fit;
+    stage.append(keep);
+    if (keep.paused) keep.play().catch(() => {});
+    return;
+  }
+  const v = document.createElement("video");
+  v.className = "bg bg-video";
+  v.dataset.src = src;
+  v.style.objectFit = fit;
+  v.muted = !(opts.live && opts.sound);
+  v.playsInline = true;
+  if (opts.live) {
+    v.autoplay = true;
+    v.loop = true;
+    v.src = src;
+  } else {
+    v.preload = "metadata";
+    v.src = `${src}#t=0.5`;
+  }
+  stage.append(v);
+  if (opts.live) v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+}
+
+function paintBackground(stage, service, cue, look, opts = {}) {
+  if (isVideo(look.background)) {
+    stage.style.background = "#000";
+    return videoLayer(stage, service, look, opts);
+  }
   const layer = el("div", "bg");
   layer.style.background = backgroundCss(service, cue, look.background, look.fit);
   stage.append(layer);
@@ -119,6 +157,13 @@ function renderBlocks(blocks, cue, opts) {
       if (opts.rubrics) rows.append(el("div", "rubric", b.lines.map((l) => l.map((s) => s.text).join("")).join(" ")));
       continue;
     }
+    if (/^antiphon$/i.test(b.role ?? "")) {
+      // An antiphon's words: bold, under its music line, no label.
+      const row = el("div", "row span antiphon-words");
+      row.append(paragraphText(b, { ...opts, bold: true }));
+      rows.append(row);
+      continue;
+    }
     const row = el("div", "row");
     const people = b.role === "People";
     if (people) row.classList.add("people");
@@ -162,31 +207,6 @@ function titleCard(box, heading, cue) {
   if (main) box.append(el("div", "title-big", main));
 }
 
-function lowerThird(stage, cue, active) {
-  const box = el("div", "box lt");
-  stage.append(box);
-  const slide = active?.slide;
-  if (!slide || cue.content.kind === "announcements") {
-    box.classList.add("lt-center");
-    box.append(el("div", "lt-label-big", cue.title));
-  } else if (!slide.blocks.length) {
-    // Title slide: "The First Reading" / "Joshua 24:1-3a, 14-25"
-    box.append(el("div", "lt-label", slide.heading ?? cue.title));
-    box.append(el("div", "lt-main", cue.content.document?.meta.citation ?? cue.title));
-  } else {
-    if (slide.section_start && slide.heading) {
-      const head = el("div", "lt-head");
-      head.append(el("span", "lt-title", slide.heading));
-      const ref = reference(cue);
-      if (ref) head.append(el("span", "ref", ref));
-      box.append(head);
-    }
-    box.append(renderBlocks(slide.blocks.filter((b) => b.kind !== "image"), cue, { labels: true, numbers: true, rubrics: true }));
-    box.classList.toggle("lt-center", !slide.blocks.some((b) => b.kind === "paragraph" && b.role));
-  }
-  autoFit(box, 0.6);
-}
-
 function streamHeader(cue, slide) {
   const meta = cue.content.document?.meta ?? {};
   const head = el("div", "header");
@@ -212,15 +232,225 @@ function credits(cue) {
   return c;
 }
 
+// ---------- templated slides ----------
+
+const JUSTIFY = { top: "flex-start", center: "center", bottom: "flex-end" };
+
+/** Positions `node` at an element's rectangle and applies its type style. */
+function styleElement(node, spec) {
+  Object.assign(node.style, {
+    left: `${spec.x}px`,
+    top: `${spec.y}px`,
+    width: `${spec.w}px`,
+    height: `${spec.h}px`,
+  });
+  if (spec.font) node.style.fontFamily = spec.font;
+  if (spec.color) node.style.color = spec.color;
+  if (spec.bold != null) node.style.fontWeight = spec.bold ? "700" : "400";
+  if (spec.italic != null) node.style.fontStyle = spec.italic ? "italic" : "normal";
+  if (spec.align) {
+    node.style.textAlign = spec.align;
+    node.style.alignItems = { left: "flex-start", center: "center", right: "flex-end" }[spec.align];
+  }
+  node.style.justifyContent = JUSTIFY[spec.valign] ?? "center";
+  if (spec.size) node.style.setProperty("--body", `${spec.size}px`);
+}
+
+/** A single piece of text (title, reference, tag …) shrunk to fit. */
+function textPiece(stage, name, spec, text) {
+  const node = el("div", `piece piece-${name}`);
+  styleElement(node, spec);
+  node.append(el("div", "piece-text", text));
+  stage.append(node);
+  autoFit(node, 0.4);
+  return node;
+}
+
+function imagePiece(stage, name, spec, cue, block) {
+  const node = el("div", `piece piece-image piece-${name}`);
+  styleElement(node, spec);
+  const img = el("img");
+  img.src = assetUrl(cue, block.src);
+  img.alt = block.alt ?? "";
+  img.onerror = () => img.replaceWith(el("div", "score-missing", `♪ ${block.alt || block.src}`));
+  node.append(img);
+  stage.append(node);
+  return node;
+}
+
+/** The text box grows into title space above it that this slide leaves empty. */
+function textRect(T, shown) {
+  const t = { ...T.text };
+  const bottom = t.y + t.h;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [name, spec] of Object.entries(T)) {
+      if (name === "text" || shown.has(name) || spec.kind === "font" || spec.x == null) continue;
+      const touches = spec.y < t.y && spec.y + spec.h >= t.y - 2 && spec.x < t.x + t.w && spec.x + spec.w > t.x;
+      if (touches) {
+        t.y = spec.y;
+        changed = true;
+      }
+    }
+  }
+  t.h = bottom - t.y;
+  return t;
+}
+
+function textBox(stage, T, shown, content, cls = "") {
+  const box = el("div", `box tbox ${cls}`);
+  const rect = textRect(T, shown);
+  styleElement(box, rect);
+  box.style.setProperty("--box-h", `${rect.h}px`);
+  if (T.labels?.size) box.style.setProperty("--label", `${T.labels.size}px`);
+  box.append(content);
+  stage.append(box);
+  const paint = (sel, spec) => {
+    if (!spec) return;
+    box.querySelectorAll(sel).forEach((n) => {
+      if (spec.color) n.style.color = spec.color;
+      if (spec.font) n.style.fontFamily = spec.font;
+      if (spec.italic != null) n.style.fontStyle = spec.italic ? "italic" : "normal";
+      if (spec.bold != null) n.style.fontWeight = spec.bold ? "700" : "400";
+    });
+  };
+  paint(".label", T.labels);
+  if (T.people?.color) box.querySelectorAll(".people .text").forEach((n) => (n.style.color = T.people.color));
+  autoFit(box, 0.5);
+  return box;
+}
+
+/** What each element shows on this slide (absent: not shown). */
+function pieces(key, cue, slide) {
+  const meta = cue.content.document?.meta ?? {};
+  const citation = meta.citation;
+  const p = {};
+  const heading = slide?.heading;
+  const titleSlide = !slide || cue.content.kind === "announcements" || !slide.blocks.length;
+
+  if (key === "sanctuary.title") {
+    let main = cue.content.kind === "announcements" ? cue.title : citation ?? (heading ? "" : cue.title);
+    let small = heading && heading !== main ? heading : null;
+    if (!main) [main, small] = [small ?? cue.title, null];
+    p.title = main;
+    if (small) p.subtitle = small;
+    return p;
+  }
+
+  if (key === "sanctuary.prayer" || key === "sanctuary.psalm") {
+    if (key === "sanctuary.psalm" && isAntiphonSlide(slide)) {
+      const img = slide.blocks.find((b) => b.kind === "image" && b.src);
+      if (img) p.music = img;
+      p.antiphon = slide.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric");
+      return p;
+    }
+    if (slide.section_start && heading) {
+      p.title = citation ?? cue.title;
+      if (heading !== p.title && !(key === "sanctuary.psalm" && heading === citation)) p.subtitle = heading;
+    }
+    p.text = slide.blocks;
+    return p;
+  }
+
+  if (key === "stream.lower_third") {
+    if (titleSlide) {
+      if (cue.content.kind === "announcements" || !slide) p.big = cue.title;
+      else {
+        p.title = heading ?? cue.title;
+        p.big = citation ?? cue.title;
+      }
+      return p;
+    }
+    if (slide.section_start && heading) {
+      p.title = heading;
+      const ref = reference(cue);
+      if (ref && ref !== heading) p.reference = ref;
+    }
+    p.text = slide.blocks.filter((b) => b.kind !== "image");
+    return p;
+  }
+
+  if (key === "stream.bottom_bar") {
+    p.tag = cue.category === "psalm" ? citation ?? cue.title : cue.title;
+    const setting = extra(cue, "setting_image");
+    if (setting) p.music = { kind: "image", src: setting, alt: "Musical setting" };
+    if (slide?.section_start && heading && !isAntiphonSlide(slide)) {
+      p.title = cue.title;
+      if (heading !== cue.title && heading !== citation) p.subtitle = heading;
+    }
+    if (titleSlide) p.big = citation ?? cue.title;
+    else p.text = slide.blocks;
+    return p;
+  }
+
+  // stream.left_panel, stream.hymn
+  p.title = cue.title;
+  const ref = reference(cue);
+  if (ref && ref !== cue.title) p.reference = ref;
+  const sub = meta.title && meta.title !== cue.title ? meta.title : heading && heading !== cue.title ? heading : "";
+  if (sub && !(heading && /^verse\b/i.test(heading) && sub === heading)) p.subtitle = sub;
+  if (titleSlide) p.big = citation ?? "";
+  else p.text = slide.blocks;
+  if (key === "stream.hymn") {
+    const c = credits(cue);
+    if (c) p.credits = c;
+  }
+  return p;
+}
+
+/** Renders a slide with a slide type's layout. */
+export function renderTemplated(stage, key, cue, slide, templates) {
+  const T = resolveTemplate(templates, key);
+  const p = pieces(key, cue, slide);
+  const shown = new Set();
+  for (const [name, value] of Object.entries(p)) {
+    if (value == null || value === "" || name === "big" || name === "text") continue;
+    if (!T[name] || T[name].hidden) continue;
+    shown.add(name);
+  }
+  for (const name of shown) {
+    const spec = T[name];
+    const value = p[name];
+    if (spec.kind === "image") imagePiece(stage, name, spec, cue, value);
+    else if (Array.isArray(value)) {
+      const box = el("div", `box tbox piece-${name}`);
+      styleElement(box, spec);
+      box.append(renderBlocks(value, cue, { labels: false, numbers: false, rubrics: false, bold: spec.bold !== false }));
+      stage.append(box);
+      autoFit(box, 0.5);
+    } else if (value instanceof Node) {
+      const node = el("div", `piece piece-${name}`);
+      styleElement(node, spec);
+      node.append(value);
+      stage.append(node);
+      autoFit(node, 0.4);
+    } else textPiece(stage, name, spec, value);
+  }
+  if (!T.text || T.text.hidden) return;
+  if (p.big) {
+    textBox(stage, T, shown, el("div", key === "stream.lower_third" ? "lt-main" : "title-big", p.big), "title-card");
+  } else if (p.text) {
+    const hymn = key === "stream.hymn";
+    const stream = key.startsWith("stream.");
+    const blocks = p.text;
+    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, reflow: hymn, bold: hymn }));
+    if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
+  }
+}
+
 // ---------- outputs ----------
 
 /**
  * Renders `output` ("sanctuary" | "stream") for the active slide.
  * `active` is { cue, slide, pos } or null (pre-service).
+ * `opts.live` is set by the output windows: videos play (with sound on the
+ * sanctuary screen); previews show a still frame.
  */
-export function renderOutput(stage, snap, active, output) {
+export function renderOutput(stage, snap, active, output, opts = {}) {
   const service = snap.service;
   const st = snap.state ?? {};
+  const keepVideo = stage.querySelector("video.bg-video");
   stage.replaceChildren();
   stage.className = `stage out-${output}`;
   stage.style.background = output === "stream" ? keyColor(service) : "#000";
@@ -233,14 +463,21 @@ export function renderOutput(stage, snap, active, output) {
   if (!look) return;
   stage.classList.add(`layout-${look.layout}`, `tone-${look.tone}`, `cat-${cue.category}`);
 
-  if (!st.media_cleared) paintBackground(stage, service, cue, look);
+  if (!st.media_cleared) paintBackground(stage, service, cue, look, { ...opts, keepVideo, sound: output === "sanctuary" });
   else if (look.layout === "lower_third" || output === "stream") stage.style.background = keyColor(service);
   if (st.text_cleared) return;
 
-  if (look.layout === "lower_third") return lowerThird(stage, cue, active);
-  if (look.layout === "info_bar") return infoBar(stage, cue, active.slide);
-
   const slide = active.slide;
+  // A media item (an image or video from the library) is just its background.
+  if (!slide && cue.content.kind === "liturgy" && extra(cue, "media")) return;
+
+  const key = slideTypeFor(cue, slide, output, look);
+  if (key) {
+    if (!slide && cue.content.kind !== "announcements" && key !== "stream.lower_third") return;
+    return renderTemplated(stage, key, cue, slide, service?.templates);
+  }
+  if (look.layout === "info_bar") return infoBar(stage, cue, slide);
+
   const box = el("div", "box");
   stage.append(box);
 
@@ -257,26 +494,12 @@ export function renderOutput(stage, snap, active, output) {
 
   const hymn = cue.category === "hymn";
   if (output === "sanctuary") {
-    if (look.layout === "lyrics") {
-      box.append(renderBlocks(slide.blocks, cue, { labels: false, numbers: false, rubrics: false, bold: true }));
-      const cap = el("div", "lyrics-caption", cue.caption);
-      stage.append(cap);
-    } else {
-      if (slide.section_start && slide.heading) {
-        const head = el("div", "s-header");
-        const left = cue.content.document?.meta.citation ?? cue.title;
-        head.append(el("span", null, left));
-        if (slide.heading !== left) head.append(el("span", null, slide.heading));
-        box.append(head);
-      }
-      box.append(renderBlocks(slide.blocks, cue, { labels: true, numbers: true, rubrics: false }));
-    }
+    // Hymn lyrics.
+    box.append(renderBlocks(slide.blocks, cue, { labels: false, numbers: false, rubrics: false, bold: true }));
+    const cap = el("div", "lyrics-caption", cue.caption);
+    stage.append(cap);
   } else {
-    const bar = look.layout === "bottom_bar";
-    if (!bar || slide.section_start) box.append(streamHeader(cue, slide));
-    if (bar && cue.category === "psalm" && cue.content.document?.meta.citation) {
-      stage.append(el("div", "tag", cue.content.document.meta.citation));
-    }
+    box.append(streamHeader(cue, slide));
     box.append(renderBlocks(slide.blocks, cue, { labels: true, numbers: true, rubrics: true, reflow: hymn, bold: hymn }));
     if (hymn) {
       const c = credits(cue);
@@ -328,5 +551,5 @@ function renderPreService(stage, service, output) {
 }
 
 // Back-compat names used by the output pages and control previews.
-export const renderSanctuary = (stage, snap, active) => renderOutput(stage, snap, active, "sanctuary");
-export const renderStream = (stage, snap, active) => renderOutput(stage, snap, active, "stream");
+export const renderSanctuary = (stage, snap, active, opts) => renderOutput(stage, snap, active, "sanctuary", opts);
+export const renderStream = (stage, snap, active, opts) => renderOutput(stage, snap, active, "stream", opts);

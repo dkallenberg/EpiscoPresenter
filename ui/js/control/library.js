@@ -3,9 +3,21 @@
 // "Import propers" dialog for readings and collects pasted from the lectionary.
 
 import { mountStage, renderOutput } from "/js/render.js";
+import { renderMedia } from "/js/control/media.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
-const lib = { entries: [], category: "all", query: "", selected: null, mine: false };
+const lib = { entries: [], category: "all", query: "", selected: null, mine: false, view: "items" };
+
+/** Items | Media switch at the top of the Library. */
+function viewSwitch() {
+  return el(
+    "div.seg.lib-views",
+    {},
+    [["items", "Items"], ["media", "Media"]].map(([v, l]) =>
+      el(`button${lib.view === v ? ".active" : ""}`, { onclick: () => { lib.view = v; refresh(); } }, l),
+    ),
+  );
+}
 
 /** New items go after the selected cue, else at the end. */
 function insertionPoint() {
@@ -18,6 +30,7 @@ export function initLibrary() {
 }
 
 export async function refresh() {
+  if (lib.view === "media") return renderMedia(document.getElementById("library"), viewSwitch());
   lib.entries = (await call("library_list")) ?? [];
   render();
 }
@@ -87,6 +100,7 @@ function render() {
       el(
         "div.lib-toolbar",
         {},
+        viewSwitch(),
         search,
         el("button.small", { title: "Paste readings and the collect from the lectionary page", onclick: openPropers }, "Import propers…"),
       ),

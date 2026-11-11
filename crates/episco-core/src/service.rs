@@ -55,6 +55,10 @@ pub struct Service {
     /// Default looks per item type (`[looks.<type>]` in the plan).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub looks: BTreeMap<ElementCategory, CueLooks>,
+    /// The operator's slide layouts (app-wide; filled in by the app when a
+    /// service is loaded, never written to the plan).
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub templates: crate::template::Templates,
     /// The plan file this service was loaded from / last saved to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_path: Option<PathBuf>,

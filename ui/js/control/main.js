@@ -3,6 +3,7 @@
 import { connectStore, inTauri, invoke, listen, send } from "/js/bridge.js";
 import { initEditor } from "/js/control/editor.js";
 import { initHome, showHome } from "/js/control/home.js";
+import { openLayouts } from "/js/control/layouts.js";
 import { initLibrary } from "/js/control/library.js";
 import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
@@ -44,6 +45,7 @@ listen("episco://autosave", (s) => {
   renderTopbar();
 });
 $("btn-settings").addEventListener("click", openServiceSettings);
+$("btn-layouts").addEventListener("click", openLayouts);
 document.addEventListener("keydown", (e) => {
   // ⌘S saves the selected item (editor.js); ⌥⌘S saves the whole service.
   if ((e.metaKey || e.ctrlKey) && e.altKey && e.key.toLowerCase() === "s") {
@@ -63,7 +65,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.closest("textarea, input, select, [contenteditable='true']") || e.metaKey || e.ctrlKey) return;
   // Never drive the screens while a dialog or picker is open: stray typing
   // there would otherwise advance slides or black out the outputs.
-  if (document.querySelector(".modal-overlay, .bg-picker")) return;
+  if (document.querySelector(".modal-overlay, .bg-picker, .layout-tool")) return;
   const cmd = {
     ArrowRight: "next",
     ArrowDown: "next",

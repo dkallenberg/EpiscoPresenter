@@ -139,3 +139,33 @@
 .ib-small { font-size: calc(30px * var(--fit)); }
 .ib-big { font-size: 1.35em; font-weight: 700; }
 .ib .rows { display: block; }
+
+/* ---------------- Slide layouts (Layout tool) ----------------
+   Positions, fonts and sizes are set inline from the slide type's
+   elements (js/templates.js); these rules only give the defaults. */
+
+.piece {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: calc(var(--body) * var(--fit));
+  line-height: 1.2;
+}
+.piece-image { align-items: center; justify-content: center; }
+.piece-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.piece .rows { display: block; }
+.tbox .score { max-height: calc(var(--box-h, 600px) * 0.6); }
+.antiphon-words .text { text-align: center; font-weight: 700; }
+.antiphon-words + .antiphon-words { margin-top: 0.2em; }
+.bg-video { width: 100%; height: 100%; display: block; }
+
+.out-stream.tone-light .piece-title,
+.out-stream.tone-light .piece-reference,
+.out-stream.tone-light .piece-subtitle,
+.out-stream.tone-light .piece-credits { color: #fff; }
+.out-stream.tone-dark .piece-title,
+.out-stream.tone-dark .piece-reference,
+.out-stream.tone-dark .piece-subtitle { color: #111; }
+.out-sanctuary.tone-dark .piece-antiphon { color: #000; }

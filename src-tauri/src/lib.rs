@@ -11,7 +11,9 @@ mod autosave;
 mod commands;
 mod engine;
 mod library;
+mod media;
 mod services;
+mod templates;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -33,6 +35,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let config = load_config(app.handle());
+            templates::init(app.handle());
             tracing::info!("starting as {:?} node `{}`", config.role, config.node_name);
 
             let handle = app.handle().clone();
@@ -82,6 +85,15 @@ pub fn run() {
             library::parse_propers,
             library::add_propers,
             library::psalm_arrange,
+            media::media_list,
+            media::media_import,
+            media::media_delete,
+            media::media_rename,
+            media::media_folder,
+            media::media_add,
+            templates::layouts_get,
+            templates::layouts_set,
+            templates::layouts_reset,
             services::liturgical_info,
             services::services_list,
             services::service_create,

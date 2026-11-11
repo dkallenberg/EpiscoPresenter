@@ -38,6 +38,9 @@ escapes, or `'...'` with `''` for a quote). Lines starting with `#` are comments
 | `hymn_number` | Hymnal number | e.g. `436`, `S 125` |
 | `tune` | Hymn tune name | text |
 | `words`, `music`, `setting` | Hymn credits, shown at the foot of the stream slide | text |
+| `setting_image` | Psalms: image of the musical setting, shown on the stream between the gold title box and the text bar | image path |
+| `antiphon`, `antiphon_every`, `antiphon_placed`, `verses_per_slide` | Psalms: how **Apply** in the Psalm layout panel arranges the slides | text, number, `true`, number |
+| `media` | A media item (image or video shown full screen) | file path |
 
 If `color` is omitted it follows the season (Advent → Blue, Christmas/Easter →
 White, Epiphany/Pentecost → Green, Lent → Violet, Holy Week → Red). If
@@ -191,4 +194,23 @@ To check a file from the terminal:
 
 ```bash
 cargo run -p episco-core --example ewm_dump -- examples/service.toml
+```
+
+## Psalm antiphons
+
+An antiphon is its own section: a `# Antiphon` heading, the music line as an
+image, and the words as an `[Antiphon]` paragraph (bold, centred under the
+music, no label). Verses use their number as the role; bold verses are the
+people's, plain verses the choir's.
+
+```text
+# Antiphon
+![Antiphon](/media/ps96-antiphon.png)
+[Antiphon] **Sing to the Lord a new song.**
+
+# Psalm 96
+[1] Sing to the Lord a new song; *
+    sing to the Lord, all the whole earth.
+[2] **Sing to the Lord and bless his Name; ***
+    **proclaim the good news of his salvation from day to day.**
 ```

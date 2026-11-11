@@ -27,6 +27,23 @@ Service**.
 Please proofread the built-in texts against your prayer book before relying
 on them in worship.
 
+## Media
+
+**Library → Media** holds images and videos (`png`, `jpg`, `gif`, `svg`,
+`webp`; `mp4`, `mov`, `m4v`, `webm`). **Import…** copies files into the app's
+`media` folder (in the app data folder). Select one to:
+
+* **Add to service**: a new item that shows it full screen on both outputs
+  (double-click does the same). Videos play while the item is live, with
+  sound on the sanctuary computer; previews show a still frame.
+* Use it as the **background** of the selected item: Sanctuary, Live Stream
+  or Both.
+* For a psalm, make it the **Psalm's musical setting** (see below).
+* Rename or delete it.
+
+Images in the media library also appear in every background picker, and the
+editor's **Choose…** buttons for music images open the media library first.
+
 ## Import propers (readings, collect and psalm)
 
 The lectionary site (lectionary.episcopalchurch.org) blocks automated access,
@@ -66,12 +83,33 @@ the 1979 Book of Common Prayer.
 
 ### Psalm layout (after importing)
 
-Select the psalm and open the **Editor**. The **Psalm layout** panel sets the
-**antiphon**, how often it **repeats**, and **verses per slide** (1–4).
-**Apply** rebuilds the slides from the numbered verses. A chant image added
-with **♪ Music** moves to the antiphon slides. You can also edit the verses
-directly; a verse is a block whose role is its number (`[1]`, `[2]` … in the
-`.ewm` file).
+Select the psalm and open the **Editor**. The **Psalm layout** panel has:
+
+| Setting | What it does |
+| --- | --- |
+| Antiphon music | The music line for the antiphon, from the media library (or any file). It shows on both screens: on the sanctuary almost full width with the words retyped under it. |
+| Musical setting (stream) | An image of the psalm's setting (chant or tone), shown on the live stream between the gold title box and the text bar, on every slide of the psalm. |
+| Antiphon words | The antiphon's text (sung by all), bold. |
+| Antiphon | Where it repeats: *start & end*, *every 2/3/4/6 verses*, or *where placed* (keep the antiphons you put in by hand). |
+| Slides | Verses per slide (1–4). |
+
+**Apply** rebuilds the slides from the numbered verses, keeping who sings
+each verse.
+
+In the block list:
+
+* **Antiphon** blocks are labelled and tinted gold. An antiphon is a
+  `# Antiphon` section (its own slide) with the music image and an
+  `[Antiphon]` paragraph for the words.
+* **♫ Antiphon** (between any two blocks) inserts a copy of the psalm's
+  first antiphon (music and words) there, so the antiphon can come after
+  any verse, however uneven the groups are.
+* Beside each verse, **Choir / People** sets who sings it. The people's
+  verses are bold; the choir's are plain. Imported psalms start alternating,
+  choir first.
+
+A verse is a block whose role is its number (`[1]`, `[2]` … in the `.ewm`
+file).
 
 **Psalm with no verses?** If the import dialog says no verses were found (or a
 psalm was imported with an older version and shows only its title), paste

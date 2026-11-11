@@ -10,6 +10,7 @@ The control window has three panes: the **service timeline** (left), the
 | ☰ Services | The Services screen: upcoming services, New service, Schedule upcoming Sundays, Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
 | Save status | ✓ Saved / Saving…, since services save themselves. For the example, *Not saved · Keep…* adds it to your services. |
 | ⚙ Service | Title, date, season, colour, announcements deck and the stream key colour. |
+| ▦ Layouts | Where text, titles and music go on each kind of slide, and their fonts. See [layouts.md](layouts.md). |
 | Save As… | Writes a copy of the service elsewhere. |
 
 The right end shows the node's role and network status (and latency on a
@@ -86,8 +87,9 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 
 ## Library tab
 
-Built-in Rite II texts and the items you have saved, by type, with previews
-of both outputs. **Add to service** (or double-click) puts a copy after the
+**Items**: built-in Rite II texts and the items you have saved, by type, with previews
+of both outputs. **Media**: images and videos to show full screen, use as
+backgrounds, or set as a psalm's music. **Add to service** (or double-click) puts a copy after the
 selected cue. In the Editor, **Save to Library** keeps the selected item for
 later services. See [library.md](library.md).
 

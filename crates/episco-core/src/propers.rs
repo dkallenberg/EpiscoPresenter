@@ -24,7 +24,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::category::ElementCategory;
-use crate::document::{Block, FrontMatter, LiturgyDocument, Span};
+use crate::document::{Block, FrontMatter, Line, LiturgyDocument, Span};
 use crate::role::Role;
 
 /// What kind of item a found entry becomes.
@@ -80,10 +80,23 @@ pub struct ProperItem {
 }
 
 /// One psalm verse: its number and its lines (half-verses).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct PsalmVerse {
     pub number: String,
     pub lines: Vec<String>,
+    /// Sung by the people (bold) or the choir (plain). `None`: alternate,
+    /// starting with the choir.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub people: Option<bool>,
+    /// An antiphon follows this verse (kept by "Where placed").
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub antiphon_after: bool,
+}
+
+impl PsalmVerse {
+    pub fn new(number: impl Into<String>, lines: Vec<String>) -> PsalmVerse {
+        PsalmVerse { number: number.into(), lines, ..Default::default() }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -526,10 +539,10 @@ fn parse_verses(lines: &[(bool, String)], mut j: usize) -> (Vec<PsalmVerse>, usi
             if text.is_empty() {
                 pending = Some(number.to_string());
             } else {
-                verses.push(PsalmVerse { number: number.to_string(), lines: vec![clean(text)] });
+                verses.push(PsalmVerse::new(number, vec![clean(text)]));
             }
         } else if let Some(number) = pending.take() {
-            verses.push(PsalmVerse { number, lines: vec![clean(line)] });
+            verses.push(PsalmVerse::new(number, vec![clean(line)]));
         } else if let Some(last) = verses.last_mut().filter(|_| line.chars().count() <= 160) {
             last.lines.push(clean(line));
         } else {
@@ -618,6 +631,7 @@ pub fn build_document(item: &ProperItem, day: Option<&str>) -> LiturgyDocument {
                 antiphon: item.antiphon.clone().filter(|a| !a.trim().is_empty()),
                 antiphon_every: item.antiphon_every,
                 verses_per_slide: 2,
+                placed: false,
             };
             return psalm_document(&item.citation, Some(&item.citation), &item.verses, &opts, &[]);
         }
@@ -680,6 +694,10 @@ pub struct PsalmOptions {
     /// Also repeat the antiphon after every N verses (0: start and end only).
     #[serde(default)]
     pub antiphon_every: u32,
+    /// Keep the antiphons where they are now (after the verses marked
+    /// `antiphon_after`) instead of every N verses.
+    #[serde(default)]
+    pub placed: bool,
     /// Verses per slide.
     #[serde(default = "two")]
     pub verses_per_slide: u32,
@@ -691,18 +709,34 @@ fn two() -> u32 {
 
 impl Default for PsalmOptions {
     fn default() -> Self {
-        PsalmOptions { antiphon: None, antiphon_every: 0, verses_per_slide: 2 }
+        PsalmOptions { antiphon: None, antiphon_every: 0, placed: false, verses_per_slide: 2 }
     }
 }
 
-const ANTIPHON: &str = "Antiphon";
+/// Section heading and speaker role of an antiphon.
+pub const ANTIPHON: &str = "Antiphon";
 
-/// A psalm's slides. Verses alternate between the choir (plain) and the
-/// congregation (bold), starting with the choir; each shows its verse
-/// number but no role label. The antiphon, if any, is bold and shown at the
-/// start, at the end, and after every `antiphon_every` verses. `images`
-/// (e.g. the antiphon's chant) go on the antiphon slides, or before the
-/// verses when there is no antiphon.
+/// True for the role that marks an antiphon's words.
+pub fn is_antiphon_role(role: Option<&Role>) -> bool {
+    matches!(role, Some(Role::Custom(r)) if r.eq_ignore_ascii_case(ANTIPHON))
+}
+
+/// The blocks of one antiphon: its heading (a new slide), the music line
+/// (`images`) and the words, bold, under it.
+pub fn antiphon_blocks(text: &str, images: &[Block]) -> Vec<Block> {
+    let mut blocks = vec![Block::Heading { level: 1, text: ANTIPHON.into() }];
+    blocks.extend(images.iter().cloned());
+    let lines: Vec<Line> = text.split(['\n', '/']).map(str::trim).filter(|l| !l.is_empty()).map(bold).collect();
+    blocks.push(Block::Paragraph { role: Some(Role::Custom(ANTIPHON.into())), lines });
+    blocks
+}
+
+/// A psalm's slides. Each verse shows its number but no role label and is
+/// sung by the choir (plain) or the people (bold): as the verse says, else
+/// alternating, starting with the choir. The antiphon, if any, is shown at
+/// the start, at the end, and after every `antiphon_every` verses (or where
+/// the verses say, with `placed`). `images` (the antiphon's music line) go
+/// on the antiphon slides, or before the verses when there is no antiphon.
 pub fn psalm_document(
     title: &str,
     citation: Option<&str>,
@@ -719,7 +753,9 @@ pub fn psalm_document(
     let antiphon = opts.antiphon.as_deref().map(str::trim).filter(|a| !a.is_empty());
     if let Some(a) = antiphon {
         meta.extra.push(("antiphon".into(), a.replace('\n', " / ")));
-        if opts.antiphon_every > 0 {
+        if opts.placed {
+            meta.extra.push(("antiphon_placed".into(), "true".into()));
+        } else if opts.antiphon_every > 0 {
             meta.extra.push(("antiphon_every".into(), opts.antiphon_every.to_string()));
         }
     }
@@ -728,17 +764,14 @@ pub fn psalm_document(
     }
 
     let section = citation.unwrap_or(title).to_string();
-    let antiphon_blocks = |blocks: &mut Vec<Block>| {
+    let push_antiphon = |blocks: &mut Vec<Block>| {
         if let Some(a) = antiphon {
-            blocks.push(Block::Heading { level: 1, text: ANTIPHON.into() });
-            blocks.extend(images.iter().cloned());
-            let lines = a.split(['\n', '/']).map(str::trim).filter(|l| !l.is_empty()).map(bold).collect();
-            blocks.push(Block::Paragraph { role: None, lines });
+            blocks.extend(antiphon_blocks(a, images));
         }
     };
 
     let mut blocks = Vec::new();
-    antiphon_blocks(&mut blocks);
+    push_antiphon(&mut blocks);
     blocks.push(Block::Heading { level: 1, text: section.clone() });
     if antiphon.is_none() {
         blocks.extend(images.iter().cloned());
@@ -747,22 +780,24 @@ pub fn psalm_document(
     let every = opts.antiphon_every as usize;
     let mut on_slide = 0;
     for (i, verse) in verses.iter().enumerate() {
-        if i > 0 && antiphon.is_some() && every > 0 && i % every == 0 {
-            antiphon_blocks(&mut blocks);
+        let antiphon_here = i > 0
+            && antiphon.is_some()
+            && if opts.placed { verses[i - 1].antiphon_after } else { every > 0 && i % every == 0 };
+        if antiphon_here {
+            push_antiphon(&mut blocks);
             blocks.push(Block::Heading { level: 1, text: section.clone() });
             on_slide = 0;
         } else if on_slide == per {
             blocks.push(Block::SlideBreak);
             on_slide = 0;
         }
-        let congregation = i % 2 == 1;
-        let lines =
-            verse.lines.iter().map(|l| if congregation { bold(l) } else { vec![Span::plain(l.clone())] }).collect();
+        let people = verse.people.unwrap_or(i % 2 == 1);
+        let lines = verse.lines.iter().map(|l| if people { bold(l) } else { vec![Span::plain(l.clone())] }).collect();
         blocks.push(Block::Paragraph { role: Some(Role::Custom(verse.number.clone())), lines });
         on_slide += 1;
     }
     if !verses.is_empty() {
-        antiphon_blocks(&mut blocks);
+        push_antiphon(&mut blocks);
     }
     LiturgyDocument { meta, blocks }
 }
@@ -780,43 +815,97 @@ pub fn parse_psalm_text(text: &str) -> Vec<PsalmVerse> {
     parse_verses(&lines, start).0
 }
 
-/// The verses of a psalm document (numbered paragraphs), in order.
+/// The verses of a psalm document (numbered paragraphs), in order, with
+/// who sings each (bold: the people) and where antiphons are.
 pub fn psalm_verses(doc: &LiturgyDocument) -> Vec<PsalmVerse> {
-    doc.blocks
-        .iter()
-        .filter_map(|b| match b {
-            Block::Paragraph { role: Some(role), lines } if is_verse_number(role) => Some(PsalmVerse {
-                number: role.label().to_string(),
-                lines: lines.iter().map(|l| crate::document::line_plain_text(l)).collect(),
-            }),
-            _ => None,
-        })
-        .collect()
+    let mut verses: Vec<PsalmVerse> = Vec::new();
+    for b in &doc.blocks {
+        match b {
+            Block::Paragraph { role: Some(role), lines } if is_verse_number(role) => {
+                // The half-verse mark "*" does not count either way.
+                let spans: Vec<&Span> = lines.iter().flatten().filter(|s| !matches!(s.text.trim(), "" | "*")).collect();
+                let people = !spans.is_empty() && spans.iter().all(|s| s.bold);
+                verses.push(PsalmVerse {
+                    number: role.label().to_string(),
+                    lines: lines.iter().map(|l| crate::document::line_plain_text(l)).collect(),
+                    people: Some(people),
+                    antiphon_after: false,
+                });
+            }
+            Block::Heading { text, .. } if text.eq_ignore_ascii_case(ANTIPHON) => {
+                if let Some(last) = verses.last_mut() {
+                    last.antiphon_after = true;
+                }
+            }
+            _ => {}
+        }
+    }
+    verses
 }
 
-/// The layout a psalm document was built with (from its front matter).
+/// The words of the psalm's first antiphon, lines joined by " / ".
+pub fn first_antiphon(doc: &LiturgyDocument) -> Option<String> {
+    let mut in_antiphon = false;
+    for b in &doc.blocks {
+        match b {
+            Block::Heading { text, .. } => in_antiphon = text.eq_ignore_ascii_case(ANTIPHON),
+            Block::Paragraph { role, lines } if is_antiphon_role(role.as_ref()) || (in_antiphon && role.is_none()) => {
+                let text = lines.iter().map(|l| crate::document::line_plain_text(l)).collect::<Vec<_>>().join(" / ");
+                if !text.trim().is_empty() {
+                    return Some(text);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// The music images of a psalm (each once, in order).
+pub fn psalm_images(doc: &LiturgyDocument) -> Vec<Block> {
+    let mut seen = Vec::new();
+    let mut out = Vec::new();
+    for b in &doc.blocks {
+        if let Block::Image { src, .. } = b {
+            if !src.is_empty() && !seen.contains(src) {
+                seen.push(src.clone());
+                out.push(b.clone());
+            }
+        }
+    }
+    out
+}
+
+/// The layout a psalm document was built with (from its front matter and
+/// its antiphons).
 pub fn psalm_options(doc: &LiturgyDocument) -> PsalmOptions {
     let num = |k: &str| doc.meta.extra(k).and_then(|v| v.parse().ok());
     PsalmOptions {
-        antiphon: doc.meta.extra("antiphon").map(String::from),
+        antiphon: first_antiphon(doc).or_else(|| doc.meta.extra("antiphon").map(String::from)),
         antiphon_every: num("antiphon_every").unwrap_or(0),
+        placed: doc.meta.extra("antiphon_placed") == Some("true"),
         verses_per_slide: num("verses_per_slide").unwrap_or(2),
     }
 }
 
-/// Rebuilds a psalm document's slides with new options (antiphon, how often
-/// it repeats, verses per slide), keeping its verses, title, citation and
-/// any images (which move to the antiphon slides).
-pub fn rearrange_psalm(doc: &LiturgyDocument, opts: &PsalmOptions) -> LiturgyDocument {
-    let images: Vec<Block> = doc.blocks.iter().filter(|b| matches!(b, Block::Image { .. })).cloned().collect();
-    let mut out = psalm_document(&doc.meta.title, doc.meta.citation.as_deref(), &psalm_verses(doc), opts, &images);
-    // Keep the rest of the front matter (season, colour, background …).
+/// Rebuilds a psalm document's slides from `verses` with new options
+/// (antiphon, where it repeats, verses per slide), keeping its title,
+/// citation, front matter and music images (which go on the antiphon slides).
+pub fn rearrange_psalm_with(doc: &LiturgyDocument, opts: &PsalmOptions, verses: &[PsalmVerse]) -> LiturgyDocument {
+    let images = psalm_images(doc);
+    let mut out = psalm_document(&doc.meta.title, doc.meta.citation.as_deref(), verses, opts, &images);
     let mut meta = doc.meta.clone();
-    meta.extra.retain(|(k, _)| !matches!(k.as_str(), "antiphon" | "antiphon_every" | "verses_per_slide"));
+    meta.extra
+        .retain(|(k, _)| !matches!(k.as_str(), "antiphon" | "antiphon_every" | "antiphon_placed" | "verses_per_slide"));
     meta.extra.append(&mut out.meta.extra);
     meta.category = Some(ElementCategory::Psalm);
     out.meta = meta;
     out
+}
+
+/// [`rearrange_psalm_with`] the document's own verses.
+pub fn rearrange_psalm(doc: &LiturgyDocument, opts: &PsalmOptions) -> LiturgyDocument {
+    rearrange_psalm_with(doc, opts, &psalm_verses(doc))
 }
 
 #[cfg(test)]
@@ -926,10 +1015,7 @@ Matthew 25:1–13
         let ps123 = &p.items[3].verses;
         assert_eq!(
             ps123[0],
-            PsalmVerse {
-                number: "1".into(),
-                lines: vec!["To you I lift up my eyes, *".into(), "to you enthroned in the heavens.".into()]
-            }
+            PsalmVerse::new("1", vec!["To you I lift up my eyes, *".into(), "to you enthroned in the heavens.".into()])
         );
         let ps90 = &p.items[5].verses;
         assert_eq!(ps90[1].lines.len(), 3, "multi-line verse");
@@ -941,17 +1027,14 @@ Matthew 25:1–13
     #[test]
     fn psalm_verses_survive_how_browsers_copy_them() {
         let expected = vec![
-            PsalmVerse {
-                number: "1".into(),
-                lines: vec!["To you I lift up my eyes, *".into(), "to you enthroned in the heavens.".into()],
-            },
-            PsalmVerse {
-                number: "2".into(),
-                lines: vec![
+            PsalmVerse::new("1", vec!["To you I lift up my eyes, *".into(), "to you enthroned in the heavens.".into()]),
+            PsalmVerse::new(
+                "2",
+                vec![
                     "As the eyes of servants look to the hand of their masters, *".into(),
                     "and the eyes of a maid to the hand of her mistress,".into(),
                 ],
-            },
+            ),
         ];
         let pages = [
             // Blank lines everywhere (Safari / Chrome copying block elements).
@@ -1007,7 +1090,7 @@ Matthew 25:1–13
             vec!["Antiphon", "Psalm 123", "Antiphon", "Psalm 123", "Antiphon", "Psalm 123", "Antiphon"]
         );
         let antiphon = &slides[0].blocks[0];
-        assert_eq!(antiphon.role(), None, "the antiphon has no role label");
+        assert!(is_antiphon_role(antiphon.role()), "the antiphon is marked, not a speaker");
         assert_eq!(antiphon.plain_text(), "Our eyes look to the Lord our God.");
 
         // Round-trips through .ewm, and can be rearranged later.
@@ -1018,9 +1101,48 @@ Matthew 25:1–13
         assert_eq!(psalm_options(&doc).antiphon_every, 2);
         let plain = rearrange_psalm(&doc, &PsalmOptions::default());
         assert_eq!(plain.slides().len(), 3);
-        assert_eq!(psalm_verses(&plain), p.items[3].verses);
+        let lines = |v: &[PsalmVerse]| v.iter().map(|v| (v.number.clone(), v.lines.clone())).collect::<Vec<_>>();
+        assert_eq!(lines(&psalm_verses(&plain)), lines(&p.items[3].verses));
         let three = rearrange_psalm(&doc, &PsalmOptions { verses_per_slide: 3, ..PsalmOptions::default() });
         assert_eq!(three.slides().len(), 2);
+    }
+
+    #[test]
+    fn choir_or_people_and_antiphons_where_placed_survive_rearranging() {
+        let verses: Vec<PsalmVerse> = (1..=6)
+            .map(|n| PsalmVerse::new(n.to_string(), vec![format!("Verse {n} *"), "second half".into()]))
+            .collect();
+        let image = Block::Image { alt: "Antiphon".into(), src: "/media/antiphon.png".into() };
+        let opts = PsalmOptions { antiphon: Some("Sing to the Lord".into()), ..PsalmOptions::default() };
+        let mut doc = psalm_document("Psalm 96", Some("Psalm 96"), &verses, &opts, std::slice::from_ref(&image));
+        // The operator marks verse 3 as the people's and adds an antiphon
+        // after verse 3 by copying the first one.
+        let v3 = doc.blocks.iter().position(|b| b.role() == Some(&Role::Custom("3".into()))).unwrap();
+        if let Block::Paragraph { lines, .. } = &mut doc.blocks[v3] {
+            *lines = lines.iter().map(|l| bold(&crate::document::line_plain_text(l))).collect();
+        }
+        let first: Vec<Block> = doc.blocks[..3].to_vec();
+        assert!(matches!(first[1], Block::Image { .. }) && is_antiphon_role(first[2].role()));
+        let mut insert = first.clone();
+        insert.push(Block::Heading { level: 1, text: "Psalm 96".into() });
+        doc.blocks.splice(v3 + 1..v3 + 1, insert);
+
+        let verses = psalm_verses(&doc);
+        let who: Vec<bool> = verses.iter().map(|v| v.people.unwrap()).collect();
+        assert_eq!(who, vec![false, true, true, true, false, true]);
+        assert_eq!(verses.iter().position(|v| v.antiphon_after), Some(2));
+        assert_eq!(first_antiphon(&doc).as_deref(), Some("Sing to the Lord"));
+
+        let placed = PsalmOptions { placed: true, ..psalm_options(&doc) };
+        let again = rearrange_psalm(&doc, &placed);
+        let headings: Vec<String> = again.slides().iter().map(|s| s.heading.clone().unwrap_or_default()).collect();
+        assert_eq!(headings, vec!["Antiphon", "Psalm 96", "Psalm 96", "Antiphon", "Psalm 96", "Psalm 96", "Antiphon"]);
+        assert_eq!(psalm_images(&again).len(), 1, "the music line is not duplicated");
+        assert_eq!(
+            psalm_verses(&again).iter().map(|v| v.people).collect::<Vec<_>>(),
+            who.iter().map(|w| Some(*w)).collect::<Vec<_>>()
+        );
+        assert!(psalm_options(&again).placed);
     }
 
     #[test]

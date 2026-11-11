@@ -202,6 +202,11 @@ impl Engine {
     pub fn load_service(&self, service: Option<Service>) -> Result<(), String> {
         match self {
             Engine::Host { hub, .. } => {
+                // Every service is shown with the operator's slide layouts.
+                let service = service.map(|mut s| {
+                    s.templates = crate::templates::current();
+                    s
+                });
                 hub.load_service(service);
                 Ok(())
             }

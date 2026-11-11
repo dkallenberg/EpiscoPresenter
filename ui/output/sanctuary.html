@@ -15,7 +15,7 @@
       import { connectStore, activeSlide } from "/js/bridge.js";
       import { mountStage, renderSanctuary } from "/js/render.js";
       const stage = mountStage(document.getElementById("host"));
-      connectStore((snap) => renderSanctuary(stage, snap, activeSlide(snap)));
+      connectStore((snap) => renderSanctuary(stage, snap, activeSlide(snap), { live: true }));
     </script>
   </body>
 </html>

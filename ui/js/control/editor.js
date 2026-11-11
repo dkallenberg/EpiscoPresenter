@@ -11,6 +11,7 @@ import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom } from "/js/control/richtext.js";
 import { saveCueToLibrary } from "/js/control/library.js";
 import { lookPanel } from "/js/control/looks.js";
+import { pickMedia } from "/js/control/media.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
 const SEND_DELAY_MS = 350;
@@ -317,16 +318,59 @@ function metaForm(c) {
 // ----- psalm layout -----
 
 const extraOf = (doc, key) => doc.meta.extra?.find(([k]) => k === key)?.[1];
+const isPsalm = () => (ed.doc?.meta.type ?? "") === "psalm";
+const isAntiphonHeading = (b) => b.kind === "heading" && /^antiphon$/i.test(b.text ?? "");
+const isVerse = (b) => b.kind === "paragraph" && /^\d/.test(b.role ?? "");
+const spansOf = (b) => (b.lines ?? []).flat().filter((x) => !["", "*"].includes(x.text.trim()));
+const isPeopleVerse = (b) => spansOf(b).length > 0 && spansOf(b).every((x) => x.bold);
 
-/** Antiphon and verses-per-slide for a psalm; rebuilds its slides. */
+function setExtra(key, value) {
+  const m = ed.doc.meta;
+  m.extra = (m.extra ?? []).filter(([k]) => k !== key);
+  if (value) m.extra.push([key, value]);
+}
+
+/** The words of the first antiphon (lines joined by " / "). */
+function firstAntiphonText() {
+  const b = ed.doc.blocks.find((x) => x.kind === "paragraph" && /^antiphon$/i.test(x.role ?? ""));
+  return b ? b.lines.map((l) => l.map((x) => x.text).join("")).join(" / ") : extraOf(ed.doc, "antiphon") ?? "";
+}
+
+/** A small image chooser row: thumbnail, Choose…, Remove. */
+function imageField(label, src, onPick, hint) {
+  const img = el("img.score-thumb", { alt: "" });
+  img.hidden = !src;
+  if (src) img.src = assetUrl(cue(), src);
+  img.onerror = () => (img.hidden = true);
+  return el(
+    "div.image-field",
+    {},
+    el("span.image-field-label", {}, label),
+    img,
+    src ? null : el("span.muted.small", {}, hint),
+    app.readonly
+      ? null
+      : el("button.small", {
+          onclick: async () => {
+            const path = await pickMedia({ kind: "image", relativeTo: cue()?.content.source ?? null });
+            if (path) onPick(path);
+          },
+        }, src ? "Change…" : "Choose…"),
+    src && !app.readonly ? el("button.small", { onclick: () => onPick(null) }, "Remove") : null,
+  );
+}
+
+/** Antiphon, its music, the stream's musical setting, verses per slide;
+ *  Apply rebuilds the slides. */
 function psalmPanel(c) {
-  const verses = ed.doc.blocks.filter((b) => b.kind === "paragraph" && /^\d/.test(b.role ?? "")).length;
-  const antiphon = el("input", { value: extraOf(ed.doc, "antiphon") ?? "", placeholder: "Antiphon (sung by all), or leave empty", disabled: app.readonly });
+  const verses = ed.doc.blocks.filter(isVerse).length;
+  const placedNow = extraOf(ed.doc, "antiphon_placed") === "true";
+  const antiphon = el("input", { value: firstAntiphonText(), placeholder: "Antiphon (sung by all), or leave empty", disabled: app.readonly });
   const every = el(
     "select",
     { disabled: app.readonly },
-    [[0, "Start & end"], [2, "+ every 2 verses"], [4, "+ every 4 verses"], [6, "+ every 6 verses"]].map(([v, l]) =>
-      el("option", { value: v, selected: String(v) === (extraOf(ed.doc, "antiphon_every") ?? "0") }, l),
+    [["placed", "Where placed"], [0, "Start & end"], [2, "+ every 2 verses"], [3, "+ every 3 verses"], [4, "+ every 4 verses"], [6, "+ every 6 verses"]].map(([v, l]) =>
+      el("option", { value: v, selected: placedNow ? v === "placed" : String(v) === (extraOf(ed.doc, "antiphon_every") ?? "0") }, l),
     ),
   );
   const per = el(
@@ -342,34 +386,106 @@ function psalmPanel(c) {
   });
   const apply = async () => {
     await flush(true);
+    const placed = every.value === "placed";
     const n = await call("psalm_arrange", {
       id: c.id,
-      options: { antiphon: antiphon.value.trim() || null, antiphon_every: Number(every.value), verses_per_slide: Number(per.value) },
+      options: {
+        antiphon: antiphon.value.trim() || null,
+        antiphon_every: placed ? 0 : Number(every.value),
+        placed,
+        verses_per_slide: Number(per.value),
+      },
       versesText: paste.value.trim() || null,
     });
     if (n) toast(`Arranged ${n} verses`);
   };
+
+  const images = ed.doc.blocks.filter((b) => b.kind === "image");
+  const antiphonSrc = images.find((b) => b.src)?.src ?? "";
+  const setAntiphonMusic = (path) => {
+    const blocks = ed.doc.blocks;
+    if (images.length) {
+      // Every copy of the antiphon shows the same music line.
+      for (const b of images) if (!b.src || b.src === antiphonSrc) b.src = path ?? "";
+      if (!path) ed.doc.blocks = blocks.filter((b) => !(b.kind === "image" && !b.src));
+    } else if (path) {
+      for (let i = blocks.length - 1; i >= 0; i--) {
+        if (isAntiphonHeading(blocks[i])) blocks.splice(i + 1, 0, { kind: "image", alt: "Antiphon", src: path });
+      }
+      if (!blocks.some(isAntiphonHeading)) toast("Add an antiphon first (type it above and Apply, or use ♫ Antiphon).", "warn");
+    }
+    changed();
+    document.querySelector(".psalm-section")?.replaceWith(psalmPanel(cue()));
+    renderBlocks();
+  };
+  const setting = extraOf(ed.doc, "setting_image") ?? "";
+  const setSetting = (path) => {
+    setExtra("setting_image", path);
+    changed();
+    document.querySelector(".psalm-section")?.replaceWith(psalmPanel(cue()));
+  };
+
   return el(
-    "details.section",
+    "details.section.psalm-section",
     { open: true },
     el(
       "summary",
       {},
       "Psalm layout",
-      el("span.muted.small", {}, verses ? ` · ${verses} verses, choir plain / congregation bold` : " · no verses yet"),
+      el("span.muted.small", {}, verses ? ` · ${verses} verses` : " · no verses yet"),
     ),
     verses ? null : el("p.warn-note", {}, "This psalm has no verses yet. Paste them below and click Apply."),
+    el(
+      "div.psalm-images",
+      {},
+      imageField("Antiphon music", antiphonSrc, setAntiphonMusic, "The music line for the antiphon (both screens)."),
+      imageField("Musical setting (stream)", setting, setSetting, "Shown on the stream between the gold title box and the text bar."),
+    ),
     paste,
     el(
       "div.psalm-panel",
       {},
-      field("Antiphon", antiphon),
-      field("Repeat", every),
+      field("Antiphon words", antiphon),
+      field("Antiphon", every),
       field("Slides", per),
       el("button.primary", { disabled: app.readonly, onclick: apply }, "Apply"),
     ),
-    el("p.muted.small", {}, "Apply rebuilds the slides from the verses. Chant images (♪ Music) move to the antiphon slides."),
+    el(
+      "p.muted.small",
+      {},
+      "Apply rebuilds the slides from the verses, keeping who sings each verse. Or place antiphons by hand: ♫ Antiphon between verses copies the first antiphon there. Choose Choir or People beside each verse; the people’s verses are bold.",
+    ),
   );
+}
+
+/** Inserts a copy of the psalm's first antiphon (music + words) at `index`. */
+function insertAntiphon(index) {
+  const blocks = ed.doc.blocks;
+  const start = blocks.findIndex(isAntiphonHeading);
+  let group;
+  if (start >= 0) {
+    let end = start + 1;
+    while (end < blocks.length && blocks[end].kind !== "heading" && blocks[end].kind !== "slide_break") end++;
+    group = clone(blocks.slice(start, end));
+  } else {
+    group = [
+      { kind: "heading", level: 1, text: "Antiphon" },
+      { kind: "image", alt: "Antiphon", src: "" },
+      { kind: "paragraph", role: "Antiphon", lines: [] },
+    ];
+  }
+  // The antiphon is its own slide: drop a slide break here, and start the
+  // psalm's section again if verses follow.
+  if (blocks[index]?.kind === "slide_break") blocks.splice(index, 1);
+  if (blocks[index - 1]?.kind === "slide_break") {
+    blocks.splice(index - 1, 1);
+    index -= 1;
+  }
+  const next = blocks[index];
+  if (next && next.kind !== "heading") group.push({ kind: "heading", level: 1, text: ed.doc.meta.citation || ed.doc.meta.title });
+  blocks.splice(index, 0, ...group);
+  changed();
+  renderBlocks(undefined, index);
 }
 
 // ----- blocks -----
@@ -439,6 +555,9 @@ function divider(index) {
       el("button", { onclick: () => insertBlock(index, { kind: "heading", level: 2, text: "" }), title: "Section heading (starts a slide)" }, "§ Heading"),
       el("button", { onclick: () => insertBlock(index, { kind: "slide_break" }), title: "Start a new slide here" }, "⎯ Slide break"),
       el("button", { onclick: () => insertBlock(index, { kind: "image", alt: "", src: "" }), title: "Sheet-music snippet" }, "♪ Music"),
+      isPsalm()
+        ? el("button.antiphon-btn", { onclick: () => insertAntiphon(index), title: "Insert a copy of the first antiphon here" }, "♫ Antiphon")
+        : null,
     ),
   );
 }
@@ -475,8 +594,9 @@ function rowTools(i) {
 function applyRoleStyle(row, role) {
   const info = role ? roleInfo(role) : null;
   row.dataset.role = role ?? "";
-  row.style.setProperty("--bar", info?.style.editor_bar_color ?? "#f2f2f2");
-  row.style.setProperty("--accent", info?.style.editor_accent_color ?? "#9a9a9a");
+  const antiphon = /^antiphon$/i.test(role ?? "");
+  row.style.setProperty("--bar", info?.style.editor_bar_color ?? (antiphon ? "#efe3c0" : "#f2f2f2"));
+  row.style.setProperty("--accent", info?.style.editor_accent_color ?? (antiphon ? "#9a7a1c" : "#9a9a9a"));
   row.classList.toggle("people", role === "People");
   row.classList.toggle("rubric", role === "Rubric");
 }
@@ -487,6 +607,8 @@ function blockRow(b, i, paraIndex) {
     row.classList.add(paraIndex % 2 ? "odd" : "even");
     applyRoleStyle(row, b.role);
     const roles = app.vocab.roles.map((r) => [r.role, r.role]);
+    if (isPsalm()) roles.unshift(["Antiphon", "Antiphon"]);
+    row.classList.toggle("antiphon", /^antiphon$/i.test(b.role ?? ""));
     if (b.role && !roles.some(([r]) => r === b.role)) {
       // A number is a verse number (psalms, hymns), not a speaker.
       roles.push([b.role, /^\d/.test(b.role) ? `Verse ${b.role}` : `${b.role} (custom)`]);
@@ -494,9 +616,25 @@ function blockRow(b, i, paraIndex) {
     const roleSel = select([["", "— Text —"], ...roles], b.role, (val) => {
       setField(b, "role", val);
       applyRoleStyle(row, b.role);
+      row.classList.toggle("antiphon", /^antiphon$/i.test(b.role ?? ""));
       changed();
     });
     roleSel.className = "role-select";
+
+    // A verse is sung by the choir (plain) or the people (bold).
+    let who = null;
+    if (isVerse(b)) {
+      row.classList.toggle("verse-people", isPeopleVerse(b));
+      who = select([["choir", "Choir"], ["people", "People"]], isPeopleVerse(b) ? "people" : "choir", (val) => {
+        const bold = val === "people";
+        b.lines = b.lines.map((l) => l.map((x) => (bold ? { ...x, bold: true } : (({ bold: _b, ...rest }) => rest)(x))));
+        linesToDom(text, b.lines);
+        row.classList.toggle("verse-people", bold);
+        changed();
+      });
+      who.className = "who-select";
+      who.title = "Who sings this verse: the people's verses are bold";
+    }
 
     const text = el("div.btext", {
       contentEditable: app.readonly ? "false" : "true",
@@ -512,10 +650,11 @@ function blockRow(b, i, paraIndex) {
       onkeydown: (e) => blockKeys(e, b, i, text),
     });
     linesToDom(text, b.lines);
-    row.append(el("div.brow-side", {}, roleSel), text, rowTools(i));
+    row.append(el("div.brow-side", {}, roleSel, who), text, rowTools(i));
   } else if (b.kind === "heading") {
+    row.classList.toggle("antiphon-head", isAntiphonHeading(b));
     row.append(
-      el("div.brow-side", {}, el("span.kind-label", {}, "Section")),
+      el("div.brow-side", {}, el("span.kind-label", {}, isAntiphonHeading(b) ? "♫ Antiphon" : "Section")),
       el("input.heading-input", {
         value: b.text,
         placeholder: "Heading (starts a new slide)",
@@ -552,7 +691,7 @@ function blockRow(b, i, paraIndex) {
         {},
         el("div.image-inputs", {}, src, app.readonly ? null : el("button", {
           onclick: async () => {
-            const path = await call("pick_image", { relativeTo: cue()?.content.source ?? null });
+            const path = await pickMedia({ kind: "image", relativeTo: cue()?.content.source ?? null });
             if (path) {
               b.src = src.value = path;
               refresh();
