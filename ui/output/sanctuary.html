@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Sanctuary Output</title>
+    <link rel="stylesheet" href="/css/output.css" />
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+      #host { width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="host"></div>
+    <script type="module">
+      import { connectStore, activeSlide } from "/js/bridge.js";
+      import { mountStage, renderSanctuary } from "/js/render.js";
+      const stage = mountStage(document.getElementById("host"));
+      connectStore((snap) => renderSanctuary(stage, snap, activeSlide(snap)));
+    </script>
+  </body>
+</html>

@@ -1,0 +1,78 @@
+:root {
+  --bg: #16171b;
+  --panel: #1f2026;
+  --line: #33353d;
+  --text: #e8e8ea;
+  --muted: #8c8f99;
+  --accent: #c9a646;
+  --live: #d33;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; display: flex; flex-direction: column; }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 12px 0 6px; }
+button {
+  font: inherit; color: var(--text); background: #2b2d35; border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px 12px; cursor: pointer;
+}
+button:hover { background: #353844; }
+button.primary { background: var(--accent); color: #111; border-color: var(--accent); font-weight: 600; }
+button.armed { background: var(--live); border-color: var(--live); }
+input { font: inherit; color: var(--text); background: #111; border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.muted { color: var(--muted); }
+
+.topbar { display: flex; gap: 14px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.spacer { flex: 1; }
+.link { font-size: 12px; color: var(--muted); }
+.link.ok::before { content: "●"; color: #3c3; margin-right: 6px; }
+.link:not(.ok)::before { content: "●"; color: var(--live); margin-right: 6px; }
+
+.panes { flex: 1; display: grid; grid-template-columns: 300px 1fr 420px; min-height: 0; }
+.pane { padding: 0 14px 14px; border-right: 1px solid var(--line); overflow: auto; }
+.pane.right { border-right: 0; }
+
+/* Cue list */
+.cue-list { list-style: none; padding: 0; margin: 0; }
+.cue { display: grid; grid-template-columns: 12px 1fr; grid-template-rows: auto auto; column-gap: 8px;
+  padding: 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; }
+.cue:hover { background: #262830; }
+.cue.selected { border-color: var(--line); }
+.cue.on-air { background: #3a1d1d; border-color: var(--live); }
+.swatch { grid-row: span 2; width: 12px; border-radius: 3px; background: #444; }
+.color-green { background: #2e7d32; } .color-violet { background: #5e2a84; } .color-white { background: #f5f1e6; }
+.color-red { background: #b71c1c; } .color-blue { background: #1f4e9c; } .color-black { background: #000; border: 1px solid #555; }
+.cue-title { font-weight: 600; }
+.cue-meta { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+
+/* Center */
+.center { display: flex; flex-direction: column; }
+.tabs { display: flex; gap: 6px; padding: 10px 0; }
+.tabs button.active { border-color: var(--accent); }
+.tab { display: none; flex: 1; min-height: 0; }
+.tab.active { display: flex; flex-direction: column; }
+.slide-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.slide-card { padding: 6px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.slide-card.on-air { border-color: var(--live); box-shadow: 0 0 0 2px var(--live); }
+.thumb { aspect-ratio: 16 / 9; width: 100%; background: #000; }
+
+.editor-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.editor-split { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; min-height: 0; }
+#ewm-source { width: 100%; height: 100%; resize: none; font: 13px/1.5 ui-monospace, Menlo, monospace;
+  color: var(--text); background: #111; border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+.block-view { overflow: auto; background: #fff; color: #222; border-radius: 6px; }
+.brow { display: grid; grid-template-columns: 90px 1fr; gap: 10px; padding: 8px 10px; border-bottom: 1px solid #ddd; }
+.brow:not(.brow-paragraph) { display: block; color: #666; font-style: italic; background: #f6f6f6; }
+.brole { font-style: italic; color: #555; }
+
+/* Right */
+.preview { aspect-ratio: 16 / 9; width: 100%; background: #000; border: 1px solid var(--line); }
+.preview.checker { background: repeating-conic-gradient(#2a2a2a 0 25%, #1c1c1c 0 50%) 0 0 / 24px 24px; }
+.transport, .actions { display: grid; gap: 8px; margin-top: 12px; }
+.transport { grid-template-columns: 1fr 2fr; }
+.transport button { padding: 14px; font-size: 16px; }
+.actions { grid-template-columns: 1fr 1fr; }
+.stage-msg { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; margin-top: 12px; }

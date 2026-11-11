@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Operator control window and output windows",
+  "windows": ["control", "sanctuary", "stream"],
+  "permissions": ["core:default"]
+}

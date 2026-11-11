@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["crates/episco-core", "crates/episco-sync", "src-tauri"]
+default-members = ["crates/episco-core", "crates/episco-sync", "src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/dkallenberg/EpiscoPresenter"
+rust-version = "1.77"
+
+[workspace.dependencies]
+episco-core = { path = "crates/episco-core" }
+episco-sync = { path = "crates/episco-sync" }
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1"
+thiserror = "2"
+toml = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+axum = { version = "0.8", features = ["ws"] }
+tokio-tungstenite = "0.26"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

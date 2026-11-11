@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Live Stream Overlay</title>
+    <link rel="stylesheet" href="/css/output.css" />
+    <style>
+      /* Transparent window: only the overlay zones are painted. */
+      html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; cursor: none; }
+      #host { width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="host"></div>
+    <script type="module">
+      import { connectStore, activeSlide } from "/js/bridge.js";
+      import { mountStage, renderStream } from "/js/render.js";
+      const stage = mountStage(document.getElementById("host"));
+      connectStore((snap) => renderStream(stage, snap, activeSlide(snap)));
+    </script>
+  </body>
+</html>

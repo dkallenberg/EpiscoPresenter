@@ -1,0 +1,20 @@
+[package]
+name = "episco-sync"
+description = "Master/slave WebSocket synchronisation for EpiscoPresenter nodes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+episco-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+futures-util.workspace = true
+axum.workspace = true
+tokio-tungstenite.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

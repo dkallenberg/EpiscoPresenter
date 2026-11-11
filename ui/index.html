@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>EpiscoPresenter</title>
+    <link rel="stylesheet" href="/css/output.css" />
+    <link rel="stylesheet" href="/css/control.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <strong>EpiscoPresenter</strong>
+      <span id="service-title" class="muted"></span>
+      <span class="spacer"></span>
+      <span id="link" class="link">…</span>
+    </header>
+
+    <main class="panes">
+      <!-- Left: service cue timeline -->
+      <section class="pane cues">
+        <h2>Service</h2>
+        <ol id="cue-list" class="cue-list"></ol>
+        <p id="cue-empty" class="muted">No service loaded. Paste or edit an <code>.ewm</code> file in the editor and press <em>Present</em>.</p>
+      </section>
+
+      <!-- Center: slide grid + .ewm editor -->
+      <section class="pane center">
+        <nav class="tabs">
+          <button data-tab="slides" class="active">Slides</button>
+          <button data-tab="editor">.ewm Editor</button>
+        </nav>
+        <div id="tab-slides" class="tab active">
+          <div id="slide-grid" class="slide-grid"></div>
+        </div>
+        <div id="tab-editor" class="tab">
+          <div class="editor-toolbar">
+            <button id="btn-parse">Parse</button>
+            <button id="btn-present" class="primary">Present</button>
+            <span id="parse-status" class="muted"></span>
+          </div>
+          <div class="editor-split">
+            <textarea id="ewm-source" spellcheck="false"></textarea>
+            <div id="block-view" class="block-view"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: live previews + quick actions -->
+      <section class="pane right">
+        <h2>Sanctuary</h2>
+        <div id="preview-sanctuary" class="preview"></div>
+        <h2>Live Stream</h2>
+        <div id="preview-stream" class="preview checker"></div>
+        <div class="transport">
+          <button data-cmd="prev">◀ Prev</button>
+          <button data-cmd="next" class="primary">Next ▶</button>
+        </div>
+        <div class="actions">
+          <button data-cmd="clear_text">Clear Text</button>
+          <button data-cmd="toggle_blackout" id="btn-blackout">Blackout</button>
+          <button data-cmd="clear_media">Clear Media</button>
+          <button data-cmd="reset">Pre-Service</button>
+        </div>
+        <form id="stage-form" class="stage-msg">
+          <input id="stage-text" placeholder="Stage message…" />
+          <button type="submit">Send</button>
+          <button type="button" data-cmd="clear_stage_message">✕</button>
+        </form>
+        <div id="stage-current" class="muted"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/js/control.js"></script>
+  </body>
+</html>
