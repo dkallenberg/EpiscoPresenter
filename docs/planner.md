@@ -133,6 +133,30 @@ The preview and the Word files are built from one description of the
 document (`episco-core`'s `bulletin` module, written out by its `docx`
 module), so they always match.
 
+## Ready for Sunday: sending services to the presentation computer
+
+EpiscoPresenter never works from the shared folder. In the planner's
+Services screen, **Mark Ready** on a service when it is ready to go to the
+presentation computer (the button turns green: *✓ Ready*). On the
+presentation computer:
+
+1. Click **📁** in EpiscoPresenter's top bar once and choose the same parish
+   library folder (set it to *Available offline* in Google Drive).
+2. Within a minute the service is copied to that computer, with its texts,
+   the pictures and videos it uses, and the slide layouts. It is listed under
+   **From the planner** on the Services screen (*✓ On this computer*) and in
+   the usual list, and runs from that copy.
+3. Changes made in the planner afterwards are copied over automatically,
+   unless the service is open on the presentation computer or was changed
+   there. Then it shows **Updated in the planner** (or **Changed in both**),
+   and **⟳ Updated in the planner** appears in the top bar while it is open:
+   click it (or **Refresh**) when it is safe to take the planner's version.
+
+A Drive outage, a sync conflict or a late edit in the planner cannot change
+what is on the screens during a service. Taking a service back (click
+*✓ Ready* again) stops further updates; the copy already on the presentation
+computer stays.
+
 ## Running and installing
 
 * Development: `cargo run -p episco-presenter --bin episco-planner`.
@@ -148,4 +172,5 @@ module), so they always match.
    with preacher, one-line instructions) and the two psalm styles.
 3. A Sunday with two services (8:00 Rite I, 10:30 Rite II) sharing propers.
 4. The web bulletin.
-5. The presentation app reading services from the shared folder.
+5. ~~The presentation app reading services from the shared folder~~: done
+   (Ready for Sunday, above).

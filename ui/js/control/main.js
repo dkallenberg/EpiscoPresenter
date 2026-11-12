@@ -4,7 +4,7 @@ import { connectStore, inTauri, invoke, listen, send, setPlannerMode } from "/js
 import { initBulletin } from "/js/control/bulletin.js";
 import { initStorage } from "/js/control/storage.js";
 import { initEditor } from "/js/control/editor.js";
-import { initHome, showHome } from "/js/control/home.js";
+import { initHandoff, initHome, showHome } from "/js/control/home.js";
 import { openLayouts } from "/js/control/layouts.js";
 import { initOutputs } from "/js/control/outputs.js";
 import { load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
@@ -162,6 +162,7 @@ if (!inTauri) {
     document.querySelector('.tabs button[data-tab="bulletin"]')?.click();
   }
   initStorage();
+  initHandoff();
   app.vocab = await invoke("vocabulary");
   let last = { service: undefined, state: undefined, link: undefined };
   connectStore((snap) => {

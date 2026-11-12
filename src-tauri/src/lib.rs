@@ -13,6 +13,7 @@ mod bulletin;
 mod commands;
 mod deck;
 mod engine;
+mod handoff;
 mod library;
 mod media;
 mod occasions;
@@ -83,6 +84,7 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
     builder()
         .setup(|app| {
             let config = load_config(app.handle());
+            storage::set_presenter();
             storage::init(app.handle());
             app.manage(AppMode::Presenter);
             templates::init(app.handle());
@@ -97,6 +99,8 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             }
             windows::open_at_start(app.handle(), &config)?;
             app.manage(config);
+            // Copy services marked Ready in the parish library to this computer.
+            handoff::spawn(app.handle().clone());
             Ok(())
         })
         .run(context)
@@ -125,6 +129,9 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         occasions::occasions_list,
         occasions::set_service_bishop,
         occasions::service_add_baptismal,
+        handoff::service_set_ready,
+        handoff::handoff_status,
+        handoff::handoff_refresh,
         storage::storage_get,
         storage::storage_set,
         storage::storage_pick_folder,

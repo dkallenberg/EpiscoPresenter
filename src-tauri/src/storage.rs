@@ -16,6 +16,7 @@
 //! The downloaded announcements deck stays per computer (deck.rs).
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
 
 use serde::{Deserialize, Serialize};
@@ -42,6 +43,23 @@ pub struct StorageSettings {
 }
 
 static SETTINGS: RwLock<Option<StorageSettings>> = RwLock::new(None);
+/// EpiscoPresenter: the parish library is only a source of services marked
+/// Ready (see handoff.rs); the app always works from this computer's folder.
+static PRESENTER: AtomicBool = AtomicBool::new(false);
+
+/// Marks this app as the presentation app (call before [`init`]).
+pub fn set_presenter() {
+    PRESENTER.store(true, Ordering::Relaxed);
+}
+
+pub fn is_presenter() -> bool {
+    PRESENTER.load(Ordering::Relaxed)
+}
+
+/// The parish library folder, if one is chosen and reachable.
+pub fn shared_root() -> Option<PathBuf> {
+    settings().folder.filter(|f| f.is_dir())
+}
 /// The data root as last worked out (see [`root`]).
 static ROOT: RwLock<Option<PathBuf>> = RwLock::new(None);
 
@@ -50,7 +68,7 @@ static ROOT: RwLock<Option<PathBuf>> = RwLock::new(None);
 pub fn root() -> Option<PathBuf> {
     let settings = settings();
     match settings.folder {
-        Some(f) if f.is_dir() => Some(f),
+        Some(f) if f.is_dir() && !is_presenter() => Some(f),
         _ => ROOT.read().unwrap_or_else(|e| e.into_inner()).clone(),
     }
 }
@@ -78,7 +96,7 @@ pub fn settings() -> StorageSettings {
 /// reachable, else this computer's data folder.
 pub fn data_root(app: &AppHandle) -> CmdResult<PathBuf> {
     match settings().folder {
-        Some(folder) if folder.is_dir() => Ok(folder),
+        Some(folder) if folder.is_dir() && !is_presenter() => Ok(folder),
         _ => app.path().app_data_dir().map_err(|e| e.to_string()),
     }
 }
@@ -106,6 +124,8 @@ pub struct StorageInfo {
     missing: bool,
     /// This computer's own data folder.
     local: PathBuf,
+    /// EpiscoPresenter: the library is only where Ready services come from.
+    presenter: bool,
 }
 
 /// The library folder, the folder in use and the user's name.
@@ -117,6 +137,7 @@ pub fn storage_get(app: AppHandle) -> CmdResult<StorageInfo> {
         root: data_root(&app)?,
         missing,
         local: app.path().app_data_dir().map_err(|e| e.to_string())?,
+        presenter: is_presenter(),
         settings,
     })
 }
@@ -146,12 +167,16 @@ pub fn storage_set(
     std::fs::write(&path, serde_json::to_string_pretty(&new).map_err(|e| e.to_string())?)
         .map_err(|e| format!("could not save {}: {e}", path.display()))?;
     *SETTINGS.write().unwrap_or_else(|e| e.into_inner()) = Some(new.clone());
-    if old.folder != new.folder {
+    if old.folder != new.folder && !is_presenter() {
         // Slide layouts come from the new folder too.
         crate::templates::init(&app);
         let _ = engine.load_service(None);
     }
     let _ = app.emit(EVENT, ());
+    if is_presenter() {
+        // Look for Ready services in the new folder now.
+        crate::handoff::check(&app);
+    }
     storage_get(app)
 }
 

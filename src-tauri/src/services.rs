@@ -61,12 +61,14 @@ pub struct ServiceSummary {
     cues: usize,
     /// No reading or Gospel yet: the propers still need importing.
     needs_propers: bool,
+    /// Marked Ready for the presentation computer (EpiscoPlanner).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    ready: Option<crate::handoff::ReadyMark>,
 }
 
 fn summary(path: PathBuf, service: &Service) -> ServiceSummary {
     let day = service.date.as_deref().and_then(|d| d.parse::<Date>().ok()).map(liturgical_day);
     ServiceSummary {
-        path,
         title: service.title.clone(),
         date: service.date.clone(),
         day,
@@ -75,6 +77,8 @@ fn summary(path: PathBuf, service: &Service) -> ServiceSummary {
             .cues
             .iter()
             .any(|c| matches!(c.category, ElementCategory::Reading | ElementCategory::Gospel)),
+        ready: crate::handoff::ready_mark(&path),
+        path,
     }
 }
 

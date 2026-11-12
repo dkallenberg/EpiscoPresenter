@@ -14,6 +14,8 @@ const SWATCH = {
 };
 
 let services = [];
+/** EpiscoPresenter: services marked Ready in the parish library. */
+let ready = [];
 let templates = [];
 const SEASONS = [
   ["Advent", "Advent"],
@@ -73,6 +75,7 @@ export async function showHome() {
   [services, templates] = await Promise.all([call("services_list"), call("templates_list")]);
   services ??= [];
   templates ??= [];
+  if (app.mode === "presenter") ready = (await call("handoff_status")) ?? [];
   render();
 }
 
@@ -247,7 +250,7 @@ function serviceOptions() {
   const prayers = sel(
     "svc.prayers",
     "",
-    [["", "Usual for the rite"], ["1", "Form I"], ["2", "Form II"], ["3", "Form III"], ["4", "Form IV"], ["5", "Form V"], ["6", "Form VI"], ["rite1", "Rite I prayer (BCP 328)"]],
+    [["", "Usual"], ["1", "Form I"], ["2", "Form II"], ["3", "Form III"], ["4", "Form IV"], ["5", "Form V"], ["6", "Form VI"], ["rite1", "Rite I prayer (BCP 328)"]],
     "The Prayers of the People (BCP 383-393; Rite I, 328). Usual: the Rite I prayer in Rite I, Form I in Rite II",
   );
   const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
@@ -445,6 +448,7 @@ function render() {
         ),
       ),
       templatesCard(),
+      app.mode === "presenter" ? readyCard() : null,
       el("h2", {}, "Upcoming"),
       upcoming.length
         ? el("div.svc-list", {}, upcoming.map(row))
@@ -486,6 +490,7 @@ function row(s) {
       "div.svc-badges",
       {},
       current ? el("span.badge.live-open", {}, "Open") : null,
+      app.mode === "planner" ? readyToggle(s) : null,
       s.needs_propers ? el("span.badge.needs", { title: "No readings yet: open it and use Library → Propers…" }, "Readings needed") : null,
     ),
     el(
@@ -500,6 +505,110 @@ function row(s) {
       "✕",
     ),
   );
+}
+
+const when = (secs) =>
+  new Date(secs * 1000).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+
+/** EpiscoPlanner: mark a service Ready for the presentation computer. */
+function readyToggle(s) {
+  const on = Boolean(s.ready);
+  return el(
+    "button.small.ready-toggle" + (on ? ".on" : ""),
+    {
+      title: on
+        ? `Ready since ${when(s.ready.at)}${s.ready.by ? ` (${s.ready.by})` : ""}. The presentation computer has a copy; later changes are sent as updates. Click to take it back.`
+        : "Mark Ready: the presentation computer copies this service (with its pictures) within a minute.",
+      onclick: async (e) => {
+        e.stopPropagation();
+        const mark = await call("service_set_ready", { path: s.path, ready: !on });
+        if (mark === undefined) return;
+        s.ready = mark;
+        toast(mark ? `“${s.title}” is Ready for the presentation computer` : `“${s.title}” is no longer marked Ready`);
+        render();
+      },
+    },
+    on ? "✓ Ready" : "Mark Ready",
+  );
+}
+
+const READY_STATE = {
+  new: ["Copying…", "Waiting to be copied to this computer"],
+  copied: ["✓ On this computer", "The same as in the planner"],
+  updated: ["Updated in the planner", "Changed in the planner since it was copied. It is copied again automatically unless it is open here."],
+  changed_here: ["Changed here", "Edited on this computer since it was copied"],
+  conflict: ["Changed in both", "Changed in the planner and on this computer. Refresh takes the planner's version."],
+};
+
+/** EpiscoPresenter: services marked Ready in the parish library. */
+function readyCard() {
+  return el(
+    "div.home-card.ready-card",
+    {},
+    el("h3", {}, "From the planner"),
+    ready.length
+      ? el(
+          "div.ready-list",
+          {},
+          ready.map((r) => {
+            const [label, tip] = READY_STATE[r.state] ?? [r.state, ""];
+            return el(
+              "div.ready-row",
+              {},
+              el("span.ready-date", {}, r.date ? formatDate(r.date, { weekday: "short", month: "short", day: "numeric" }) : "—"),
+              el("span.ready-title", {}, r.title),
+              el("span.muted.small", {}, `Ready ${when(r.ready.at)}${r.ready.by ? ` · ${r.ready.by}` : ""}`),
+              el(`span.badge.ready-${r.state}`, { title: tip }, label),
+              ["updated", "conflict", "changed_here"].includes(r.state)
+                ? el("button.small", { title: "Copy the planner's version again (replaces this computer's copy)", onclick: () => refreshReady(r) }, "Refresh")
+                : null,
+              r.local ? el("button.small", { onclick: () => open({ path: r.local }) }, "Open") : null,
+            );
+          }),
+        )
+      : el(
+          "p.muted.small",
+          {},
+          "Services marked Ready in EpiscoPlanner are copied here, with their pictures and the slide layouts, and run from this computer's copy. Choose the parish library folder with 📁 in the top bar.",
+        ),
+  );
+}
+
+async function refreshReady(r) {
+  if (r.state === "conflict" || r.state === "changed_here") {
+    const ok = await call("confirm", {
+      title: "Refresh from the planner",
+      message: `“${r.title}” was changed on this computer. Replace this computer's copy with the planner's version?`,
+      okLabel: "Replace",
+    });
+    if (!ok) return;
+  }
+  const plan = await call("handoff_refresh", { folder: r.folder });
+  if (plan) toast(`“${r.title}” refreshed from the planner`);
+}
+
+/** Keeps the presenter's list and the open service's notice up to date. */
+export function initHandoff() {
+  if (app.mode !== "presenter") return;
+  listen("episco://handoff", (list) => {
+    ready = list ?? [];
+    const home = document.getElementById("home");
+    if (home && !home.hidden) render();
+    handoffNotice();
+  });
+  app.on((what) => what === "service" && handoffNotice());
+}
+
+/** "Updated in the planner — Refresh" for the open service. */
+function handoffNotice() {
+  const btn = document.getElementById("handoff-note");
+  if (!btn) return;
+  const open = app.service?.plan_path;
+  const r = open ? ready.find((x) => x.local === open && ["updated", "conflict"].includes(x.state)) : null;
+  btn.hidden = !r;
+  if (!r) return;
+  btn.textContent = r.state === "conflict" ? "⟳ Changed in the planner and here" : "⟳ Updated in the planner";
+  btn.onclick = () => refreshReady(r);
 }
 
 async function open(s) {

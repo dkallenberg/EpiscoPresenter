@@ -19,6 +19,17 @@ function render() {
   const b = document.getElementById("btn-library-folder");
   if (!b || !info) return;
   const shared = Boolean(info.folder) && !info.missing;
+  if (info.presenter) {
+    // The presentation app only takes Ready services from the library.
+    b.textContent = shared ? `📁 ${folderName(info.folder)}` : info.missing ? "📁 Library folder missing" : "📁 No parish library";
+    b.classList.toggle("warn", Boolean(info.missing));
+    b.title = info.missing
+      ? `The parish library ${info.folder} cannot be found. Is Google Drive running? Services already copied to this computer still work.`
+      : shared
+        ? `Services marked Ready in EpiscoPlanner are copied from ${info.folder} to this computer, which works from its own copy.`
+        : "Choose the parish library folder to receive services marked Ready in EpiscoPlanner.";
+    return;
+  }
   b.textContent = shared ? `📁 ${folderName(info.folder)}` : info.missing ? "📁 Library folder missing" : "📁 This computer only";
   b.classList.toggle("warn", Boolean(info.missing) || !info.folder);
   b.title = info.missing
@@ -50,13 +61,22 @@ export function openLibrarySettings(welcome = false) {
       overlay.remove();
       resolve(v);
     };
+    const presenter = Boolean(info?.presenter);
     const save = async () => {
-      if (!name.value.trim()) return toast("Enter your name, so the others can see who changed what.", "warn");
+      if (!presenter && !name.value.trim()) return toast("Enter your name, so the others can see who changed what.", "warn");
       const r = await call("storage_set", { folder, name: name.value.trim() });
       if (r) {
         info = r;
         render();
-        toast(folder ? `Using the parish library in “${folderName(folder)}”` : "Using this computer's folder");
+        toast(
+          presenter
+            ? folder
+              ? `Services marked Ready in “${folderName(folder)}” will be copied to this computer`
+              : "No parish library: this computer's services only"
+            : folder
+              ? `Using the parish library in “${folderName(folder)}”`
+              : "Using this computer's folder",
+        );
         done(r);
       }
     };
@@ -67,6 +87,13 @@ export function openLibrarySettings(welcome = false) {
         "div.modal",
         {},
         el("h3", {}, welcome ? "Welcome to EpiscoPlanner" : "Parish library"),
+        presenter
+          ? el(
+              "p.small",
+              {},
+              "EpiscoPresenter does not work from the shared folder. Services marked Ready in EpiscoPlanner are copied to this computer (with their pictures and the slide layouts) and run from that copy, so Google Drive cannot affect a service in progress.",
+            )
+          : null,
         welcome
           ? el(
               "p.small",
@@ -84,9 +111,11 @@ export function openLibrarySettings(welcome = false) {
         el(
           "p.muted.small",
           {},
-          "Use a folder everyone can reach, e.g. a shared Google Drive folder synced with Google Drive for desktop. Set it to “Available offline” on the presentation computer. An empty folder is set up for you.",
+          presenter
+            ? "The same folder EpiscoPlanner uses, e.g. the shared Google Drive folder. It is checked every minute."
+            : "Use a folder everyone can reach, e.g. a shared Google Drive folder synced with Google Drive for desktop. Set it to “Available offline” on the presentation computer. An empty folder is set up for you.",
         ),
-        el("label.field", {}, el("span", {}, "Your name"), name),
+        presenter ? null : el("label.field", {}, el("span", {}, "Your name"), name),
         el("div.modal-actions", {}, welcome ? null : el("button", { onclick: () => done(null) }, "Cancel"), el("button.primary", { onclick: save }, welcome ? "Start" : "Save")),
       ),
     );

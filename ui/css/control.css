@@ -496,3 +496,16 @@ body.planner .hint.planner-hint { display: block; }
 .settings-rites { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .paste-text { width: 100%; resize: vertical; font: inherit; font-size: 13px; min-height: 220px; }
 .home-row.four { grid-template-columns: 1fr 1fr 1fr 1.4fr; }
+
+/* From the planner to the presentation computer */
+.ready-toggle { white-space: nowrap; }
+.ready-toggle.on { border-color: #2f5f3c; color: #8fe0a8; }
+.ready-card { margin: 4px 0 8px; }
+.ready-list { display: flex; flex-direction: column; gap: 4px; }
+.ready-row { display: grid; grid-template-columns: 110px minmax(0, 1fr) auto auto auto auto; gap: 10px; align-items: center; padding: 4px 6px; border-radius: 6px; }
+.ready-row:hover { background: var(--panel-2); }
+.ready-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge.ready-copied { background: #1f3a28; color: #8fe0a8; }
+.badge.ready-updated, .badge.ready-new { background: #3d2f0c; color: #ffe39a; }
+.badge.ready-conflict { background: #5a2226; color: #fff; }
+.warn-btn { border-color: var(--accent); color: var(--accent); }
