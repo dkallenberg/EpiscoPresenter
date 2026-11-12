@@ -267,13 +267,17 @@ pub fn parse_propers(text: String) -> Propers {
 /// Adds the chosen propers as cues after cue index `after`.
 #[tauri::command]
 pub fn add_propers(
+    app: AppHandle,
     engine: State<'_, Engine>,
     items: Vec<ProperItem>,
     day: Option<String>,
     after: Option<usize>,
 ) -> CmdResult<Vec<String>> {
-    let rite = engine.service().and_then(|s| s.rite).unwrap_or_default();
-    let docs = items.iter().map(|i| propers::build_document_in(i, day.as_deref(), rite)).collect();
+    let service = engine.service();
+    let rite = service.as_ref().and_then(|s| s.rite).unwrap_or_default();
+    let mut docs: Vec<_> = items.iter().map(|i| propers::build_document_in(i, day.as_deref(), rite)).collect();
+    // Reading texts from the parish's Bible file, if it has one.
+    crate::scripture::fill_documents(&app, &mut docs, service.and_then(|s| s.bible).unwrap_or_default());
     insert_documents(&engine, docs, after)
 }
 

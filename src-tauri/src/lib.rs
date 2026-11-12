@@ -15,6 +15,7 @@ mod deck;
 mod engine;
 mod library;
 mod media;
+mod scripture;
 mod services;
 mod storage;
 mod templates;
@@ -113,6 +114,11 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         bulletin::bulletin_styles,
         bulletin::set_cue_bulletin,
         bulletin::set_service_time,
+        scripture::bible_status,
+        scripture::bible_pick_file,
+        scripture::bible_import,
+        scripture::bible_remove,
+        scripture::reading_fill,
         storage::storage_get,
         storage::storage_set,
         storage::storage_pick_folder,

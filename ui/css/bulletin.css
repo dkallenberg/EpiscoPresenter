@@ -63,3 +63,4 @@
 .reading-item-head { display: flex; gap: 10px; align-items: center; }
 .reading-paste { width: 100%; resize: vertical; font: inherit; font-size: 13px; }
 .warn-text { color: #ffe39a; }
+.bible-file-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); font-size: 13px; }

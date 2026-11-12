@@ -349,6 +349,13 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
     // Where a reading's text goes: the start of its last slide.
     let last_break = doc.blocks.iter().rposition(|b| matches!(b, Block::SlideBreak));
     let mut text_at = 0;
+    // Reading text: slides that carry a paragraph on join the one before.
+    let continues: Vec<usize> = doc
+        .meta
+        .extra(crate::bible::TEXT_CONTINUES)
+        .map(|v| v.split(',').filter_map(|n| n.trim().parse().ok()).collect())
+        .unwrap_or_default();
+    let mut text_slide = 0;
     for (i, b) in doc.blocks.iter().enumerate() {
         if Some(i) == last_break {
             text_at = out.len();
@@ -378,15 +385,19 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
                 }),
                 None => {
                     if cue.category == ElementCategory::Reading || cue.category == ElementCategory::Gospel {
-                        // Reading text: one paragraph per block, the version's initials kept.
-                        let mut r: Vec<Run> = Vec::new();
-                        for (i, l) in lines.iter().enumerate() {
-                            if i > 0 {
-                                r.push(Run::plain(" "));
+                        // Reading text: each line a paragraph, except where a
+                        // slide carries the one before on.
+                        text_slide += 1;
+                        for (j, l) in lines.iter().enumerate() {
+                            let r = runs(l, false);
+                            match out.last_mut() {
+                                Some(Piece::Prose { runs: prev }) if j == 0 && continues.contains(&text_slide) => {
+                                    prev.push(Run::plain(" "));
+                                    prev.extend(r);
+                                }
+                                _ => out.push(Piece::Prose { runs: r }),
                             }
-                            r.extend(runs(l, false));
                         }
-                        out.push(Piece::Prose { runs: r });
                     } else {
                         out.push(Piece::Speech { label: None, lines: lines.iter().map(|l| runs(l, false)).collect() });
                     }

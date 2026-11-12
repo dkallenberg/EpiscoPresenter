@@ -56,6 +56,23 @@ fn example_service_makes_word_files() {
     use episco_core::bulletin::{bulletin, script, ParishInfo};
     let mut service = Service::load_plan(examples_dir().join("service.toml")).unwrap().service;
     service.time = Some("10:30".into());
+    // With a real Bible file, fill the readings as the app does.
+    if let Ok(path) = std::env::var("EPISCO_BIBLE") {
+        use episco_core::bible::{set_reading_passage, BibleText, BibleVersion};
+        let bible = BibleText::from_json(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let ids: Vec<String> = service.cues.iter().map(|c| c.id.clone()).collect();
+        for id in ids {
+            let cue = service.cue(&id).unwrap();
+            if !episco_core::bulletin::needs_text(cue) {
+                continue;
+            }
+            let doc = cue.document().unwrap();
+            let text = bible.passage(doc.meta.citation.as_deref().unwrap(), true).unwrap();
+            let doc = set_reading_passage(doc, &text, BibleVersion::Nrsvue, 40);
+            service.set_document(&id, doc).unwrap();
+        }
+        assert!(!service.cues.iter().any(episco_core::bulletin::needs_text));
+    }
     let parish = ParishInfo {
         name: "St. Example's Episcopal Church".into(),
         address: "1 Church Street\nAnytown".into(),
@@ -71,4 +88,42 @@ fn example_service_makes_word_files() {
             std::fs::write(Path::new(&dir).join(format!("{name}.html")), episco_core::bulletin::to_html(&doc)).unwrap();
         }
     }
+}
+
+/// Every reading of the lectionary for three years of Sundays and feasts can
+/// be found in a Bible file. Needs a real file (not shipped: copyright), so
+/// it runs only with `EPISCO_BIBLE=/path/to/NRSVue.json`.
+#[test]
+fn every_lectionary_reading_is_in_the_bible_file() {
+    use episco_core::{bible::BibleText, calendar::Date, lectionary, propers::ProperKind};
+    let Ok(path) = std::env::var("EPISCO_BIBLE") else { return };
+    let bible = BibleText::from_json(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let mut failures = Vec::new();
+    let mut checked = std::collections::BTreeSet::new();
+    let mut d = Date::new(2025, 11, 30);
+    while d < Date::new(2028, 12, 3) {
+        let p = lectionary::for_date(d, None);
+        for o in &p.observances {
+            for item in lectionary::for_date(d, Some(o)).items {
+                if matches!(item.kind, ProperKind::Collect | ProperKind::Psalm)
+                    || !checked.insert(item.citation.clone())
+                {
+                    continue;
+                }
+                match bible.passage(&item.citation, true) {
+                    Ok(t) if t.split_whitespace().count() >= 8 => {}
+                    Ok(t) => failures.push(format!("{}: short: {t}", item.citation)),
+                    Err(e) => failures.push(format!("{}: {e}", item.citation)),
+                }
+            }
+        }
+        d = d.add_days(1);
+    }
+    println!("checked {} citations", checked.len());
+    if let Ok(list) = std::env::var("EPISCO_BIBLE_SHOW") {
+        for c in list.split('|') {
+            println!("== {c}\n{}\n", bible.passage(c, true).unwrap());
+        }
+    }
+    assert!(failures.is_empty(), "{} failures:\n{}", failures.len(), failures.join("\n"));
 }

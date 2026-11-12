@@ -331,6 +331,8 @@ fn create(
         None => None,
     };
     let mut service = build(date, title, template, opts);
+    // Reading texts from the parish's Bible file, if it has one.
+    crate::scripture::fill_service(app, &mut service);
 
     let dir = services_dir(app)?;
     let base = format!("{date}-{}", slug_file_name(&service.title, "x").trim_end_matches(".x"));

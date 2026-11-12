@@ -22,7 +22,10 @@ Parish Library/
   library/      saved items and imported hymns
   media/        pictures and videos
   backgrounds/  slide backgrounds
+  bible/        the parish's Bible text files (NRSVue.json, NRSV.json)
+  bulletins/    exported bulletins and scripts
   layouts.json  slide layouts (Layout tool)
+  parish.json   parish details for bulletins
 ```
 
 An empty folder is set up the first time it is chosen. Change the folder or
@@ -58,17 +61,37 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   prayers in full, pictures and planned blanks left out. Choosing the usual
   one again clears your choice. The choice is saved in the service plan
   (`bulletin = "full"` on the cue).
-* **Reading texts…**: the readings' scripture is not included in the app
-  (the NRSV and NRSVue are copyright the National Council of Churches), so
-  a reading in full text shows a yellow *[The text of … goes here]* until
-  its text is added; the button turns gold and counts the readings still
-  to add. In the dialog, **Open ↗** shows each passage in your browser
-  (Bible Gateway for the NRSVue, the Oremus Bible Browser for the NRSV);
-  copy it, paste it and click **Add**. Verse numbers, headings, footnotes
-  and the copyright line are removed, and the text then appears in the
-  bulletin, the script and the slides. Clicking a yellow placeholder opens
-  the dialog at that reading. The placeholder is highlighted in the Word
-  file too, so it is not missed.
+* **Reading texts…**: the app does not include scripture (the NRSV and
+  NRSVue are copyright the National Council of Churches), so readings get
+  their text in one of two ways:
+  * **A Bible file.** If the parish has the translation as a JSON file
+    (books → chapters → verses), click **Import Bible file…** once. It is
+    checked and copied into the library folder (`bible/NRSVue.json`), so
+    every computer has it. From then on every reading fills in from its
+    citation by itself: when the propers are added from the lectionary,
+    and when a service is created. **Fill missing readings** does it for a
+    service that already exists, and **Refill** redoes one reading.
+    Citations are read as the lectionary writes them: ranges and lists
+    (*Isaiah 61:1-4, 8-11*), across chapters (*Genesis 1:1—2:4a*), optional
+    verses in brackets (included), one-chapter books (*Philemon 1-21*),
+    the first of several choices (*Acts 2:1-21 (or Ezekiel 37:1-14)*), and
+    part-verses (*27a*, *9b*), which are cut at the clause nearest the
+    middle of the verse, so check those by eye. Every reading in the
+    lectionary (808 citations) has been checked against an NRSVue file.
+  * **Paste.** Without a Bible file, **Open ↗** shows the passage in your
+    browser (Bible Gateway for the NRSVue, Oremus for the NRSV); copy it,
+    paste it and click **Use pasted**. Verse numbers, headings, footnotes
+    and the copyright line are removed.
+
+  Either way the text appears in the bulletin (in its paragraphs), the
+  script and on the slides (about 40 words each), with the version's
+  initials after it. Until then a reading in full text shows a yellow
+  *[The text of … goes here]*, also highlighted in the Word file, and the
+  button turns gold and counts the readings still to add. Clicking a
+  placeholder opens the dialog at that reading.
+
+  Keep the Bible file in the parish library folder only: do not share it
+  beyond what the parish's use of the translation allows.
 * **Service time** goes on the cover: *November 9, 2025 at 8 o'clock in the
   morning*. The cover also names the Sunday from the date.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),

@@ -159,7 +159,9 @@ fn split_alternatives(value: &str) -> (String, Vec<String>) {
         .map(|a| a.trim().trim_start_matches("or ").trim())
         .filter(|a| !a.is_empty())
         .map(|a| {
-            if a.starts_with(|c: char| c.is_ascii_digit()) && !book.is_empty() {
+            // "103:8-14" borrows the book; "2 Esdras 2:42-48" has its own.
+            let has_book = a.split_whitespace().any(|w| w.chars().filter(|c| c.is_alphabetic()).count() >= 2);
+            if !has_book && !book.is_empty() {
                 format!("{book} {a}")
             } else {
                 a.into()
