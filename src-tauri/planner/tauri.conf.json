@@ -63,11 +63,11 @@
     "targets": "all",
     "category": "Productivity",
     "icon": [
-      "../icons/planner/32x32.png",
-      "../icons/planner/128x128.png",
-      "../icons/planner/128x128@2x.png",
-      "../icons/planner/icon.icns",
-      "../icons/planner/icon.ico"
+      "icons/planner/32x32.png",
+      "icons/planner/128x128.png",
+      "icons/planner/128x128@2x.png",
+      "icons/planner/icon.icns",
+      "icons/planner/icon.ico"
     ],
     "macOS": {
       "minimumSystemVersion": "11.0"
