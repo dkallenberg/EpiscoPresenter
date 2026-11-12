@@ -66,6 +66,11 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
             storage::init(app.handle());
             templates::init(app.handle());
             tracing::info!("starting EpiscoPlanner");
+            // The window title comes from the config the app was built with,
+            // which may be the presenter's (see `start`).
+            if let Some(w) = app.get_webview_window("control") {
+                let _ = w.set_title("EpiscoPlanner");
+            }
             let engine = tauri::async_runtime::block_on(Engine::start_local(app.handle().clone()));
             app.manage(engine);
             app.manage(AppMode::Planner);
@@ -75,6 +80,24 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
         })
         .run(context)
         .expect("error while running EpiscoPlanner");
+}
+
+/// EpiscoPlanner's app identity (`src-tauri/planner/bundle.json`).
+pub const PLANNER_IDENTIFIER: &str = "org.episcopresenter.planner";
+
+/// Starts the app the program was built as: EpiscoPlanner when its config
+/// carries the planner's identity, else EpiscoPresenter.
+///
+/// `cargo tauri build --config src-tauri/planner/bundle.json` does not
+/// install the `episco-planner` program: it builds the main program with
+/// the planner's identity merged into its config and renames it. So the
+/// main program has to tell from its config which app it is.
+pub fn start(context: tauri::Context<tauri::Wry>) {
+    if context.config().identifier == PLANNER_IDENTIFIER {
+        run_planner(context)
+    } else {
+        run(context)
+    }
 }
 
 /// The presentation app. `context` is `tauri::generate_context!()`, made in

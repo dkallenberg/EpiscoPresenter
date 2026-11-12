@@ -2,5 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    episco_presenter_lib::run(tauri::generate_context!())
+    // EpiscoPresenter, or EpiscoPlanner when built with the planner's
+    // bundle config (its identity decides; see `start`).
+    episco_presenter_lib::start(tauri::generate_context!())
 }
