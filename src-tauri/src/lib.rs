@@ -122,6 +122,13 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
 
             if let Some(control) = app.get_webview_window("control") {
                 let _ = control.set_title(&format!("EpiscoPresenter — {}", role_title(config.role)));
+                // Closing the main window closes the outputs (and so the app).
+                let handle = app.handle().clone();
+                control.on_window_event(move |e| {
+                    if matches!(e, tauri::WindowEvent::CloseRequested { .. } | tauri::WindowEvent::Destroyed) {
+                        windows::close_outputs(&handle);
+                    }
+                });
             }
             windows::open_at_start(app.handle(), &config)?;
             app.manage(config);

@@ -86,6 +86,12 @@ fn window_for(app: &AppHandle, output: OutputKind) -> tauri::Result<WebviewWindo
 
 /// Shows an output: full screen on `monitor` (default: its default monitor),
 /// or as an ordinary window on that monitor.
+///
+/// Full screen happens on whichever screen the window is on, and a hidden
+/// window cannot be moved reliably (macOS keeps it on the main screen). So
+/// the window is shown and moved first, and made full screen only once it
+/// is on the chosen monitor; leaving full screen to change monitors waits
+/// for the animation to finish.
 pub fn show_output(
     app: &AppHandle,
     config: &NodeConfig,
@@ -97,36 +103,60 @@ pub fn show_output(
     let index =
         monitor.filter(|i| *i < monitors.len()).unwrap_or_else(|| default_monitor(app, config, output, &monitors));
     let window = window_for(app, output)?;
-    // Leave full screen before moving between monitors.
-    if window.is_fullscreen().unwrap_or(false) {
-        window.set_fullscreen(false)?;
-    }
-    if let Some(m) = monitors.get(index) {
-        let pos = m.position();
-        let size = m.size();
-        if fullscreen {
-            window.set_position(PhysicalPosition::new(pos.x, pos.y))?;
-        } else {
-            // A half-size window in the middle of the chosen screen.
+    let target = monitors.get(index).map(|m| (*m.position(), *m.size()));
+    let was_fullscreen = window.is_fullscreen().unwrap_or(false);
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+        if was_fullscreen {
+            let _ = window.set_fullscreen(false);
+            // macOS animates out of full screen; moving during it is ignored.
+            pause(900).await;
+        }
+        let _ = window.show();
+        if let Some((pos, size)) = target {
+            // A half-size window in the middle of the chosen screen; full
+            // screen then fills that screen.
             let (w, h) = (size.width / 2, size.height / 2);
-            window.set_size(PhysicalSize::new(w, h))?;
-            window.set_position(PhysicalPosition::new(
+            let _ = window.set_size(PhysicalSize::new(w, h));
+            let _ = window.set_position(PhysicalPosition::new(
                 pos.x + (size.width - w) as i32 / 2,
                 pos.y + (size.height - h) as i32 / 2,
-            ))?;
+            ));
+        }
+        if fullscreen {
+            pause(250).await;
+            // Not there yet (the system was slow to move it): try once more.
+            if let Some((pos, size)) = target {
+                let on_target = window.outer_position().is_ok_and(|p| {
+                    p.x >= pos.x && p.x < pos.x + size.width as i32 && p.y >= pos.y && p.y < pos.y + size.height as i32
+                });
+                if !on_target {
+                    let _ = window.set_position(PhysicalPosition::new(pos.x + 40, pos.y + 40));
+                    pause(250).await;
+                }
+            }
+            let _ = window.set_fullscreen(true);
+            let _ = window.set_focus();
+        }
+        tracing::info!(
+            "{} output {} on monitor {index}",
+            output.window_label(),
+            if fullscreen { "full screen" } else { "in a window" }
+        );
+        pause(300).await;
+        emit_changed(&handle);
+    });
+    Ok(())
+}
+
+/// Closes every output window (when the main window closes).
+pub fn close_outputs(app: &AppHandle) {
+    for output in [OutputKind::Sanctuary, OutputKind::Stream] {
+        if let Some(w) = app.get_webview_window(output.window_label()) {
+            let _ = w.destroy();
         }
     }
-    window.show()?;
-    if fullscreen {
-        window.set_fullscreen(true)?;
-    }
-    tracing::info!(
-        "{} output {} on monitor {index}",
-        output.window_label(),
-        if fullscreen { "full screen" } else { "in a window" }
-    );
-    emit_changed(app);
-    Ok(())
 }
 
 /// Opens the outputs at start-up if node.json asks for it (`open_at_start`).
