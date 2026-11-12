@@ -45,3 +45,10 @@ once (the bold text already marks the people's parts; the text keeps its
 place beside the other speakers'). Tick it again to bring it back. In the
 layout file this is `hidden = true` on each type's `people` element.
 
+## Hymn credits
+
+On the Hymn slide the Words / Music credits keep their size and grow
+upward from the bottom of their box, up to four lines; the verse box above
+gets shorter to make room. Only credits longer than four lines are made
+smaller.
+

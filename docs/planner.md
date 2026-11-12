@@ -103,8 +103,17 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   the Creed's paragraphs share one *All*, and a rubric in the middle does
   not repeat the label. **Parish details…** can switch this to every
   paragraph.
+* **Prayers split across slides** print as one paragraph: when the same
+  speaker carries on after a slide break, the bulletin and script run the
+  text on (the slides keep their own breaks).
+* **The sermon**: in the Editor, the sermon item has a title, the
+  preacher's name and their position. **Preacher** offers the Rector,
+  Assistant and Bishop from Parish details (or someone else); the bulletin
+  prints *The Sermon — Title — The Rev. Jane Doe, Rector*, and the slide
+  shows the same.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),
-  address, phone, website, email, the music licence notice and a welcome
+  address, phone, website, email, the music licence notice, the clergy
+  (Rector, Assistant, Bishop: name and position) and a welcome
   for visitors. They print on the cover and back page and are kept in
   `parish.json` in the library folder, so everyone shares them (a logo from
   elsewhere is copied in as `parish-logo.png`).

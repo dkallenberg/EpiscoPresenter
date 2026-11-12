@@ -72,3 +72,5 @@
 .doc .ed:empty::before { content: "\200b"; }
 .seg.doc-format { margin-left: 0; }
 .seg.doc-format button { min-width: 30px; }
+.clergy-row { display: grid; grid-template-columns: 90px 1fr 1fr; gap: 8px; align-items: center; margin-top: 4px; text-transform: none; letter-spacing: 0; }
+.clergy-label { font-size: 12px; }

@@ -28,6 +28,10 @@ document.querySelectorAll(".tabs button[data-tab]").forEach((b) =>
   }),
 );
 
+// EpiscoPlanner opens on the bulletin straight away (it says so before the
+// page loads; see run_planner).
+if (window.__EPISCO_MODE__ === "planner") document.querySelector('.tabs button[data-tab="bulletin"]')?.click();
+
 // ---------- file actions ----------
 const hasUnsaved = () => app.service && (app.service.modified || app.service.cues.some((c) => c.modified));
 let saveError = null;
@@ -152,7 +156,8 @@ if (!inTauri) {
   $("link").textContent = "Open this page inside the EpiscoPresenter app";
 } else {
   // EpiscoPlanner: the same window without the output screens and live controls.
-  app.mode = (await invoke("app_mode").catch(() => "presenter")) ?? "presenter";
+  // The planner announces itself before the page loads; ask only otherwise.
+  app.mode = window.__EPISCO_MODE__ ?? (await invoke("app_mode").catch(() => "presenter")) ?? "presenter";
   if (app.mode === "planner") {
     document.body.classList.add("planner");
     setPlannerMode(true);

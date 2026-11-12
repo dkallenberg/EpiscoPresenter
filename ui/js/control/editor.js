@@ -155,6 +155,7 @@ function render(c) {
         c.category === "psalm" ? psalmPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
       c.category === "hymn" ? hymnPanel(c) : null,
+        c.category === "homily" ? sermonPanel(c) : null,
         blockList(),
       ].filter(Boolean),
     );
@@ -520,6 +521,78 @@ function hymnPanel(c) {
       {},
       "Hymn texts are mostly under copyright, so the app does not include the Hymnal 1982. Use words your parish is licensed to project. To bring in many at once: Library → Import hymns… (text files named like “436 Lift Up Your Heads.txt”).",
     ),
+  );
+}
+
+// ----- the sermon -----
+
+/** The sermon's title and preacher: name and position, or one of the
+ *  parish's clergy (Parish details). Shown on the slide, bulletin and script. */
+function sermonPanel(c) {
+  const input = (key, placeholder) =>
+    el("input", { value: extraOf(ed.doc, key) ?? "", placeholder, disabled: app.readonly, oninput: () => update() });
+  const title = input("sermon_title", "e.g. The Kingdom Is Near");
+  const name = input("preacher", "e.g. The Rev. Jane Doe");
+  const job = input("preacher_title", "e.g. Rector");
+  const who = el(
+    "select",
+    { disabled: app.readonly, onchange: () => pick() },
+    [["", "Choose…"], ["rector", "Rector"], ["assistant", "Assistant"], ["bishop", "Bishop"], ["other", "Someone else"]].map(([v, l]) => el("option", { value: v }, l)),
+  );
+  let clergy = {};
+  const defaults = { rector: "Rector", assistant: "Assistant Rector", bishop: "Bishop" };
+  call("parish_get").then((p) => {
+    clergy = p ?? {};
+    for (const o of who.options) {
+      const n = clergy[o.value]?.name;
+      if (n) o.textContent = `${o.textContent}: ${n}`;
+    }
+    // Show which one it is now.
+    const now = Object.keys(defaults).find((k) => clergy[k]?.name && clergy[k].name === name.value);
+    if (now) who.value = now;
+    else if (name.value) who.value = "other";
+  });
+  const pick = () => {
+    const k = who.value;
+    if (k in defaults) {
+      name.value = clergy[k]?.name ?? "";
+      job.value = clergy[k]?.title || defaults[k];
+      if (!name.value) toast(`Add the ${defaults[k].toLowerCase()}'s name in Parish details (Bulletin tab) to fill it in.`, "warn");
+      update();
+    } else if (k === "other") {
+      name.value = job.value = "";
+      update();
+      name.focus();
+    }
+  };
+  const update = () => {
+    setExtra("sermon_title", title.value.trim());
+    setExtra("preacher", name.value.trim());
+    setExtra("preacher_title", job.value.trim());
+    // The slide: the title, then the preacher and their position.
+    const lines = [
+      title.value.trim() ? [{ text: title.value.trim(), bold: false, italic: true }] : null,
+      name.value.trim() ? [{ text: name.value.trim(), bold: false, italic: false }] : null,
+      job.value.trim() ? [{ text: job.value.trim(), bold: false, italic: false }] : null,
+    ].filter(Boolean);
+    const blocks = ed.doc.blocks;
+    const i = blocks.findIndex((b) => b.kind === "paragraph" && !b.role);
+    const para = { kind: "paragraph", lines: lines.length ? lines : [[{ text: "", bold: false, italic: false }]] };
+    if (i >= 0) blocks[i] = { ...blocks[i], lines: para.lines };
+    else {
+      const h = blocks.findIndex((b) => b.kind === "heading");
+      blocks.splice(h + 1, 0, para);
+    }
+    renderBlocks();
+    changed();
+  };
+  return el(
+    "details.section.reading-panel.sermon-panel",
+    { open: true },
+    el("summary", {}, "The sermon", el("span.muted.small", {}, name.value ? ` · ${name.value}` : " · preacher not chosen")),
+    el("div.reading-row", {}, field("Title", title)),
+    el("div.reading-row", {}, field("Preacher", who), field("Name", name), field("Position", job)),
+    el("p.muted.small", {}, "The clergy's names and positions are set once in Parish details (Bulletin tab)."),
   );
 }
 

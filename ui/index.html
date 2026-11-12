@@ -8,8 +8,18 @@
     <link rel="stylesheet" href="/css/bulletin.css" />
   </head>
   <body>
+    <script>
+      // EpiscoPlanner says so before the page is drawn (see run_planner).
+      if (window.__EPISCO_MODE__ === "planner") {
+        document.body.classList.add("planner");
+        document.title = "EpiscoPlanner";
+      }
+    </script>
     <header class="topbar">
       <strong class="brand">EpiscoPresenter</strong>
+      <script>
+        if (window.__EPISCO_MODE__ === "planner") document.querySelector(".brand").textContent = "EpiscoPlanner";
+      </script>
       <div class="file-actions">
         <button id="btn-services" title="Upcoming services, scheduling, open, example">☰ Services</button>
       </div>

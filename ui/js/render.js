@@ -303,9 +303,35 @@ function textRect(T, shown) {
   return t;
 }
 
-function textBox(stage, T, shown, content, cls = "") {
+/**
+ * Lets the hymn credits grow upward from their box's bottom edge to as many
+ * as four lines at their set size (shrinking only beyond that). Returns the
+ * credits' top edge, which the verse box above must stay clear of.
+ */
+function growCredits(node, spec) {
+  const bottom = spec.y + spec.h;
+  const content = node.firstElementChild ?? node;
+  node.style.setProperty("--fit", 1);
+  const lineH = parseFloat(getComputedStyle(content).lineHeight) || (spec.size ?? 22) * 1.3;
+  const h = Math.max(spec.h, Math.min(content.offsetHeight, Math.ceil(lineH * 4) + 2));
+  node.style.top = `${bottom - h}px`;
+  node.style.height = `${h}px`;
+  // More than four lines: shrink the text until it fits.
+  let fit = 1;
+  while (content.offsetHeight > h && fit > 0.5) {
+    fit = Math.round((fit - 0.04) * 100) / 100;
+    node.style.setProperty("--fit", fit);
+  }
+  return bottom - h;
+}
+
+function textBox(stage, T, shown, content, cls = "", limits = {}) {
   const box = el("div", `box tbox ${cls}`);
   const rect = textRect(T, shown);
+  // Keep clear of the credits when they have grown into the verse box.
+  if (limits.bottom != null && rect.y + rect.h > limits.bottom - 12 && limits.bottom - 12 > rect.y) {
+    rect.h = limits.bottom - 12 - rect.y;
+  }
   styleElement(box, rect);
   box.style.setProperty("--box-h", `${rect.h}px`);
   if (T.labels?.size) box.style.setProperty("--label", `${T.labels.size}px`);
@@ -409,6 +435,7 @@ export function renderTemplated(stage, key, cue, slide, templates) {
   const T = resolveTemplate(templates, key);
   const p = pieces(key, cue, slide);
   const shown = new Set();
+  const limits = {};
   for (const [name, value] of Object.entries(p)) {
     if (value == null || value === "" || name === "big" || name === "text") continue;
     if (!T[name] || T[name].hidden) continue;
@@ -429,7 +456,12 @@ export function renderTemplated(stage, key, cue, slide, templates) {
       styleElement(node, spec);
       node.append(value);
       stage.append(node);
-      autoFit(node, 0.4);
+      if (name === "credits") {
+        const top = growCredits(node, spec);
+        const t = T.text;
+        // Only a box above the credits' column gives way.
+        if (t && t.x < spec.x + spec.w && t.x + t.w > spec.x && t.y < top) limits.bottom = top;
+      } else autoFit(node, 0.4);
     } else textPiece(stage, name, spec, value);
   }
   if (!T.text || T.text.hidden) return;
@@ -439,7 +471,7 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     const hymn = key === "stream.hymn";
     const stream = key.startsWith("stream.");
     const blocks = p.text;
-    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, reflow: hymn, bold: hymn, peopleLabel: !T.people?.hidden }));
+    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, reflow: hymn, bold: hymn, peopleLabel: !T.people?.hidden }), "", limits);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
   }
 }

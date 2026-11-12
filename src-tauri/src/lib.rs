@@ -62,6 +62,9 @@ fn init_tracing() {
 pub fn run_planner(context: tauri::Context<tauri::Wry>) {
     init_tracing();
     builder()
+        // Tell the page it is the planner before it draws anything, so the
+        // presenter's layout never shows first.
+        .append_invoke_initialization_script("window.__EPISCO_MODE__ = 'planner';")
         .setup(|app| {
             storage::init(app.handle());
             templates::init(app.handle());

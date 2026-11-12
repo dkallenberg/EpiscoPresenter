@@ -86,6 +86,19 @@ pub struct ParishInfo {
     pub liturgy_title: String,
     /// How often a speaker's label is printed in the bulletin and script.
     pub speaker_labels: SpeakerLabels,
+    /// The clergy, offered as preachers in a sermon's details.
+    pub rector: Clergy,
+    pub assistant: Clergy,
+    pub bishop: Clergy,
+}
+
+/// One of the parish's clergy: "The Rev. Jane Doe", "Rector".
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Clergy {
+    pub name: String,
+    /// Their position, printed after the name.
+    pub title: String,
 }
 
 /// How often the bulletin and script print a speaker's label.
@@ -210,6 +223,10 @@ pub enum Piece {
         #[serde(skip_serializing_if = "Option::is_none")]
         label: Option<String>,
         lines: Vec<Vec<Run>>,
+        /// Lines that run on from the line before (a paragraph the slides
+        /// split), printed after a space rather than on a new line.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        joins: Vec<usize>,
     },
     /// A psalm verse.
     Verse { number: String, lines: Vec<Vec<Run>> },
@@ -408,10 +425,15 @@ fn reference(cue: &Cue) -> Option<String> {
     if let Some(n) = meta.hymn_number.as_deref().filter(|n| !n.is_empty()) {
         return Some(format!("Hymn {n}"));
     }
-    for key in ["composer", "preacher"] {
-        if let Some(v) = meta.extra(key).filter(|v| !v.is_empty()) {
-            return Some(v.to_string());
-        }
+    // The preacher and their position: "The Rev. Jane Doe, Rector".
+    if let Some(p) = meta.extra("preacher").filter(|v| !v.trim().is_empty()) {
+        return Some(match meta.extra("preacher_title").map(str::trim).filter(|t| !t.is_empty()) {
+            Some(t) => format!("{}, {t}", p.trim()),
+            None => p.trim().to_string(),
+        });
+    }
+    if let Some(v) = meta.extra("composer").filter(|v| !v.is_empty()) {
+        return Some(v.to_string());
     }
     meta.citation.as_deref().filter(|c| is_bcp(c)).map(String::from)
 }
@@ -425,6 +447,10 @@ fn scripture(cue: &Cue) -> Option<String> {
 /// For a hymn or anthem, its own title in italics after the slot's name.
 fn work_title(cue: &Cue) -> Option<String> {
     let meta = &cue.document()?.meta;
+    // A sermon's own title.
+    if let Some(t) = meta.extra("sermon_title").map(str::trim).filter(|t| !t.is_empty()) {
+        return Some(t.to_string());
+    }
     (!meta.title.is_empty() && meta.title != cue.title).then(|| meta.title.clone())
 }
 
@@ -449,12 +475,17 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
         .map(|v| v.split(',').filter_map(|n| n.trim().parse().ok()).collect())
         .unwrap_or_default();
     let mut text_slide = 0;
+    // Only a slide break since the last piece (not a heading, rubric …).
+    let mut after_break = false;
     for (i, b) in doc.blocks.iter().enumerate() {
         if Some(i) == last_break {
             text_at = out.len();
         }
+        let was_break = after_break;
+        after_break = false;
         match b {
-            Block::Heading { .. } | Block::SlideBreak => {}
+            Block::SlideBreak => after_break = true,
+            Block::Heading { .. } => {}
             Block::Image { src, alt } => {
                 if let Some(path) = resolve(src, cue, root) {
                     out.push(Piece::Image { path, alt: alt.clone() });
@@ -473,12 +504,24 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                     out.push(Piece::Verse { number: n.clone(), lines: lines_at(lines, false, i) });
                 }
                 Some(Role::Custom(a)) if a.eq_ignore_ascii_case("antiphon") || a.eq_ignore_ascii_case("refrain") => {
-                    out.push(Piece::Speech { label: None, lines: lines_at(lines, true, i) });
+                    out.push(Piece::Speech { label: None, lines: lines_at(lines, true, i), joins: Vec::new() });
                 }
-                Some(r) => out.push(Piece::Speech {
-                    label: Some(r.label().to_string()),
-                    lines: lines_at(lines, r.is_congregational(), i),
-                }),
+                Some(r) => {
+                    let new = lines_at(lines, r.is_congregational(), i);
+                    // A paragraph the slides split: the same speaker straight
+                    // after a slide break runs on in the bulletin and script.
+                    match out.last_mut() {
+                        Some(Piece::Speech { label: Some(l), lines: prev, joins }) if was_break && l == r.label() => {
+                            joins.push(prev.len());
+                            prev.extend(new);
+                        }
+                        _ => out.push(Piece::Speech {
+                            label: Some(r.label().to_string()),
+                            lines: new,
+                            joins: Vec::new(),
+                        }),
+                    }
+                }
                 None => {
                     if cue.category == ElementCategory::Reading || cue.category == ElementCategory::Gospel {
                         // Reading text: each line a paragraph, except where a
@@ -495,7 +538,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                             }
                         }
                     } else {
-                        out.push(Piece::Speech { label: None, lines: lines_at(lines, false, i) });
+                        out.push(Piece::Speech { label: None, lines: lines_at(lines, false, i), joins: Vec::new() });
                     }
                 }
             },
@@ -524,7 +567,7 @@ pub fn needs_text(cue: &Cue) -> bool {
 fn is_people(p: &Piece) -> bool {
     match p {
         Piece::Speech { label: Some(l), .. } => Role::parse(l).is_congregational(),
-        Piece::Speech { label: None, lines } => lines.iter().flatten().all(|r| r.bold || r.text.trim().is_empty()),
+        Piece::Speech { label: None, lines, .. } => lines.iter().flatten().all(|r| r.bold || r.text.trim().is_empty()),
         _ => false,
     }
 }
@@ -823,11 +866,17 @@ pub fn to_html(doc: &Doc) -> String {
                     )),
                     None => h.push_str(&format!("<p class=\"rubric\">{}</p>", escape(text))),
                 },
-                Piece::Speech { label, lines } => {
+                Piece::Speech { label, lines, joins } => {
                     h.push_str("<div class=\"speech\">");
                     h.push_str(&format!("<span class=\"who\">{}</span>", escape(label.as_deref().unwrap_or(""))));
-                    let body: Vec<String> = lines.iter().map(|l| html_runs(l)).collect();
-                    h.push_str(&format!("<span class=\"said\">{}</span></div>", body.join("<br>")));
+                    let mut body = String::new();
+                    for (k, l) in lines.iter().enumerate() {
+                        if k > 0 {
+                            body.push_str(if joins.contains(&k) { " " } else { "<br>" });
+                        }
+                        body.push_str(&html_runs(l));
+                    }
+                    h.push_str(&format!("<span class=\"said\">{body}</span></div>"));
                 }
                 Piece::Verse { number, lines } => {
                     let body: Vec<String> = lines.iter().map(|l| html_runs(l)).collect();
@@ -927,7 +976,9 @@ mod tests {
         let e = entry(&reading, BulletinStyle::Full, false, None);
         assert!(matches!(&e.pieces[0], Piece::Line { detail: Some(d), .. } if d == "Job 19:23-27a"));
         assert!(matches!(&e.pieces[1], Piece::Prose { .. }));
-        assert!(matches!(&e.pieces[3], Piece::Speech { label: Some(l), lines } if l == "People" && lines[0][0].bold));
+        assert!(
+            matches!(&e.pieces[3], Piece::Speech { label: Some(l), lines, .. } if l == "People" && lines[0][0].bold)
+        );
 
         let hymn = cue("---\ntitle: God, My King, Thy Might Confessing\ntype: hymn\nhymn_number: \"414\"\n---\n[1] (words from the parish's licensed source)\n");
         let mut hymn = hymn;
@@ -1040,6 +1091,59 @@ mod tests {
         assert_eq!(gone.blocks.len(), 2);
         assert!(edit_line(&doc, 9, Some(0), LineEdit::Remove).is_err());
         assert!(edit_line(&doc, 1, Some(5), LineEdit::Remove).is_err());
+    }
+
+    #[test]
+    fn a_prayer_split_across_slides_reads_as_one() {
+        let confession = cue("---\ntitle: Confession of Sin\ncitation: BCP 360\nbulletin: full\n---\n[Deacon] Let us confess our sins.\n[All] **Most merciful God, we confess that we have sinned against you.**\n\n---\n\n[All] **We are truly sorry and we humbly repent.**\n\n---\n\n[Priest] Almighty God have mercy on you.\n[People] **Amen.**\n");
+        let mut s = Service::default();
+        s.insert_cue(0, confession);
+        for doc in [bulletin(&s, &ParishInfo::default()), script(&s, &ParishInfo::default())] {
+            let speeches: Vec<(Option<String>, usize, Vec<usize>)> = doc.entries[0]
+                .pieces
+                .iter()
+                .filter_map(|p| match p {
+                    Piece::Speech { label, lines, joins } => Some((label.clone(), lines.len(), joins.clone())),
+                    _ => None,
+                })
+                .collect();
+            // Deacon, All (both slides, run on), Priest, People.
+            assert_eq!(speeches.len(), 4, "{speeches:?}");
+            assert_eq!(speeches[1], (Some("All".into()), 2, vec![1]));
+            // Each line still knows where it came from, for editing in place.
+            let Piece::Speech { lines, .. } =
+                &doc.entries[0].pieces.iter().filter(|p| matches!(p, Piece::Speech { .. })).nth(1).unwrap()
+            else {
+                unreachable!()
+            };
+            assert_ne!(lines[0][0].src.unwrap().block, lines[1][0].src.unwrap().block);
+            let html = to_html(&doc);
+            assert!(html.contains("against you.</b></span> <span"), "run on with a space: {html}");
+            let docx = crate::docx::to_docx(&doc).unwrap();
+            assert!(docx.len() > 1000);
+        }
+        // On the slides the two parts stay on their own slides.
+        assert_eq!(s.cues[0].slide_count(), 3);
+    }
+
+    #[test]
+    fn the_sermon_line_names_the_preacher() {
+        let sermon = cue("---\ntitle: The Sermon\ntype: homily\nsermon_title: The Kingdom Is Near\npreacher: The Rev. Jane Doe\npreacher_title: Rector\n---\n# The Sermon\n");
+        assert_eq!(default_style(&sermon), BulletinStyle::Title);
+        assert_eq!(
+            title_line(&sermon, BulletinStyle::Title),
+            Piece::Line {
+                title: "The Sermon".into(),
+                detail: None,
+                incipit: Some("The Kingdom Is Near".into()),
+                reference: Some("The Rev. Jane Doe, Rector".into()),
+            }
+        );
+        let p: ParishInfo =
+            serde_json::from_str(r#"{"name": "St. X", "rector": {"name": "The Rev. Jane Doe", "title": "Rector"}}"#)
+                .unwrap();
+        assert_eq!(p.rector.title, "Rector");
+        assert_eq!(p.bishop, Clergy::default());
     }
 
     #[test]

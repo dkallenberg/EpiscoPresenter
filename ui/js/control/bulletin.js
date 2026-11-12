@@ -481,6 +481,15 @@ export async function openParish() {
   };
   const removeBtn = el("button", { onclick: () => ((logo = null), showLogo()) }, "Remove");
   const field = (label, node, wide) => el("label.field" + (wide ? ".wide" : ""), {}, el("span", {}, label), node);
+  // The clergy, offered as preachers in a sermon's details.
+  const clergy = {};
+  const clergyRow = (key, label, title) => {
+    const c = (clergy[key] = {
+      name: el("input", { value: info[key]?.name ?? "", placeholder: "e.g. The Rev. Jane Doe" }),
+      title: el("input", { value: info[key]?.title || title, placeholder: title }),
+    });
+    return el("div.clergy-row", {}, el("span.clergy-label", {}, label), c.name, c.title);
+  };
   const overlay = el(
     "div.modal-overlay",
     { onmousedown: (e) => e.target === overlay && overlay.remove() },
@@ -524,6 +533,14 @@ export async function openParish() {
         field("Music licence notice", f.licence, true),
         field("Welcome for visitors", f.welcome, true),
         field("Speaker labels (People, All, Celebrant…) in the bulletin and script", f.speaker_labels),
+        el(
+          "div.field.wide",
+          {},
+          el("span", {}, "Clergy (offered as preachers for the sermon): name and position"),
+          clergyRow("rector", "Rector", "Rector"),
+          clergyRow("assistant", "Assistant", "Assistant Rector"),
+          clergyRow("bishop", "Bishop", "Bishop"),
+        ),
       ),
       el(
         "div.modal-actions",
@@ -535,6 +552,7 @@ export async function openParish() {
             onclick: async () => {
               const out = { logo };
               for (const [k, n] of Object.entries(f)) out[k] = n.value;
+              for (const [k, c] of Object.entries(clergy)) out[k] = { name: c.name.value.trim(), title: c.title.value.trim() };
               if (await call("parish_set", { info: out })) {
                 overlay.remove();
                 toast("Parish details saved");

@@ -118,9 +118,16 @@ fn text_run(text: &str, props: &str) -> String {
 
 /// Lines joined with line breaks.
 fn lines_xml(lines: &[Vec<Run>], extra: &str) -> String {
+    lines_joined_xml(lines, &[], extra)
+}
+
+/// Lines with line breaks, except `joins` (lines that run on after a space).
+fn lines_joined_xml(lines: &[Vec<Run>], joins: &[usize], extra: &str) -> String {
     let mut x = String::new();
     for (i, l) in lines.iter().enumerate() {
-        if i > 0 {
+        if i > 0 && joins.contains(&i) {
+            x.push_str("<w:r><w:t xml:space=\"preserve\"> </w:t></w:r>");
+        } else if i > 0 {
             x.push_str("<w:r><w:br/></w:r>");
         }
         for r in l {
@@ -201,13 +208,13 @@ impl Writer<'_> {
                 let props = self.rubric_props();
                 self.para("Rubric", "", &text_run(text, &props));
             }
-            Piece::Speech { label, lines } => {
+            Piece::Speech { label, lines, joins } => {
                 let mut x = String::new();
                 if let Some(l) = label.as_deref().filter(|l| !l.is_empty()) {
                     x.push_str(&text_run(l, "<w:i/>"));
                 }
                 x.push_str("<w:r><w:tab/></w:r>");
-                x.push_str(&lines_xml(lines, ""));
+                x.push_str(&lines_joined_xml(lines, joins, ""));
                 let ind = format!(
                     "<w:tabs><w:tab w:val=\"left\" w:pos=\"{h}\"/></w:tabs><w:ind w:left=\"{h}\" w:hanging=\"{h}\"/>",
                     h = page.hang

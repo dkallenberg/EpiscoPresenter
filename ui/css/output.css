@@ -181,3 +181,5 @@
 .deck-sub { font-size: 70px; opacity: 0.8; }
 .deck-missing { font-size: 0.6em; opacity: 0.8; margin-top: 0.4em; }
 .deck-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+/* In a slide layout the credits flow inside their box, at the box's size. */
+.piece .credits { position: static; font-size: inherit; line-height: 1.3; }
