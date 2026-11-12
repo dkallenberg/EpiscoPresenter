@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::calendar::{liturgical_day, Date};
 use crate::category::ElementCategory;
-use crate::document::{Block, Span};
+use crate::document::{Block, LiturgyDocument, Span};
 use crate::role::Role;
 use crate::service::{Cue, CueContent, Service};
 
@@ -125,16 +125,41 @@ pub struct Run {
     pub bold: bool,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub italic: bool,
+    /// Where the text comes from in the item, so an edit in the preview can
+    /// be written back.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub src: Option<Src>,
+}
+
+/// A line of an item's document: block `block`, line `line` of it (`None`:
+/// the whole block as one line, e.g. a rubric).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub struct Src {
+    pub block: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<usize>,
 }
 
 impl Run {
     fn plain(t: impl Into<String>) -> Run {
-        Run { text: t.into(), bold: false, italic: false }
+        Run { text: t.into(), bold: false, italic: false, src: None }
     }
 }
 
-fn runs(line: &[Span], force_bold: bool) -> Vec<Run> {
-    line.iter().map(|s| Run { text: s.text.clone(), bold: s.bold || force_bold, italic: s.italic }).collect()
+/// A line's runs, marked as coming from block `block`, line `line`. An empty
+/// line still gets one (empty) run, so it can be typed into.
+fn runs_at(line: &[Span], force_bold: bool, block: usize, line_no: usize) -> Vec<Run> {
+    let src = Some(Src { block, line: Some(line_no) });
+    let mut out: Vec<Run> =
+        line.iter().map(|s| Run { text: s.text.clone(), bold: s.bold || force_bold, italic: s.italic, src }).collect();
+    if out.is_empty() {
+        out.push(Run { text: String::new(), bold: force_bold, italic: false, src });
+    }
+    out
+}
+
+fn lines_at(lines: &[Vec<Span>], force_bold: bool, block: usize) -> Vec<Vec<Run>> {
+    lines.iter().enumerate().map(|(j, l)| runs_at(l, force_bold, block, j)).collect()
 }
 
 /// One printed piece of an entry.
@@ -154,7 +179,11 @@ pub enum Piece {
         reference: Option<String>,
     },
     /// An instruction, in italics (red in the script).
-    Rubric { text: String },
+    Rubric {
+        text: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        src: Option<Src>,
+    },
     /// Spoken text: a speaker label (if any) and lines.
     Speech {
         #[serde(skip_serializing_if = "Option::is_none")]
@@ -401,18 +430,21 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
             Block::Paragraph { role, lines } => match role {
                 Some(r) if r.is_rubric() => {
                     if script || cue.category != ElementCategory::Psalm {
-                        out.push(Piece::Rubric { text: b.plain_text().replace('\n', " ") });
+                        out.push(Piece::Rubric {
+                            text: b.plain_text().replace('\n', " "),
+                            src: Some(Src { block: i, line: None }),
+                        });
                     }
                 }
                 Some(Role::Custom(n)) if n.chars().next().is_some_and(|c| c.is_ascii_digit()) => {
-                    out.push(Piece::Verse { number: n.clone(), lines: lines.iter().map(|l| runs(l, false)).collect() });
+                    out.push(Piece::Verse { number: n.clone(), lines: lines_at(lines, false, i) });
                 }
                 Some(Role::Custom(a)) if a.eq_ignore_ascii_case("antiphon") || a.eq_ignore_ascii_case("refrain") => {
-                    out.push(Piece::Speech { label: None, lines: lines.iter().map(|l| runs(l, true)).collect() });
+                    out.push(Piece::Speech { label: None, lines: lines_at(lines, true, i) });
                 }
                 Some(r) => out.push(Piece::Speech {
                     label: Some(r.label().to_string()),
-                    lines: lines.iter().map(|l| runs(l, r.is_congregational())).collect(),
+                    lines: lines_at(lines, r.is_congregational(), i),
                 }),
                 None => {
                     if cue.category == ElementCategory::Reading || cue.category == ElementCategory::Gospel {
@@ -420,7 +452,7 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
                         // slide carries the one before on.
                         text_slide += 1;
                         for (j, l) in lines.iter().enumerate() {
-                            let r = runs(l, false);
+                            let r = runs_at(l, false, i, j);
                             match out.last_mut() {
                                 Some(Piece::Prose { runs: prev }) if j == 0 && continues.contains(&text_slide) => {
                                     prev.push(Run::plain(" "));
@@ -430,7 +462,7 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
                             }
                         }
                     } else {
-                        out.push(Piece::Speech { label: None, lines: lines.iter().map(|l| runs(l, false)).collect() });
+                        out.push(Piece::Speech { label: None, lines: lines_at(lines, false, i) });
                     }
                 }
             },
@@ -572,6 +604,88 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
 }
 
 // ---------------------------------------------------------------------------
+// Editing in the preview
+// ---------------------------------------------------------------------------
+
+/// A change typed into the bulletin or script preview, to one line of an item.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(tag = "action", rename_all = "snake_case")]
+pub enum LineEdit {
+    /// Replace the line's text.
+    Set { spans: Vec<Span> },
+    /// Enter: the line keeps `spans`, and `rest` becomes a new line after it.
+    Split { spans: Vec<Span>, rest: Vec<Span> },
+    /// Backspace at the start of a line: join it onto the line before.
+    JoinPrevious,
+    /// Remove the line (its block too, if it was the last line).
+    Remove,
+}
+
+/// Joins neighbouring spans with the same formatting; turns non-breaking
+/// spaces (from typing in the browser) into spaces.
+fn tidy(spans: Vec<Span>) -> Vec<Span> {
+    let mut out: Vec<Span> = Vec::new();
+    for mut s in spans {
+        s.text = s.text.replace('\u{a0}', " ").replace(['\n', '\r'], " ");
+        if s.text.is_empty() {
+            continue;
+        }
+        match out.last_mut() {
+            Some(last) if last.bold == s.bold && last.italic == s.italic => last.text.push_str(&s.text),
+            _ => out.push(s),
+        }
+    }
+    out
+}
+
+/// Applies an edit from the preview to an item's document.
+pub fn edit_line(
+    doc: &LiturgyDocument,
+    block: usize,
+    line: Option<usize>,
+    edit: LineEdit,
+) -> Result<LiturgyDocument, String> {
+    let mut doc = doc.clone();
+    let stale = || "the item changed while you were typing: try again".to_string();
+    let Some(Block::Paragraph { lines, .. }) = doc.blocks.get_mut(block) else { return Err(stale()) };
+    let mut remove_block = false;
+    match (line, edit) {
+        // A rubric: the whole block as one line.
+        (None, LineEdit::Set { spans } | LineEdit::Split { spans, .. }) => *lines = vec![tidy(spans)],
+        (None, LineEdit::Remove) => remove_block = true,
+        (None, LineEdit::JoinPrevious) => {}
+        (Some(j), edit) => {
+            if j >= lines.len() {
+                return Err(stale());
+            }
+            match edit {
+                LineEdit::Set { spans } => lines[j] = tidy(spans),
+                LineEdit::Split { spans, rest } => {
+                    lines[j] = tidy(spans);
+                    lines.insert(j + 1, tidy(rest));
+                }
+                LineEdit::JoinPrevious if j > 0 => {
+                    let cur = lines.remove(j);
+                    let mut joined = std::mem::take(&mut lines[j - 1]);
+                    joined.extend(cur);
+                    lines[j - 1] = tidy(joined);
+                }
+                LineEdit::JoinPrevious => {}
+                LineEdit::Remove => {
+                    lines.remove(j);
+                    remove_block = lines.is_empty();
+                }
+            }
+        }
+    }
+    if remove_block {
+        doc.blocks.remove(block);
+        doc.blocks.dedup_by(|a, b| matches!(a, Block::SlideBreak) && matches!(b, Block::SlideBreak));
+    }
+    Ok(doc)
+}
+
+// ---------------------------------------------------------------------------
 // HTML (the preview, and later the web bulletin)
 // ---------------------------------------------------------------------------
 
@@ -579,7 +693,35 @@ pub fn escape(s: &str) -> String {
     s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;")
 }
 
+/// Runs as HTML; consecutive runs from the same line of the item go in one
+/// `<span data-src="block:line">` that the preview makes editable.
 fn html_runs(rs: &[Run]) -> String {
+    let mut out = String::new();
+    let mut i = 0;
+    while i < rs.len() {
+        let src = rs[i].src;
+        let mut j = i;
+        while j < rs.len() && rs[j].src == src {
+            j += 1;
+        }
+        let inner = html_plain_runs(&rs[i..j]);
+        match src {
+            Some(s) => out.push_str(&format!("<span class=\"ed\" data-src=\"{}\">{inner}</span>", src_attr(s))),
+            None => out.push_str(&inner),
+        }
+        i = j;
+    }
+    out
+}
+
+fn src_attr(s: Src) -> String {
+    match s.line {
+        Some(l) => format!("{}:{l}", s.block),
+        None => s.block.to_string(),
+    }
+}
+
+fn html_plain_runs(rs: &[Run]) -> String {
     rs.iter()
         .map(|r| {
             let mut t = escape(&r.text);
@@ -624,7 +766,7 @@ pub fn to_html(doc: &Doc) -> String {
                 Piece::Section { text } => h.push_str(&format!("<h2>{}</h2>", escape(text))),
                 Piece::Line { title, detail, incipit, reference } => {
                     h.push_str("<p class=\"line\"><span class=\"lead\">");
-                    h.push_str(&format!("<b>{}</b>", escape(title)));
+                    h.push_str(&format!("<b class=\"ed-title\">{}</b>", escape(title)));
                     if let Some(d) = detail {
                         h.push_str(&format!(" <span class=\"detail\">{}</span>", escape(d)));
                     }
@@ -637,7 +779,14 @@ pub fn to_html(doc: &Doc) -> String {
                     }
                     h.push_str("</p>");
                 }
-                Piece::Rubric { text } => h.push_str(&format!("<p class=\"rubric\">{}</p>", escape(text))),
+                Piece::Rubric { text, src } => match src {
+                    Some(s) => h.push_str(&format!(
+                        "<p class=\"rubric\"><span class=\"ed\" data-src=\"{}\">{}</span></p>",
+                        src_attr(*s),
+                        escape(text)
+                    )),
+                    None => h.push_str(&format!("<p class=\"rubric\">{}</p>", escape(text))),
+                },
                 Piece::Speech { label, lines } => {
                     h.push_str("<div class=\"speech\">");
                     h.push_str(&format!("<span class=\"who\">{}</span>", escape(label.as_deref().unwrap_or(""))));
@@ -804,6 +953,57 @@ mod tests {
         assert_eq!(r.pieces.len(), 2);
         assert!(is_people(&r.pieces[1]));
         assert!(!needs_text(&collect));
+    }
+
+    #[test]
+    fn edits_from_the_preview() {
+        let doc: LiturgyDocument =
+            "---\ntitle: Salutation\n---\n[Rubric] *The people respond.*\n[Celebrant] The Lord be with you.\nLet us pray.\n[People] **And also with you.**\n"
+                .parse()
+                .unwrap();
+        let c = Cue::liturgy("", doc.clone(), None, CueOverrides::default());
+        // Every printed line knows where it came from.
+        let html = to_html(&Doc {
+            kind: DocKind::Script,
+            cover: cover(&Service::default(), &ParishInfo::default()),
+            entries: vec![entry(&c, BulletinStyle::Full, true)],
+            back: None,
+        });
+        assert!(html.contains("data-src=\"0\">The people respond."), "{html}");
+        assert!(
+            html.contains(
+                "data-src=\"1:0\">The Lord be with you.</span><br><span class=\"ed\" data-src=\"1:1\">Let us pray."
+            ),
+            "{html}"
+        );
+        assert!(html.contains("data-src=\"2:0\"><b>And also with you.</b>"), "{html}");
+
+        let text = |d: &LiturgyDocument, b: usize| d.blocks[b].plain_text();
+        let set = edit_line(
+            &doc,
+            1,
+            Some(0),
+            LineEdit::Set { spans: vec![Span::plain("The Lord\u{a0}be "), Span::plain("with you all.")] },
+        )
+        .unwrap();
+        assert_eq!(text(&set, 1), "The Lord be with you all.\nLet us pray.");
+        assert_eq!(set.blocks[1], Block::speech(Role::Celebrant, ["The Lord be with you all.", "Let us pray."]));
+        let split = edit_line(
+            &doc,
+            1,
+            Some(1),
+            LineEdit::Split { spans: vec![Span::plain("Let us")], rest: vec![Span::bold("pray.")] },
+        )
+        .unwrap();
+        assert_eq!(text(&split, 1), "The Lord be with you.\nLet us\npray.");
+        let joined = edit_line(&split, 1, Some(2), LineEdit::JoinPrevious).unwrap();
+        assert_eq!(text(&joined, 1), "The Lord be with you.\nLet uspray.");
+        let rubric = edit_line(&doc, 0, None, LineEdit::Set { spans: vec![Span::italic("All stand.")] }).unwrap();
+        assert_eq!(text(&rubric, 0), "All stand.");
+        let gone = edit_line(&doc, 2, Some(0), LineEdit::Remove).unwrap();
+        assert_eq!(gone.blocks.len(), 2);
+        assert!(edit_line(&doc, 9, Some(0), LineEdit::Remove).is_err());
+        assert!(edit_line(&doc, 1, Some(5), LineEdit::Remove).is_err());
     }
 
     #[test]

@@ -213,3 +213,39 @@ pub fn bulletin_styles(engine: State<'_, Engine>) -> Vec<CueBulletin> {
         })
         .unwrap_or_default()
 }
+
+/// Writes an edit typed into the bulletin or script preview back to the
+/// item (so the slides change too).
+#[tauri::command]
+pub fn bulletin_edit(
+    engine: State<'_, Engine>,
+    id: String,
+    block: usize,
+    line: Option<usize>,
+    edit: bulletin::LineEdit,
+) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
+        let new = bulletin::edit_line(doc, block, line, edit)?;
+        if &new != doc {
+            s.set_document(&id, new).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    })
+}
+
+/// Renames an item from the preview (empty: back to the item's own title).
+#[tauri::command]
+pub fn bulletin_set_title(engine: State<'_, Engine>, id: String, title: String) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let cue = s.cue(&id).ok_or("no such item")?;
+        let own = cue.document().map(|d| d.meta.title.clone()).unwrap_or_default();
+        let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+        let mut overrides = cue.overrides.clone();
+        overrides.title = (!title.is_empty() && title != own).then_some(title);
+        if overrides != cue.overrides {
+            s.set_overrides(&id, overrides).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    })
+}

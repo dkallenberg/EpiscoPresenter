@@ -64,3 +64,11 @@
 .reading-paste { width: 100%; resize: vertical; font: inherit; font-size: 13px; }
 .warn-text { color: #ffe39a; }
 .bible-file-row { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 8px; background: var(--panel-2); font-size: 13px; }
+
+/* Editing in place */
+.doc .ed[contenteditable="true"], .doc .ed-title[contenteditable="true"] { cursor: text; outline: none; border-radius: 2px; }
+.doc .ed[contenteditable="true"]:hover, .doc .ed-title[contenteditable="true"]:hover { background: rgba(70, 120, 200, .08); }
+.doc .ed[contenteditable="true"]:focus, .doc .ed-title[contenteditable="true"]:focus { background: rgba(70, 120, 200, .14); box-shadow: 0 0 0 1px rgba(70, 120, 200, .5); }
+.doc .ed:empty::before { content: "\200b"; }
+.seg.doc-format { margin-left: 0; }
+.seg.doc-format button { min-width: 30px; }

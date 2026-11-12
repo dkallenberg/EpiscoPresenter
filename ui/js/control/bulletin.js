@@ -2,6 +2,10 @@
 // bulletin (half-letter pages) and the officiant's script, built by the app
 // from the open service, with Export to Word. Clicking an item in the
 // preview selects it; the bar above sets how it appears in the bulletin.
+//
+// The text can be edited in place, like a word processor: each printed line
+// knows the line of the item it came from (data-src="block:line"), and an
+// edit is written back to the item, so the slides change with it.
 
 import { assetUrl, listen } from "/js/bridge.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
@@ -34,6 +38,12 @@ function makeView(kind) {
     {},
     el("label.field.inline", {}, el("span", {}, "Service time"), time),
     kind === "bulletin" ? item : el("span.muted.small", {}, "Every word, with rubrics in red. The Great Thanksgiving starts a new page."),
+    el(
+      "div.seg.doc-format",
+      { title: "Click into any text to edit it. Changes go into the item itself, so the slides change too." },
+      el("button", { onmousedown: (e) => e.preventDefault(), onclick: () => document.execCommand("bold"), title: "Bold (Ctrl/⌘ B)" }, el("b", {}, "B")),
+      el("button", { onmousedown: (e) => e.preventDefault(), onclick: () => document.execCommand("italic"), title: "Italic (Ctrl/⌘ I)" }, el("i", {}, "I")),
+    ),
     el("span.spacer"),
     el("button.reading-texts", { onclick: () => openReadings(), title: "Paste the scripture text of each reading (NRSV or NRSVue)" }, "Reading texts…"),
     el("button", { onclick: openParish, title: "Name, logo, address, welcome and licence notice for the cover and back page" }, "Parish details…"),
@@ -46,7 +56,8 @@ function makeView(kind) {
     if (missing && entry) openReadings(entry.dataset.cue);
   });
   host.replaceChildren(toolbar, scroll);
-  const v = { kind, host, time, item, page, scroll, stale: true };
+  const v = { kind, host, time, item, page, scroll, stale: true, editing: null, pending: false };
+  wireEditing(v);
   views[kind] = v;
   return v;
 }
@@ -60,6 +71,13 @@ async function refresh(v) {
     return;
   }
   v.stale = false;
+  // Never redraw under someone's cursor: wait until they leave the line.
+  if (v.editing && v.page.contains(v.editing)) {
+    v.pending = true;
+    return;
+  }
+  v.editing = null;
+  v.pending = false;
   const s = app.service;
   if (document.activeElement !== v.time) v.time.value = s?.time ?? "";
   v.time.disabled = !s;
@@ -79,9 +97,172 @@ async function refresh(v) {
   const top = v.scroll.scrollTop;
   v.page.innerHTML = html;
   for (const img of v.page.querySelectorAll("img[data-path]")) img.src = assetUrl(null, img.dataset.path);
+  if (!app.readonly) {
+    for (const n of v.page.querySelectorAll(".ed, .entry[data-cue] .ed-title")) {
+      n.contentEditable = "true";
+      n.spellcheck = true;
+      n.dataset.orig = n.innerHTML;
+    }
+  }
   v.scroll.scrollTop = top;
   markSelected(v, false);
   renderItem();
+}
+
+// ---------- editing in place ----------
+
+/** The text of an edited line as spans, with bold and italic. */
+function domSpans(node, fmt = { bold: false, italic: false }, out = []) {
+  for (const n of node.childNodes) {
+    if (n.nodeType === Node.TEXT_NODE) {
+      if (n.nodeValue) out.push({ text: n.nodeValue, ...fmt });
+    } else if (n.nodeType === Node.ELEMENT_NODE) {
+      if (n.tagName === "BR") {
+        out.push({ text: " ", ...fmt });
+        continue;
+      }
+      const weight = n.style?.fontWeight ?? "";
+      const bold = (fmt.bold || /^(B|STRONG)$/.test(n.tagName) || /bold|[6-9]00/.test(weight)) && weight !== "normal";
+      const italic = (fmt.italic || /^(I|EM)$/.test(n.tagName) || n.style?.fontStyle === "italic") && n.style?.fontStyle !== "normal";
+      domSpans(n, { bold, italic }, out);
+    }
+  }
+  return out;
+}
+
+/** Where a line came from: its item and its block / line in the item. */
+function origin(node) {
+  const cue = node.closest("[data-cue]")?.dataset.cue;
+  if (!cue) return null;
+  if (node.classList.contains("ed-title")) return { cue, title: true };
+  const [block, line] = (node.dataset.src ?? "").split(":");
+  return { cue, block: Number(block), line: line === undefined ? null : Number(line) };
+}
+
+const caretOffset = (node) => {
+  const sel = getSelection();
+  if (!sel.rangeCount) return 0;
+  const r = document.createRange();
+  r.selectNodeContents(node);
+  r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+  // Leading spaces are not shown, so the caret after them is at the start.
+  return r.toString().trimStart().length;
+};
+
+/** Puts the caret `offset` characters into the line `src` of item `cue`. */
+function focusAt(v, cue, src, offset) {
+  const node = v.page.querySelector(`[data-cue="${CSS.escape(cue)}"] [data-src="${src}"]`);
+  if (!node) return;
+  node.focus();
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+  let left = offset;
+  let t;
+  while ((t = walker.nextNode())) {
+    if (left <= t.nodeValue.length) {
+      getSelection().collapse(t, left);
+      return;
+    }
+    left -= t.nodeValue.length;
+  }
+  getSelection().collapse(node, node.childNodes.length);
+}
+
+/** Saves a line if it changed. */
+async function commit(node) {
+  if (!node || node.innerHTML === node.dataset.orig) return true;
+  const o = origin(node);
+  if (!o) return true;
+  node.dataset.orig = node.innerHTML;
+  if (o.title) return (await call("bulletin_set_title", { id: o.cue, title: node.textContent })) !== undefined;
+  const edit = { action: "set", spans: domSpans(node) };
+  return (await call("bulletin_edit", { id: o.cue, block: o.block, line: o.line, edit })) !== undefined;
+}
+
+/** A change that adds or removes lines: save, redraw, put the caret back. */
+async function restructure(v, node, edit, focus) {
+  const o = origin(node);
+  node.dataset.orig = node.innerHTML; // saved by this edit
+  v.editing = null;
+  const ok = (await call("bulletin_edit", { id: o.cue, block: o.block, line: o.line, edit })) !== undefined;
+  await refresh(v);
+  if (ok && focus) focusAt(v, o.cue, focus.src, focus.offset);
+}
+
+function wireEditing(v) {
+  const page = v.page;
+  const editable = (t) => t?.closest?.(".ed[contenteditable=true], .ed-title[contenteditable=true]");
+  const autosave = debounce((n) => commit(n), 1200);
+  page.addEventListener("focusin", (e) => {
+    const n = editable(e.target);
+    if (n) v.editing = n;
+  });
+  page.addEventListener("focusout", async (e) => {
+    const n = editable(e.target);
+    if (!n) return;
+    autosave.cancel();
+    // Moving straight to another line: keep the page as it is until the
+    // editing stops, so the line being clicked is not redrawn away.
+    const next = editable(e.relatedTarget);
+    if (v.editing === n) v.editing = next && page.contains(next) ? next : null;
+    await commit(n);
+    if (v.pending && !v.editing) refresh(v);
+  });
+  page.addEventListener("input", (e) => {
+    const n = editable(e.target);
+    if (n) autosave(n);
+  });
+  page.addEventListener("paste", (e) => {
+    if (!editable(e.target)) return;
+    e.preventDefault();
+    const text = (e.clipboardData?.getData("text/plain") ?? "").replace(/\s*\n\s*/g, " ");
+    document.execCommand("insertText", false, text);
+  });
+  page.addEventListener("keydown", async (e) => {
+    const n = editable(e.target);
+    if (!n) return;
+    const o = origin(n);
+    if (e.key === "Escape") {
+      n.innerHTML = n.dataset.orig;
+      n.blur();
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (o.title || o.line == null) return n.blur();
+      autosave.cancel();
+      // Split the line at the caret: the rest becomes a new line after it.
+      const sel = getSelection();
+      const r = sel.getRangeAt(0);
+      r.deleteContents();
+      const tail = document.createRange();
+      tail.setStart(r.startContainer, r.startOffset);
+      tail.setEnd(n, n.childNodes.length);
+      const holder = document.createElement("span");
+      holder.append(tail.extractContents());
+      // Like a word processor: no stray space at the end of the line or the
+      // start of the new one.
+      const trim = (spans, end) => {
+        const out = spans.map((x) => ({ ...x }));
+        while (out.length) {
+          const x = end ? out[out.length - 1] : out[0];
+          x.text = end ? x.text.trimEnd() : x.text.trimStart();
+          if (x.text) break;
+          end ? out.pop() : out.shift();
+        }
+        return out;
+      };
+      const edit = { action: "split", spans: trim(domSpans(n), true), rest: trim(domSpans(holder), false) };
+      await restructure(v, n, edit, { src: `${o.block}:${o.line + 1}`, offset: 0 });
+      return;
+    }
+    if (e.key === "Backspace" && o.line > 0 && getSelection().isCollapsed && caretOffset(n) === 0) {
+      e.preventDefault();
+      autosave.cancel();
+      await commit(n);
+      const prev = page.querySelector(`[data-cue="${CSS.escape(o.cue)}"] [data-src="${o.block}:${o.line - 1}"]`);
+      await restructure(v, n, { action: "join_previous" }, { src: `${o.block}:${o.line - 1}`, offset: prev?.textContent.length ?? 0 });
+    }
+  });
 }
 
 function markSelected(v, scroll) {

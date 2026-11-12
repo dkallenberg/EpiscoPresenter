@@ -113,7 +113,7 @@ fn run_xml(r: &Run, extra: &str) -> String {
 }
 
 fn text_run(text: &str, props: &str) -> String {
-    run_xml(&Run { text: text.to_string(), bold: false, italic: false }, props)
+    run_xml(&Run { text: text.to_string(), bold: false, italic: false, src: None }, props)
 }
 
 /// Lines joined with line breaks.
@@ -197,7 +197,7 @@ impl Writer<'_> {
                 let tabs = format!("<w:tabs><w:tab w:val=\"right\" w:pos=\"{}\"/></w:tabs>", page.text);
                 self.para("ItemLine", &tabs, &x);
             }
-            Piece::Rubric { text } => {
+            Piece::Rubric { text, .. } => {
                 let props = self.rubric_props();
                 self.para("Rubric", "", &text_run(text, &props));
             }

@@ -8,6 +8,10 @@ library, propers, templates and slide layouts, but no output screens, live
 controls or network sync. Its main work is the **bulletin** and the
 **officiant's script**; the slides are a tab away.
 
+The cue sheet on the left is the order of service: the items, their type,
+and the unsaved-changes dot. The slide planning (background thumbnails,
+slide counts, the pre-service deck loop) is left to the presentation app.
+
 ## The parish library folder
 
 On first run the planner asks for the **parish library folder** and **your
@@ -109,6 +113,16 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   a two-sided printer, prints them in booklet order on letter paper to fold
   in half. (LibreOffice and Google Docs ignore book fold and show the
   pages as landscape sheets.) Edit the Word file freely for last touches.
+
+**Edit the text in place**, like a word processor, in both the Bulletin
+and the Script: click into any line and type. **Enter** starts a new line,
+**Backspace** at the start of a line joins it to the one before,
+**Ctrl/⌘ B** and **Ctrl/⌘ I** (or the **B** and **I** buttons) make bold
+and italic, and **Esc** undoes the changes to the line you are in. Click an
+item's title to rename it. Changes are saved as you go, into the item
+itself, so the slides change with them. Text the app makes up (opening
+words, page numbers, the cover's date) changes with the service, the
+parish details or the item's style instead.
 
 The **Script** tab is the officiant's copy: every word of every item, the
 rubrics in red, large type on letter paper, the Great Thanksgiving starting

@@ -473,3 +473,14 @@ body.planner .cue.on-air { border-color: var(--line); background: none; }
 body.planner .slide-card.on-air { outline: none; box-shadow: none; }
 .lib-path { text-transform: none; letter-spacing: normal; color: var(--text); }
 body.planner .home { right: 0; }
+
+/* EpiscoPlanner's cue sheet: the order of service, without the slide
+   planning (thumbnails, slide counts, the pre-service deck loop). */
+body.planner .cue { grid-template-columns: 24px minmax(0, 1fr) auto; }
+body.planner .cue.pre-service,
+body.planner .cue-thumb,
+body.planner .badge.count,
+body.planner .badge.gs { display: none !important; }
+body.planner .hint.presenter-hint { display: none; }
+.hint.planner-hint { display: none; }
+body.planner .hint.planner-hint { display: block; }
