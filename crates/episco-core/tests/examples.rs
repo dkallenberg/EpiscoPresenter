@@ -48,3 +48,27 @@ fn example_service_plan_loads() {
     assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
     assert_eq!(loaded.service.cues.len(), 10);
 }
+
+/// The example service makes a bulletin and a script that zip up as Word
+/// files. Set `EPISCO_DOCX_OUT` to a folder to keep them for a look.
+#[test]
+fn example_service_makes_word_files() {
+    use episco_core::bulletin::{bulletin, script, ParishInfo};
+    let mut service = Service::load_plan(examples_dir().join("service.toml")).unwrap().service;
+    service.time = Some("10:30".into());
+    let parish = ParishInfo {
+        name: "St. Example's Episcopal Church".into(),
+        address: "1 Church Street\nAnytown".into(),
+        welcome: "We are glad you are here.".into(),
+        ..Default::default()
+    };
+    for (name, doc) in [("bulletin", bulletin(&service, &parish)), ("script", script(&service, &parish))] {
+        assert!(!doc.entries.is_empty());
+        let bytes = episco_core::docx::to_docx(&doc).unwrap();
+        assert!(bytes.starts_with(b"PK"));
+        if let Ok(dir) = std::env::var("EPISCO_DOCX_OUT") {
+            std::fs::write(Path::new(&dir).join(format!("{name}.docx")), &bytes).unwrap();
+            std::fs::write(Path::new(&dir).join(format!("{name}.html")), episco_core::bulletin::to_html(&doc)).unwrap();
+        }
+    }
+}

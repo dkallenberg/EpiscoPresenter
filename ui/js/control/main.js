@@ -1,6 +1,7 @@
 // Operator control window: boot, top bar, tabs and keyboard shortcuts.
 
 import { connectStore, inTauri, invoke, listen, send, setPlannerMode } from "/js/bridge.js";
+import { initBulletin } from "/js/control/bulletin.js";
 import { initStorage } from "/js/control/storage.js";
 import { initEditor } from "/js/control/editor.js";
 import { initHome, showHome } from "/js/control/home.js";
@@ -144,6 +145,7 @@ initEditor();
 initLibrary();
 initHome();
 initStage();
+initBulletin();
 app.on(renderTopbar);
 
 if (!inTauri) {
@@ -156,6 +158,8 @@ if (!inTauri) {
     setPlannerMode(true);
     document.querySelector(".brand").textContent = "EpiscoPlanner";
     document.title = "EpiscoPlanner";
+    // The planner opens on the bulletin; the slides are a tab away.
+    document.querySelector('.tabs button[data-tab="bulletin"]')?.click();
   }
   initStorage();
   app.vocab = await invoke("vocabulary");

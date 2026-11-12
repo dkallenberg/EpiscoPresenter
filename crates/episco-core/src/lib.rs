@@ -14,9 +14,11 @@
 
 pub mod bcp;
 pub mod bible;
+pub mod bulletin;
 pub mod calendar;
 pub mod category;
 pub mod document;
+pub mod docx;
 pub mod ewm;
 pub mod hymn;
 pub mod lectionary;

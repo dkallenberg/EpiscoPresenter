@@ -144,7 +144,13 @@ fn pick_paths(app: &AppHandle, name: &str, ext: &str, multiple: bool) -> CmdResu
     picked.into_iter().map(|p| p.into_path().map_err(|e| e.to_string())).collect()
 }
 
-fn pick_save_path(app: &AppHandle, name: &str, ext: &str, suggested: &str, dir: Option<&Path>) -> Option<PathBuf> {
+pub(crate) fn pick_save_path(
+    app: &AppHandle,
+    name: &str,
+    ext: &str,
+    suggested: &str,
+    dir: Option<&Path>,
+) -> Option<PathBuf> {
     let mut dialog = app.dialog().file().add_filter(name, &[ext]).set_file_name(suggested);
     if let Some(dir) = dir {
         dialog = dialog.set_directory(dir);

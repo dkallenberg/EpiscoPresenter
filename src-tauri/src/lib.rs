@@ -9,6 +9,7 @@
 //!    with `displays.open_at_start`.
 
 mod autosave;
+mod bulletin;
 mod commands;
 mod deck;
 mod engine;
@@ -104,6 +105,14 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
 fn builder() -> tauri::Builder<tauri::Wry> {
     tauri::Builder::default().plugin(tauri_plugin_dialog::init()).invoke_handler(tauri::generate_handler![
         app_mode,
+        bulletin::parish_get,
+        bulletin::parish_set,
+        bulletin::parish_pick_logo,
+        bulletin::bulletin_html,
+        bulletin::bulletin_export,
+        bulletin::bulletin_styles,
+        bulletin::set_cue_bulletin,
+        bulletin::set_service_time,
         storage::storage_get,
         storage::storage_set,
         storage::storage_pick_folder,

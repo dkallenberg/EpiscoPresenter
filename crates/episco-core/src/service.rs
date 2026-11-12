@@ -41,6 +41,9 @@ pub struct Service {
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
+    /// Start time, `"08:00"` (24-hour), for the bulletin cover.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub season: Option<Season>,
     /// Service-level colour (explicit, else the season's).
@@ -121,6 +124,9 @@ pub struct CueOverrides {
     pub category: Option<ElementCategory>,
     #[serde(default, skip_serializing_if = "CueLooks::is_empty")]
     pub looks: CueLooks,
+    /// How the item appears in the bulletin; `None` for its default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bulletin: Option<crate::bulletin::BulletinStyle>,
 }
 
 /// What a cue needs from its service to resolve its derived fields.
@@ -511,6 +517,7 @@ impl Service {
         let mut service = Service {
             title: plan.title,
             date: plan.date,
+            time: plan.time,
             season,
             color,
             announcements_deck: plan.announcements_deck,
@@ -535,6 +542,7 @@ impl Service {
                 title: pc.title,
                 category: pc.category.as_deref().map(str::parse::<ElementCategory>).transpose().map_err(cue_err)?,
                 looks,
+                bulletin: pc.bulletin.as_deref().and_then(crate::bulletin::BulletinStyle::parse),
             };
             let cue = match (&pc.file, pc.announcements) {
                 (Some(_), Some(_)) => return Err(cue_err("a cue may have `file` or `announcements`, not both".into())),
@@ -634,6 +642,7 @@ impl Service {
                     category: cue.overrides.category.map(|c| c.key().to_string()),
                     background: None,
                     announcements,
+                    bulletin: cue.overrides.bulletin.map(|b| b.key().to_string()),
                     sanctuary: cue.overrides.looks.sanctuary.clone(),
                     stream: cue.overrides.looks.stream.clone(),
                 })
@@ -643,6 +652,7 @@ impl Service {
         let plan = ServicePlan {
             title: self.title.clone(),
             date: self.date.clone(),
+            time: self.time.clone(),
             season: self.season.map(|s| s.label().to_string()),
             // Only write a colour that differs from the season default.
             color: self.color.filter(|c| Some(*c) != self.season.map(Season::default_color)).map(|c| c.label().into()),
@@ -686,6 +696,8 @@ struct ServicePlan {
     title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     date: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     season: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -724,6 +736,9 @@ struct PlanCue {
     background: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     announcements: Option<AnnouncementMode>,
+    /// `reference`, `full`, `title` or `hidden`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    bulletin: Option<String>,
     #[serde(default, skip_serializing_if = "Look::is_empty")]
     sanctuary: Look,
     #[serde(default, skip_serializing_if = "Look::is_empty")]

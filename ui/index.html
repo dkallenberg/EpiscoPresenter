@@ -5,6 +5,7 @@
     <title>EpiscoPresenter</title>
     <link rel="stylesheet" href="/css/output.css" />
     <link rel="stylesheet" href="/css/control.css" />
+    <link rel="stylesheet" href="/css/bulletin.css" />
   </head>
   <body>
     <header class="topbar">
@@ -46,6 +47,8 @@
       <!-- Center: slide grid + block editor -->
       <section class="pane center">
         <nav class="tabs">
+          <button data-tab="bulletin" class="planner-only">Bulletin</button>
+          <button data-tab="script" class="planner-only">Script</button>
           <button data-tab="slides" class="active">Slides</button>
           <button data-tab="editor">Editor</button>
           <button data-tab="source">Source</button>
@@ -55,6 +58,8 @@
             <button data-thumbs="stream">Live Stream</button>
           </div>
         </nav>
+        <div id="tab-bulletin" class="tab"><div id="bulletin-view" class="doc-view"></div></div>
+        <div id="tab-script" class="tab"><div id="script-view" class="doc-view"></div></div>
         <div id="tab-slides" class="tab active">
           <div id="slide-grid" class="slide-grid"></div>
         </div>
