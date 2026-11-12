@@ -47,6 +47,9 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   * **Reference line**: title, opening words and the page or hymn number,
     e.g. *Collect for Purity — Almighty God, to you all hearts are open… BCP 355*.
   * **Full text**: every word, speaker labels, the people's parts in bold.
+  * **Responses only**: the title and just what the people say, each with
+    the short line that cues it (*The Word of the Lord. / Thanks be to
+    God.*); a long prayer is left out and only its *Amen* is printed.
   * **Title only**, or **Left out**.
 
   The usual choice for each item is underlined: Prayer Book texts (a `BCP`
@@ -55,6 +58,17 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   prayers in full, pictures and planned blanks left out. Choosing the usual
   one again clears your choice. The choice is saved in the service plan
   (`bulletin = "full"` on the cue).
+* **Reading texts…**: the readings' scripture is not included in the app
+  (the NRSV and NRSVue are copyright the National Council of Churches), so
+  a reading in full text shows a yellow *[The text of … goes here]* until
+  its text is added; the button turns gold and counts the readings still
+  to add. In the dialog, **Open ↗** shows each passage in your browser
+  (Bible Gateway for the NRSVue, the Oremus Bible Browser for the NRSV);
+  copy it, paste it and click **Add**. Verse numbers, headings, footnotes
+  and the copyright line are removed, and the text then appears in the
+  bulletin, the script and the slides. Clicking a yellow placeholder opens
+  the dialog at that reading. The placeholder is highlighted in the Word
+  file too, so it is not missed.
 * **Service time** goes on the cover: *November 9, 2025 at 8 o'clock in the
   morning*. The cover also names the Sunday from the date.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),

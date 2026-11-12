@@ -179,6 +179,15 @@ pub struct CueBulletin {
     id: String,
     style: BulletinStyle,
     default: BulletinStyle,
+    /// A reading or Gospel (its text can be pasted in).
+    reading: bool,
+    /// A reading whose text has not been added yet.
+    needs_text: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    citation: Option<String>,
+    /// The Bible version of the text it has ("NRSVue").
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bible: Option<String>,
 }
 
 #[tauri::command]
@@ -192,6 +201,13 @@ pub fn bulletin_styles(engine: State<'_, Engine>) -> Vec<CueBulletin> {
                     id: c.id.clone(),
                     style: bulletin::style_of(c),
                     default: bulletin::default_style(c),
+                    reading: matches!(
+                        c.category,
+                        episco_core::ElementCategory::Reading | episco_core::ElementCategory::Gospel
+                    ),
+                    needs_text: bulletin::needs_text(c),
+                    citation: c.document().and_then(|d| d.meta.citation.clone()).filter(|x| !x.trim().is_empty()),
+                    bible: c.document().and_then(|d| d.meta.extra("bible")).map(String::from),
                 })
                 .collect()
         })

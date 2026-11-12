@@ -9,6 +9,7 @@ import { app, call, debounce, el, toast } from "/js/control/util.js";
 const STYLES = [
   ["reference", "Reference line", "Title, opening words and page or hymn number"],
   ["full", "Full text", "Every word, the people's parts in bold"],
+  ["responses", "Responses only", "The title and just what the people say, each with its short cue line"],
   ["title", "Title only", "Just the title"],
   ["hidden", "Left out", "Not in the bulletin"],
 ];
@@ -27,19 +28,22 @@ function makeView(kind) {
   const item = el("div.doc-item");
   const page = el("div.doc-page");
   const scroll = el("div.doc-scroll", {}, page);
-  const exportLabel = kind === "bulletin" ? "Export bulletin to Word" : "Export script to Word";
+  const exportLabel = "Export to Word";
   const toolbar = el(
     "div.doc-toolbar",
     {},
     el("label.field.inline", {}, el("span", {}, "Service time"), time),
     kind === "bulletin" ? item : el("span.muted.small", {}, "Every word, with rubrics in red. The Great Thanksgiving starts a new page."),
     el("span.spacer"),
+    el("button.reading-texts", { onclick: () => openReadings(), title: "Paste the scripture text of each reading (NRSV or NRSVue)" }, "Reading texts…"),
     el("button", { onclick: openParish, title: "Name, logo, address, welcome and licence notice for the cover and back page" }, "Parish details…"),
     el("button.primary", { onclick: () => exportDoc(kind) }, `⤓ ${exportLabel}`),
   );
   page.addEventListener("click", (e) => {
+    const missing = e.target.closest(".missing");
     const entry = e.target.closest("[data-cue]");
     if (entry) app.select(entry.dataset.cue);
+    if (missing && entry) openReadings(entry.dataset.cue);
   });
   host.replaceChildren(toolbar, scroll);
   const v = { kind, host, time, item, page, scroll, stale: true };
@@ -69,6 +73,8 @@ async function refresh(v) {
     v.kind === "bulletin" ? call("bulletin_styles") : Promise.resolve(null),
   ]);
   if (list) styles = new Map(list.map((x) => [x.id, x]));
+  else if (v.kind === "script") styles = new Map(((await call("bulletin_styles")) ?? []).map((x) => [x.id, x]));
+  showMissing();
   if (html == null) return;
   const top = v.scroll.scrollTop;
   v.page.innerHTML = html;
@@ -84,6 +90,91 @@ function markSelected(v, scroll) {
   if (!n) return;
   n.classList.add("selected");
   if (scroll) n.scrollIntoView({ block: "nearest" });
+}
+
+/** "Reading texts…" turns gold while a reading still has no text. */
+function showMissing() {
+  const n = [...styles.values()].filter((x) => x.needs_text).length;
+  for (const b of document.querySelectorAll(".doc-toolbar .reading-texts")) {
+    b.classList.toggle("warn", n > 0);
+    b.textContent = n ? `Reading texts… (${n} to add)` : "Reading texts…";
+  }
+}
+
+/**
+ * Pastes the scripture text of each reading. The NRSV and NRSVue are
+ * copyright, so the app cannot include them: "Open" shows the passage in the
+ * browser to copy from. `focus`: a cue id to start at.
+ */
+export async function openReadings(focus = null) {
+  if (!app.service) return toast("Open a service first.", "warn");
+  styles = new Map(((await call("bulletin_styles")) ?? []).map((x) => [x.id, x]));
+  const readings = app.service.cues.filter((c) => styles.get(c.id)?.reading);
+  if (!readings.length) return toast("This service has no readings yet. Add the propers from the Library.", "warn");
+  const version = el(
+    "select",
+    {},
+    [["NRSVue", "NRSVue (Updated Edition, 2021)"], ["NRSV", "NRSV (1989)"]].map(([v, l]) =>
+      el("option", { value: v, selected: v === (app.service?.bible ?? "NRSVue") }, l),
+    ),
+  );
+  const rows = readings.map((c) => {
+    const info = styles.get(c.id);
+    const citation = info.citation ?? "";
+    const status = el("span.small" + (info.needs_text ? ".warn-text" : ".muted"), {}, info.needs_text ? "Text not added" : `✓ ${info.bible ?? "text"} added`);
+    const paste = el("textarea.reading-paste", {
+      rows: 3,
+      placeholder: citation ? `Paste ${citation} here. Verse numbers, headings, footnotes and the copyright line are removed.` : "This reading has no citation.",
+      disabled: !citation,
+    });
+    const apply = async () => {
+      if (!paste.value.trim()) return toast("Paste the reading first.", "warn");
+      const n = await call("reading_set_text", { id: c.id, text: paste.value, version: version.value, words: 40 });
+      if (n != null) {
+        paste.value = "";
+        status.className = "small muted";
+        status.textContent = `✓ ${version.value} added`;
+        toast(`${c.title}: text added`);
+      }
+    };
+    const row = el(
+      "div.reading-item",
+      { dataset: { cue: c.id } },
+      el(
+        "div.reading-item-head",
+        {},
+        el("b", {}, c.title),
+        el("span", {}, citation || "—"),
+        status,
+        el("span.spacer"),
+        el("button", { disabled: !citation, onclick: () => call("open_passage", { citation, version: version.value }) }, "Open ↗"),
+        el("button.primary", { disabled: !citation, onclick: apply }, info.needs_text ? "Add" : "Replace"),
+      ),
+      paste,
+    );
+    return row;
+  });
+  const overlay = el(
+    "div.modal-overlay",
+    { onmousedown: (e) => e.target === overlay && overlay.remove() },
+    el(
+      "div.modal.wide",
+      {},
+      el("h3", {}, "Reading texts"),
+      el(
+        "p.muted.small",
+        {},
+        "The NRSV and NRSVue are copyright the National Council of Churches, so the app cannot include their text. For each reading, Open shows the passage in your browser: select it, copy, paste it here and click Add. The text then appears in the bulletin, the script and on the slides, with the version's initials after it.",
+      ),
+      el("label.field.inline", {}, el("span", {}, "Bible"), version),
+      el("div.reading-list", {}, rows),
+      el("div.modal-actions", {}, el("button", { onclick: () => overlay.remove() }, "Done")),
+    ),
+  );
+  document.body.append(overlay);
+  const start = rows.find((r) => r.dataset.cue === focus) ?? rows.find((r) => styles.get(r.dataset.cue)?.needs_text) ?? rows[0];
+  start.scrollIntoView({ block: "nearest" });
+  start.querySelector("textarea")?.focus();
 }
 
 /** The bar for the selected item: how it appears in the bulletin. */

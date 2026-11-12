@@ -29,6 +29,9 @@ pub enum BulletinStyle {
     Reference,
     /// Every word, with speaker labels and the people's parts in bold.
     Full,
+    /// The title and only what the people say, each with the short line
+    /// that cues it ("The Word of the Lord." / "Thanks be to God.").
+    Responses,
     /// Just the title (and reference).
     Title,
     /// Left out of the bulletin.
@@ -40,6 +43,7 @@ impl BulletinStyle {
         match s {
             "reference" => Some(BulletinStyle::Reference),
             "full" => Some(BulletinStyle::Full),
+            "responses" => Some(BulletinStyle::Responses),
             "title" => Some(BulletinStyle::Title),
             "hidden" => Some(BulletinStyle::Hidden),
             _ => None,
@@ -50,6 +54,7 @@ impl BulletinStyle {
         match self {
             BulletinStyle::Reference => "reference",
             BulletinStyle::Full => "full",
+            BulletinStyle::Responses => "responses",
             BulletinStyle::Title => "title",
             BulletinStyle::Hidden => "hidden",
         }
@@ -131,6 +136,8 @@ pub enum Piece {
     Prose { runs: Vec<Run> },
     /// A picture, e.g. a line of music.
     Image { path: PathBuf, alt: String },
+    /// Where a reading's text belongs but has not been added yet.
+    MissingText { citation: String },
     /// Start a new page (script only).
     PageBreak,
 }
@@ -339,7 +346,13 @@ fn resolve(src: &str, cue: &Cue) -> Option<PathBuf> {
 fn body(cue: &Cue, script: bool) -> Vec<Piece> {
     let Some(doc) = cue.document() else { return Vec::new() };
     let mut out = Vec::new();
-    for b in &doc.blocks {
+    // Where a reading's text goes: the start of its last slide.
+    let last_break = doc.blocks.iter().rposition(|b| matches!(b, Block::SlideBreak));
+    let mut text_at = 0;
+    for (i, b) in doc.blocks.iter().enumerate() {
+        if Some(i) == last_break {
+            text_at = out.len();
+        }
         match b {
             Block::Heading { .. } | Block::SlideBreak => {}
             Block::Image { src, alt } => {
@@ -381,6 +394,56 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
             },
         }
     }
+    if needs_text(cue) {
+        let citation = doc.meta.citation.clone().unwrap_or_default();
+        out.insert(text_at.min(out.len()), Piece::MissingText { citation });
+    }
+    out
+}
+
+fn is_reading(cue: &Cue) -> bool {
+    matches!(cue.category, ElementCategory::Reading | ElementCategory::Gospel)
+}
+
+/// A reading whose scripture text has not been pasted in yet.
+pub fn needs_text(cue: &Cue) -> bool {
+    is_reading(cue)
+        && cue.document().is_some_and(|d| {
+            d.meta.citation.as_deref().is_some_and(|c| !c.trim().is_empty())
+                && !d.blocks.iter().any(|b| matches!(b, Block::Paragraph { role: None, .. }))
+        })
+}
+
+fn is_people(p: &Piece) -> bool {
+    match p {
+        Piece::Speech { label: Some(l), .. } => l == Role::People.label(),
+        Piece::Speech { label: None, lines } => lines.iter().flatten().all(|r| r.bold || r.text.trim().is_empty()),
+        _ => false,
+    }
+}
+
+fn words(p: &Piece) -> usize {
+    match p {
+        Piece::Speech { lines, .. } => lines.iter().flatten().map(|r| r.text.split_whitespace().count()).sum(),
+        _ => usize::MAX,
+    }
+}
+
+/// Only what the people say, each with the leader's line before it when that
+/// line is short enough to be a cue ("The Lord be with you.").
+fn responses(pieces: Vec<Piece>) -> Vec<Piece> {
+    let mut out: Vec<Piece> = Vec::new();
+    let mut prev: Option<Piece> = None;
+    for p in pieces {
+        if is_people(&p) {
+            if let Some(cue) = prev.take().filter(|c| matches!(c, Piece::Speech { .. }) && words(c) <= 16) {
+                out.push(cue);
+            }
+            out.push(p);
+        } else {
+            prev = Some(p);
+        }
+    }
     out
 }
 
@@ -411,6 +474,15 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool) -> Entry {
                 reference: reference(cue),
             });
             pieces.extend(body(cue, script));
+        }
+        BulletinStyle::Responses => {
+            pieces.push(Piece::Line {
+                title: cue.title.clone(),
+                detail: scripture(cue),
+                incipit: work_title(cue),
+                reference: reference(cue),
+            });
+            pieces.extend(responses(body(cue, script)));
         }
     }
     Entry { cue: Some(cue.id.clone()), style, pieces }
@@ -540,6 +612,11 @@ pub fn to_html(doc: &Doc) -> String {
                     escape(&path.to_string_lossy()),
                     escape(alt)
                 )),
+                Piece::MissingText { citation } => h.push_str(&format!(
+                    "<p class=\"missing\" data-missing=\"{}\">[The text of {} goes here. Add it with Reading texts\u{2026}]</p>",
+                    escape(citation),
+                    escape(citation)
+                )),
                 Piece::PageBreak => h.push_str("<hr class=\"page-break\">"),
             }
         }
@@ -635,6 +712,52 @@ mod tests {
                 reference: Some("Hymn 414".into()),
             }
         );
+    }
+
+    #[test]
+    fn responses_only_and_missing_reading_text() {
+        let gospel = cue("---\ntitle: The Holy Gospel\ntype: gospel\ncitation: Matthew 25:1-13\n---\n# The Holy Gospel\n\n---\n\n[Deacon] The Holy Gospel of our Lord Jesus Christ according to Matthew.\n[People] **Glory to you, Lord Christ.**\n\n---\n\n[Deacon] The Gospel of the Lord.\n[People] **Praise to you, Lord Christ.**\n");
+        assert!(needs_text(&gospel));
+        let full = entry(&gospel, BulletinStyle::Full, false);
+        // The placeholder sits where the text goes: before the closing response.
+        assert!(
+            matches!(&full.pieces[3], Piece::MissingText { citation } if citation == "Matthew 25:1-13"),
+            "{:?}",
+            full.pieces
+        );
+        assert!(matches!(&full.pieces[4], Piece::Speech { label: Some(l), .. } if l == "Deacon"));
+        assert!(to_html(&Doc {
+            kind: DocKind::Bulletin,
+            cover: Cover { title: String::new(), day: None, when: None, logo: None },
+            entries: vec![full],
+            back: None
+        })
+        .contains("The text of Matthew 25:1-13 goes here"));
+
+        let r = entry(&gospel, BulletinStyle::Responses, false);
+        let said: Vec<String> = r.pieces[1..]
+            .iter()
+            .map(|p| match p {
+                Piece::Speech { lines, .. } => lines[0].iter().map(|x| x.text.as_str()).collect(),
+                other => format!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(
+            said,
+            [
+                "The Holy Gospel of our Lord Jesus Christ according to Matthew.",
+                "Glory to you, Lord Christ.",
+                "The Gospel of the Lord.",
+                "Praise to you, Lord Christ."
+            ]
+        );
+
+        // A long prayer is left out; only the people's Amen remains.
+        let collect = cue("---\ntitle: Collect of the Day\ntype: collect\n---\n[Priest] Almighty God, you have knit together your elect in one communion and fellowship in the mystical body of your Son Christ our Lord: Give us grace so to follow your blessed saints.\n[People] **Amen.**\n");
+        let r = entry(&collect, BulletinStyle::Responses, false);
+        assert_eq!(r.pieces.len(), 2);
+        assert!(is_people(&r.pieces[1]));
+        assert!(!needs_text(&collect));
     }
 
     #[test]

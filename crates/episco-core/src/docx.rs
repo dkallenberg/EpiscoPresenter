@@ -231,6 +231,10 @@ impl Writer<'_> {
                     self.para("Picture", "", &x);
                 }
             }
+            Piece::MissingText { citation } => {
+                let text = format!("[The text of {citation} goes here.]");
+                self.para("Prose", "", &text_run(&text, "<w:i/><w:highlight w:val=\"yellow\"/>"));
+            }
             Piece::PageBreak => self.page_break(),
         }
     }

@@ -51,3 +51,15 @@
 .parish-grid textarea { width: 100%; resize: vertical; font: inherit; font-size: 13px; text-transform: none; letter-spacing: 0; }
 .parish-logo-row { display: flex; gap: 8px; align-items: center; }
 .parish-logo { max-height: 40px; max-width: 120px; background: #fff; border-radius: 4px; }
+
+/* A reading whose text is still to be pasted */
+.doc .missing { background: #fff3b0; border: 1px dashed #c9a400; color: #6b5310; font-style: italic; padding: 4px 8px; border-radius: 4px; cursor: pointer; }
+.doc .missing:hover { background: #ffe97a; }
+.doc-toolbar .reading-texts.warn { border-color: var(--accent); color: var(--accent); }
+
+/* Reading texts dialog */
+.reading-list { display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow: auto; }
+.reading-item { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
+.reading-item-head { display: flex; gap: 10px; align-items: center; }
+.reading-paste { width: 100%; resize: vertical; font: inherit; font-size: 13px; }
+.warn-text { color: #ffe39a; }
