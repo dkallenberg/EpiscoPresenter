@@ -4,6 +4,14 @@ compiled into the app.
 * `*.ewm` — the Holy Eucharist, Rite Two (`rite: II`; items without a `rite`
   key are the same in both rites, e.g. the dismissals).
 * `rite1/*.ewm` — the Holy Eucharist, Rite One (`rite: I`), BCP pp. 323-340.
+* `occasions/*.ewm` — Holy Baptism (BCP 299-311), Confirmation (413-419),
+  the Renewal of Baptismal Vows (292), the Bishop's Blessing (523), Ash
+  Wednesday (264-269), Palm Sunday, Maundy Thursday, Good Friday, Holy
+  Saturday and the Great Vigil of Easter (270-295), the anthem "In the midst
+  of life" (492), and the Ordinations of a Bishop, Priest and Deacon with the
+  Litany for Ordinations (512-551), converted from www.bcponline.org (see
+  tools/bcp/). `bishop: true` marks the bishop's parts; `bulletin: full`
+  prints them in full in bulletins.
 * `bcp/psalter.txt` — the Psalter, one verse per line, from the CC0 XML
   edition at github.com/freeuniversalist/1979psalter.
 * `bcp/canticles.txt` — Canticles 1-21 (Morning Prayer I and II).

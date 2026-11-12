@@ -103,6 +103,20 @@ pub enum SpeakerLabels {
 /// Drops a speaker's label where the same speaker carries on: the label
 /// prints at the start of each block of text by one speaker. Rubrics and
 /// pictures between do not break the block.
+/// With a bishop presiding, the Celebrant's and Priest's parts are the Bishop's.
+fn bishop_labels(pieces: &mut [Piece], bishop: bool) {
+    if !bishop {
+        return;
+    }
+    for p in pieces {
+        if let Piece::Speech { label: Some(l), .. } = p {
+            if l == Role::Celebrant.label() || l == Role::Priest.label() {
+                *l = Role::Bishop.label().to_string();
+            }
+        }
+    }
+}
+
 fn speaker_labels(pieces: &mut [Piece], mode: SpeakerLabels) {
     if mode == SpeakerLabels::Every {
         return;
@@ -300,20 +314,27 @@ fn long_date(d: Date) -> String {
 
 fn cover(service: &Service, parish: &ParishInfo) -> Cover {
     let date = service.date.as_deref().and_then(|d| d.parse::<Date>().ok());
-    let day = date.map(|d| {
+    // A special service names itself ("Good Friday"); else the parish's
+    // title for the Eucharist.
+    let title = match service.liturgy.as_deref().map(str::trim).filter(|t| !t.is_empty()) {
+        Some(t) => t.to_string(),
+        None if parish.liturgy_title.trim().is_empty() => "The Holy Eucharist".to_string(),
+        None => parish.liturgy_title.trim().to_string(),
+    };
+    let day = date.and_then(|d| {
         let name = liturgical_day(d).name;
-        let name = name.strip_prefix("The ").unwrap_or(&name).to_string();
-        format!("on the {name}")
+        if name.eq_ignore_ascii_case(&title) {
+            return None; // "Good Friday" on Good Friday
+        }
+        Some(match name.strip_prefix("The ") {
+            Some(rest) => format!("on the {rest}"),
+            None => format!("on {name}"),
+        })
     });
     let when = date.map(|d| match service.time.as_deref().and_then(time_phrase) {
         Some(t) => format!("{} at {t}", long_date(d)),
         None => long_date(d),
     });
-    let title = if parish.liturgy_title.trim().is_empty() {
-        "The Holy Eucharist".to_string()
-    } else {
-        parish.liturgy_title.trim().to_string()
-    };
     Cover { title, day, when, logo: parish.logo.clone() }
 }
 
@@ -334,6 +355,11 @@ pub fn default_style(cue: &Cue) -> BulletinStyle {
     let meta = &doc.meta;
     if meta.extra("media").is_some() || meta.extra("blank").is_some() {
         return BulletinStyle::Hidden;
+    }
+    // An item can say how it is usually printed (`bulletin: full`), e.g.
+    // the occasional rites, whose words the congregation does not know.
+    if let Some(style) = meta.extra("bulletin").and_then(BulletinStyle::parse) {
+        return style;
     }
     match cue.category {
         ElementCategory::Hymn | ElementCategory::Anthem => BulletinStyle::Reference,
@@ -576,6 +602,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
         .iter()
         .map(|cue| {
             let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
+            bishop_labels(&mut e.pieces, service.bishop);
             speaker_labels(&mut e.pieces, parish.speaker_labels);
             e
         })
@@ -605,6 +632,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
         {
             e.pieces.insert(0, Piece::PageBreak);
         }
+        bishop_labels(&mut e.pieces, service.bishop);
         speaker_labels(&mut e.pieces, parish.speaker_labels);
         entries.push(e);
     }
@@ -1015,6 +1043,30 @@ mod tests {
     }
 
     #[test]
+    fn a_bishop_presiding_relabels_the_celebrant() {
+        let mut s = Service::default();
+        s.insert_cue(0, cue("---\ntitle: Salutation\n---\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Priest] Let us pray.\n[Deacon] Let us confess our sins.\n"));
+        s.bishop = true;
+        s.rebuild_all();
+        let labels = |d: &Doc| {
+            d.entries[0]
+                .pieces
+                .iter()
+                .filter_map(|p| match p {
+                    Piece::Speech { label, .. } => Some(label.clone().unwrap_or_default()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(labels(&bulletin(&s, &ParishInfo::default())), ["Bishop", "People", "Bishop", "Deacon"]);
+        assert_eq!(labels(&script(&s, &ParishInfo::default())), ["Bishop", "People", "Bishop", "Deacon"]);
+        // The slides too.
+        let roles: Vec<String> =
+            s.cues[0].slide(0).unwrap().blocks.iter().filter_map(|b| b.role().map(|r| r.label().to_string())).collect();
+        assert_eq!(roles, ["Bishop", "People", "Bishop", "Deacon"]);
+    }
+
+    #[test]
     fn a_speakers_label_prints_once_per_block() {
         let mut s = Service::default();
         s.insert_cue(0, cue("---\ntitle: Salutation\n---\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Celebrant] Let us pray.\n[People] **Amen.**\n"));
@@ -1054,6 +1106,14 @@ mod tests {
         s.insert_cue(2, cue("---\ntitle: The Great Thanksgiving\ntype: eucharistic_prayer\ncitation: BCP 333\n---\n[Celebrant] The Lord be with you.\n"));
         s.insert_cue(3, cue("---\ntitle: Clip\nmedia: /x.png\n---\n"));
         let parish = ParishInfo { name: "St. Example".into(), ..Default::default() };
+        // A special service names itself on the cover.
+        let mut friday =
+            Service { date: Some("2027-03-26".into()), liturgy: Some("Good Friday".into()), ..Default::default() };
+        assert_eq!(cover(&friday, &parish).title, "Good Friday");
+        assert_eq!(cover(&friday, &parish).day, None, "not \"on Good Friday\" again");
+        friday.liturgy = Some("The Ordination of a Priest".into());
+        friday.date = Some("2027-06-12".into());
+        assert!(cover(&friday, &parish).day.is_some_and(|d| d.starts_with("on ") && !d.starts_with("on the the")));
 
         let b = bulletin(&s, &parish);
         assert_eq!(b.cover.day.as_deref(), Some("on the Twenty-Second Sunday after Pentecost"));

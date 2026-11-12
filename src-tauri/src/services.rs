@@ -118,6 +118,16 @@ fn hymn_placeholder(title: &str) -> LiturgyDocument {
     }
 }
 
+/// A hymn slot.
+pub(crate) fn hymn_cue(title: &str) -> Option<Cue> {
+    Some(Cue::liturgy("", hymn_placeholder(title), None, CueOverrides::default()))
+}
+
+/// The sermon slot.
+pub(crate) fn sermon_cue() -> Cue {
+    Cue::liturgy("", sermon(), None, CueOverrides::default())
+}
+
 fn sermon() -> LiturgyDocument {
     LiturgyDocument {
         meta: FrontMatter { title: "The Sermon".into(), category: Some(ElementCategory::Homily), ..Default::default() },
@@ -132,7 +142,7 @@ fn sermon() -> LiturgyDocument {
 }
 
 /// The library item for `name` in `rite` (Rite I has its own forms).
-fn rite_name(rite: Rite, name: &str) -> String {
+pub(crate) fn rite_name(rite: Rite, name: &str) -> String {
     let rite1 = match name {
         "postcommunion-eternal-god" => Some("postcommunion"),
         "acclamation-ordinary"
@@ -261,6 +271,10 @@ pub struct ServiceOptions {
     /// if there is one, else the standard order.
     #[serde(default)]
     pub by_season: bool,
+    /// The kind of service (Holy Week, ordinations) and the bishop,
+    /// baptism, renewal and confirmation options.
+    #[serde(default, flatten)]
+    pub occasion: crate::occasions::Options,
 }
 
 /// Propers are specific to a day and are not carried into a copy.
@@ -276,6 +290,8 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
     let rite = opts.rite.or(template.as_ref().and_then(|t| t.rite)).unwrap_or_default();
     let track = opts.track.or(template.as_ref().and_then(|t| t.track)).unwrap_or(1);
     let bible = opts.bible.or(template.as_ref().and_then(|t| t.bible));
+    let special = crate::occasions::order(opts.occasion, rite);
+    let template = if special.is_some() { None } else { template };
     let mut service = match template {
         Some(mut service) => {
             service.cues.retain(|c| !is_proper(c));
@@ -289,7 +305,11 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
         }
         None => {
             let mut s = Service::default();
-            for cue in standard_cues(&day, rite) {
+            let cues = match special {
+                Some(cues) => crate::occasions::with_loop(cues),
+                None => standard_cues(&day, rite),
+            };
+            for cue in cues {
                 let at = s.cues.len();
                 s.insert_cue(at, cue);
             }
@@ -298,14 +318,21 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
     };
     if opts.propers.unwrap_or(true) {
         let at = propers_position(&service);
-        for (k, cue) in proper_cues(date, rite, track).into_iter().enumerate() {
+        let propers = crate::occasions::fixed_propers(opts.occasion.occasion, date, rite)
+            .unwrap_or_else(|| proper_cues(date, rite, track));
+        for (k, cue) in propers.into_iter().enumerate() {
             service.insert_cue(at + k, cue);
         }
     }
+    crate::occasions::apply(&mut service, opts.occasion);
     service.rite = (rite == Rite::One).then_some(rite);
     service.track = (track == 2).then_some(2);
     service.bible = bible;
-    service.title = title.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).unwrap_or_else(|| day.name.clone());
+    service.title = title
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .or_else(|| opts.occasion.occasion.title().map(String::from))
+        .unwrap_or_else(|| day.name.clone());
     service.date = Some(date.to_string());
     service.season = Some(day.season);
     service.color = Some(day.color);
@@ -597,6 +624,217 @@ mod tests {
         s.cues.iter().map(|c| c.title.as_str()).collect()
     }
 
+    fn with(o: crate::occasions::Options) -> ServiceOptions {
+        ServiceOptions { occasion: o, ..Default::default() }
+    }
+
+    fn before(t: &[&str], a: &str, b: &str) -> bool {
+        let i = t.iter().position(|x| *x == a).unwrap_or_else(|| panic!("no {a} in {t:?}"));
+        let j = t.iter().position(|x| *x == b).unwrap_or_else(|| panic!("no {b} in {t:?}"));
+        i < j
+    }
+
+    #[test]
+    fn holy_baptism_replaces_the_creed_prayers_and_confession() {
+        use crate::occasions::{Baptismal, Options};
+        let s = build(
+            "2026-11-15".parse().unwrap(),
+            None,
+            None,
+            with(Options { baptismal: Some(Baptismal::Baptism), ..Default::default() }),
+        );
+        let t = titles(&s);
+        for gone in
+            ["The Nicene Creed", "Confession of Sin", "Absolution", "The Peace", "Collect for Purity", "Salutation"]
+        {
+            assert!(!t.contains(&gone), "{gone} should be gone: {t:?}");
+        }
+        assert_eq!(t[1], "Opening Acclamation (Holy Baptism)");
+        assert!(before(&t, "The Sermon", "Presentation and Examination of the Candidates"));
+        assert!(before(&t, "Presentation and Examination of the Candidates", "The Baptismal Covenant"));
+        assert!(before(&t, "The Baptismal Covenant", "Prayers for the Candidates"));
+        assert!(before(&t, "Thanksgiving over the Water", "The Baptism"));
+        assert!(!t.contains(&"Consecration of the Chrism"), "only with a bishop");
+        assert!(!s.bishop);
+        // The propers are still there, before the sermon.
+        assert!(before(&t, "Collect of the Day", "The Sermon"));
+    }
+
+    #[test]
+    fn baptism_with_a_bishop_and_applying_twice() {
+        use crate::occasions::{apply, Baptismal, Occasion, Options};
+        let o = Options { bishop: true, baptismal: Some(Baptismal::Baptism), confirmation: true, ..Default::default() };
+        let mut s = build("2026-11-15".parse().unwrap(), None, None, with(o));
+        let t = titles(&s);
+        assert!(before(&t, "Thanksgiving over the Water", "Consecration of the Chrism"));
+        assert!(before(&t, "The Baptism", "At Confirmation, Reception, or Reaffirmation"));
+        let n = s.cues.len();
+        // Adding the same options to the service again changes nothing.
+        apply(&mut s, Options { occasion: Occasion::Eucharist, ..o });
+        assert_eq!(s.cues.len(), n, "{:?}", titles(&s));
+        // Renewal after a baptism is not added either.
+        apply(&mut s, Options { baptismal: Some(Baptismal::Renewal), ..Default::default() });
+        assert_eq!(s.cues.len(), n);
+    }
+
+    #[test]
+    fn renewal_of_vows_takes_the_place_of_the_creed() {
+        use crate::occasions::{Baptismal, Options};
+        let s = build(
+            "2026-11-15".parse().unwrap(),
+            None,
+            None,
+            with(Options { baptismal: Some(Baptismal::Renewal), ..Default::default() }),
+        );
+        let t = titles(&s);
+        assert!(!t.contains(&"The Nicene Creed"));
+        assert!(before(&t, "The Sermon", "The Renewal of Baptismal Vows"));
+        assert!(t.contains(&"Confession of Sin"));
+    }
+
+    #[test]
+    fn a_bishop_presides_with_confirmation() {
+        use crate::occasions::Options;
+        let s = build(
+            "2026-11-15".parse().unwrap(),
+            None,
+            None,
+            with(Options { bishop: true, confirmation: true, ..Default::default() }),
+        );
+        assert!(s.bishop);
+        let t = titles(&s);
+        assert!(before(&t, "The Sermon", "Presentation and Examination of the Candidates (Confirmation)"));
+        assert!(before(&t, "The Baptismal Covenant", "Confirmation, Reception, Reaffirmation"));
+        assert!(before(&t, "The Bishop's Blessing", "Dismissal (Let us go forth)"));
+        assert!(!t.contains(&"The Nicene Creed") && !t.contains(&"Confession of Sin"));
+        // The Celebrant's parts are the Bishop's on the slides…
+        let roles: Vec<String> = s
+            .cues
+            .iter()
+            .flat_map(|c| (0..c.slide_count()).filter_map(move |i| c.slide(i)))
+            .flat_map(|sl| sl.blocks.iter().filter_map(|b| b.role().map(|r| r.label().to_string())))
+            .collect();
+        assert!(roles.iter().any(|r| r == "Bishop"));
+        assert!(!roles.iter().any(|r| r == "Celebrant" || r == "Priest"), "{roles:?}");
+        // …but the texts themselves are unchanged.
+        let salutation = s.cues.iter().find(|c| c.title == "Salutation").unwrap();
+        assert!(salutation.document().unwrap().blocks.iter().any(|b| b.role() == Some(&Role::Celebrant)));
+        // The plan keeps the setting.
+        let dir = std::env::temp_dir().join(format!("episco-bishop-{}", std::process::id()));
+        let mut copy = s.clone();
+        copy.save_to(&dir.join("service.toml")).unwrap();
+        let again = Service::load_plan(dir.join("service.toml")).unwrap().service;
+        assert!(again.bishop);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn holy_week_and_ordinations() {
+        use crate::occasions::{suggested, Occasion, Options};
+        // Easter 2027 is March 28.
+        let day = |d: &str| -> Date { d.parse().unwrap() };
+        assert_eq!(suggested(day("2027-02-10")), Occasion::AshWednesday);
+        assert_eq!(suggested(day("2027-03-21")), Occasion::PalmSunday);
+        assert_eq!(suggested(day("2027-03-25")), Occasion::MaundyThursday);
+        assert_eq!(suggested(day("2027-03-26")), Occasion::GoodFriday);
+        assert_eq!(suggested(day("2027-03-27")), Occasion::HolySaturday);
+        assert_eq!(suggested(day("2027-03-28")), Occasion::Eucharist);
+
+        let cites = |s: &Service, c: &str| {
+            s.cues.iter().any(|x| x.document().and_then(|d| d.meta.citation.as_deref()).is_some_and(|x| x.contains(c)))
+        };
+        let make =
+            |date: &str, occasion| build(day(date), None, None, with(Options { occasion, ..Default::default() }));
+
+        let ash = make("2027-02-10", Occasion::AshWednesday);
+        let t = titles(&ash);
+        assert_eq!(ash.title, "Ash Wednesday");
+        assert!(before(&t, "The Sermon", "Invitation to a Holy Lent"));
+        assert!(before(&t, "Imposition of Ashes", "Litany of Penitence"));
+        assert!(t.iter().any(|x| x.starts_with("Psalm 51")), "{t:?}");
+
+        let palms = make("2027-03-21", Occasion::PalmSunday);
+        let t = titles(&palms);
+        assert_eq!(t[0], "The Liturgy of the Palms");
+        let gospel = palms.cues.iter().position(|c| c.category == ElementCategory::Gospel).unwrap();
+        assert_eq!(palms.cues[gospel - 1].title, "The Passion Gospel", "{t:?}");
+
+        let thursday = make("2027-03-25", Occasion::MaundyThursday);
+        assert!(before(&titles(&thursday), "The Sermon", "The Washing of Feet"));
+
+        let friday = make("2027-03-26", Occasion::GoodFriday);
+        let t = titles(&friday);
+        assert_eq!(t[0], "Good Friday: Opening and Collect");
+        assert!(!t.contains(&"Collect of the Day"), "the opening has the collect: {t:?}");
+        assert!(before(&t, "The Passion Gospel (John)", "The Solemn Collects"));
+        assert!(t.contains(&"Good Friday: Concluding Prayer") && !t.contains(&"Dismissal (Let us go forth)"));
+
+        let saturday = make("2027-03-27", Occasion::HolySaturday);
+        let t = titles(&saturday);
+        assert!(t.contains(&"Collect of the Day") && cites(&saturday, "Job 14:1-14"), "{t:?}");
+        assert!(before(&t, "The Sermon", "In the Midst of Life"));
+
+        let vigil = make("2027-03-27", Occasion::EasterVigil);
+        let t = titles(&vigil);
+        assert_eq!(vigil.title, "The Great Vigil of Easter");
+        assert!(before(&t, "The Exsultet", "The Vigil: Liturgy of the Word"));
+        assert!(before(&t, "The Vigil: Liturgy of the Word", "The Renewal of Baptismal Vows"));
+        assert!(before(&t, "The Renewal of Baptismal Vows", "The Vigil: At the Eucharist"));
+        assert!(cites(&vigil, "Mark 16:1-8"), "Year B Gospel at the 2027 Vigil: {t:?}");
+
+        for (occasion, who) in [
+            (Occasion::OrdinationDeacon, "Deacon"),
+            (Occasion::OrdinationPriest, "Priest"),
+            (Occasion::OrdinationBishop, "Bishop"),
+        ] {
+            let s = make("2027-06-12", occasion);
+            let t = titles(&s);
+            assert!(s.bishop, "a bishop ordains");
+            assert_eq!(
+                s.title,
+                format!("The Ordination of a {}", who.to_lowercase())
+                    .replacen("a deacon", "a Deacon", 1)
+                    .replacen("a priest", "a Priest", 1)
+                    .replacen("a bishop", "a Bishop", 1)
+            );
+            assert!(before(&t, &format!("Ordination of a {who}: The Presentation"), "The Litany for Ordinations"));
+            assert!(before(&t, "The Litany for Ordinations", "Collect after the Litany (Ordinations)"));
+            assert!(before(&t, "The Sermon", &format!("Ordination of a {who}: The Examination")));
+            assert!(before(&t, &format!("Ordination of a {who}: The Consecration"), "Offertory Hymn"));
+            assert_eq!(t.contains(&"The Nicene Creed"), who != "Bishop");
+            assert!(t.contains(&"The Holy Gospel") && cites(&s, "Psalm"), "{t:?}");
+            assert!(!t.contains(&"The Bishop's Blessing"), "the ordination has its own blessing");
+        }
+    }
+
+    /// With EPISCO_SAMPLE_OUT set, writes bulletins and scripts of the
+    /// special services there, to look at.
+    #[test]
+    fn sample_bulletins() {
+        use crate::occasions::{Baptismal, Occasion, Options};
+        let Ok(out) = std::env::var("EPISCO_SAMPLE_OUT") else { return };
+        let parish = episco_core::bulletin::ParishInfo::default();
+        for (name, date, o) in [
+            (
+                "baptism-bishop",
+                "2026-11-15",
+                Options { bishop: true, baptismal: Some(Baptismal::Baptism), confirmation: true, ..Default::default() },
+            ),
+            ("good-friday", "2027-03-26", Options { occasion: Occasion::GoodFriday, ..Default::default() }),
+            ("ordination-priest", "2027-06-12", Options { occasion: Occasion::OrdinationPriest, ..Default::default() }),
+            ("vigil", "2027-03-27", Options { occasion: Occasion::EasterVigil, ..Default::default() }),
+            ("holy-saturday", "2027-03-27", Options { occasion: Occasion::HolySaturday, ..Default::default() }),
+        ] {
+            let s = build(date.parse().unwrap(), None, None, with(o));
+            for (kind, doc) in [
+                ("bulletin", episco_core::bulletin::bulletin(&s, &parish)),
+                ("script", episco_core::bulletin::script(&s, &parish)),
+            ] {
+                std::fs::write(format!("{out}/{name}-{kind}.html"), episco_core::bulletin::to_html(&doc)).unwrap();
+            }
+        }
+    }
+
     #[test]
     fn standard_order_follows_the_season() {
         let advent = build("2026-11-29".parse().unwrap(), None, None, ServiceOptions::default());
@@ -677,6 +915,7 @@ mod tests {
             bible: Some(BibleVersion::Nrsv),
             propers: None,
             by_season: false,
+            occasion: Default::default(),
         };
         let s = build("2026-11-15".parse().unwrap(), None, None, opts);
         let t = titles(&s);

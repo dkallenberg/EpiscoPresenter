@@ -18,6 +18,12 @@ fn every_builtin_library_item_parses_without_warnings() {
     assert!(check_dir(&examples_dir().join("../library")) >= 20);
 }
 
+#[test]
+fn every_occasional_service_item_parses_without_warnings() {
+    // Baptism, Confirmation, Holy Week, ordinations, the bishop's blessing.
+    assert!(check_dir(&examples_dir().join("../library/occasions")) >= 40);
+}
+
 /// Parses every `.ewm` in `dir`, requiring no warnings and a lossless round trip.
 fn check_dir(dir: &Path) -> usize {
     let mut count = 0;

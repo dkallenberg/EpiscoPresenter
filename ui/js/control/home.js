@@ -251,6 +251,85 @@ function serviceOptions() {
   };
 }
 
+/**
+ * The kind of service (Holy Week days and ordinations have their own Prayer
+ * Book order) and the options: a bishop presiding, Holy Baptism or the
+ * Renewal of Baptismal Vows, Confirmation.
+ */
+function occasionOptions(onKind) {
+  let picked = false; // the operator chose a kind; stop following the date
+  const kind = el("select", {
+    title: "Holy Week services and ordinations use their own Prayer Book order",
+    onchange: () => {
+      picked = true;
+      changed();
+    },
+  });
+  const bishop = el("input", { type: "checkbox", onchange: () => changed() });
+  const baptismal = el(
+    "select",
+    { onchange: () => changed() },
+    [["", "No baptism"], ["baptism", "Holy Baptism"], ["renewal", "Renewal of Baptismal Vows"]].map(([v, l]) => el("option", { value: v }, l)),
+  );
+  const confirmation = el("input", { type: "checkbox", onchange: () => { if (confirmation.checked) bishop.checked = true; changed(); } });
+  const note = el("p.muted.small.occasion-note");
+  const labels = new Map();
+  const changed = () => {
+    const k = kind.value || "eucharist";
+    const ordination = k.startsWith("ordination");
+    if (ordination) bishop.checked = true;
+    bishop.disabled = ordination;
+    const noBaptism = ["ash_wednesday", "good_friday", "holy_saturday", "palm_sunday", "maundy_thursday"].includes(k) || ordination;
+    baptismal.disabled = confirmation.disabled = noBaptism;
+    if (noBaptism) {
+      baptismal.value = "";
+      confirmation.checked = false;
+    }
+    note.textContent =
+      k === "easter_vigil"
+        ? "The Vigil renews the baptismal vows unless there is a baptism."
+        : ordination
+          ? "The bishop presides: the ordination's own texts, the Litany for Ordinations and the Prayer Book's readings."
+          : confirmation.checked
+            ? "Confirmation, Reception and Reaffirmation, with the bishop."
+            : bishop.checked
+              ? "The Celebrant's parts are labelled Bishop, and the Bishop's Blessing is added before the dismissal."
+              : "";
+    onKind?.(k, labels.get(k));
+  };
+  const load = async (date) => {
+    const list = await invoke("occasions_list", { date: date || null }).catch(() => null);
+    if (!list) return;
+    if (!kind.options.length) {
+      for (const o of list.occasions) {
+        labels.set(o.key, o.label);
+        kind.append(el("option", { value: o.key }, o.key === "eucharist" ? "Holy Eucharist" : o.label));
+      }
+    }
+    if (!picked) kind.value = list.suggested;
+    changed();
+  };
+  const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
+  const check = (input, label) => el("label.field.inline.check", {}, input, el("span", {}, label));
+  return {
+    row: el(
+      "div.occasion",
+      {},
+      el("div.home-row", {}, field("Service", kind), field("Baptism", baptismal)),
+      el("div.home-row.checks", {}, check(bishop, "A bishop presides"), check(confirmation, "Confirmation, Reception, Reaffirmation")),
+      note,
+    ),
+    load,
+    kind: () => kind.value || "eucharist",
+    value: () => ({
+      occasion: kind.value || "eucharist",
+      bishop: bishop.checked,
+      baptismal: baptismal.value || null,
+      confirmation: confirmation.checked,
+    }),
+  };
+}
+
 function render() {
   const home = document.getElementById("home");
   const now = today();
@@ -263,22 +342,38 @@ function render() {
   const title = el("input", { placeholder: "Title" });
   const info = el("div.muted.small.day-info");
   let autoTitle = "";
+  let dayName = "";
+  let kindTitle = null;
+  const setTitle = () => {
+    // Keep a title the operator typed; otherwise follow the date and kind.
+    const want = kindTitle ?? dayName;
+    if (!title.value || title.value === autoTitle) title.value = autoTitle = want;
+  };
+  const newTemplate = templateSelect();
+  const occasion = occasionOptions((k, label) => {
+    // Holy Week and ordinations use their own order, not a template.
+    const own = !["eucharist", "maundy_thursday"].includes(k);
+    newTemplate.disabled = own;
+    newTemplate.title = own ? "This service uses its own Prayer Book order" : "";
+    kindTitle = ["eucharist", "palm_sunday"].includes(k) ? null : label;
+    setTitle();
+  });
   const updateDay = async () => {
     const day = date.value ? await invoke("liturgical_info", { date: date.value }).catch(() => null) : null;
     info.textContent = day ? `${day.season} · ${day.color} · Year ${day.year}${day.proper ? ` · Proper ${day.proper}` : ""}` : "";
-    // Keep a title the operator typed; otherwise follow the date.
-    if (!title.value || title.value === autoTitle) title.value = autoTitle = day?.name ?? "";
+    dayName = day?.name ?? "";
+    await occasion.load(date.value);
+    setTitle();
   };
   date.addEventListener("change", updateDay);
   updateDay();
-  const newTemplate = templateSelect();
   const newOpts = serviceOptions();
   const create = async () => {
     if (!date.value) return toast("Choose a date", "warn");
     const plan = await call("service_create", {
       date: date.value,
       title: title.value || null,
-      ...startFrom(newTemplate, newOpts.value()),
+      ...startFrom(newTemplate, { ...newOpts.value(), ...occasion.value() }),
     });
     if (plan) {
       hideHome();
@@ -324,6 +419,7 @@ function render() {
           el("h3", {}, "New service"),
           el("div.home-row", {}, field("Date", date), field("Title", title)),
           info,
+          occasion.row,
           field("Start from", newTemplate),
           newOpts.row,
           el("div.home-card-actions", {}, el("button.primary", { onclick: create }, "Create & open")),

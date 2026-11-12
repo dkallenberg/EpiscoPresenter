@@ -26,9 +26,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::category::ElementCategory;
-use crate::document::{LiturgyDocument, Slide};
+use crate::document::{Block, LiturgyDocument, Slide};
 use crate::ewm;
 use crate::look::{default_look, CueLooks, Look, Output, ResolvedLook, DEFAULT_KEY_COLOR};
+use crate::role::Role;
 use crate::season::{LiturgicalColor, Season};
 use crate::state::CuePosition;
 
@@ -41,6 +42,14 @@ pub struct Service {
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
+    /// A bishop presides (a visitation, an ordination): the Celebrant's and
+    /// Priest's parts are labelled Bishop on the slides, bulletin and script.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bishop: bool,
+    /// The liturgy's own name for the bulletin cover ("Good Friday", "The
+    /// Ordination of a Priest"); `None` for the Holy Eucharist.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub liturgy: Option<String>,
     /// Start time, `"08:00"` (24-hour), for the bulletin cover.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub time: Option<String>,
@@ -140,6 +149,8 @@ pub struct BuildContext<'a> {
     pub looks: Option<&'a BTreeMap<ElementCategory, CueLooks>>,
     /// Slides in the announcements deck, if the operator gave the count.
     pub deck_slides: Option<u32>,
+    /// A bishop presides: Celebrant and Priest parts are shown as Bishop.
+    pub bishop: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -226,6 +237,15 @@ impl Cue {
         match &mut self.content {
             CueContent::Liturgy { document, slides, .. } => {
                 *slides = document.slides();
+                if ctx.bishop {
+                    for slide in slides.iter_mut() {
+                        for block in &mut slide.blocks {
+                            if let Block::Paragraph { role: Some(r @ (Role::Celebrant | Role::Priest)), .. } = block {
+                                *r = Role::Bishop;
+                            }
+                        }
+                    }
+                }
                 let meta = &document.meta;
                 self.category = o.category.unwrap_or_else(|| meta.effective_category());
                 self.color = meta.effective_color().or(ctx.color);
@@ -324,12 +344,17 @@ impl Service {
 
     /// The context cues are resolved in.
     pub fn context(&self) -> BuildContext<'_> {
-        BuildContext { color: self.color, looks: Some(&self.looks), deck_slides: self.deck_slides }
+        BuildContext { color: self.color, looks: Some(&self.looks), deck_slides: self.deck_slides, bishop: self.bishop }
     }
 
     /// Recomputes every cue's derived fields (after service-wide changes).
     pub fn rebuild_all(&mut self) {
-        let ctx = BuildContext { color: self.color, looks: Some(&self.looks), deck_slides: self.deck_slides };
+        let ctx = BuildContext {
+            color: self.color,
+            looks: Some(&self.looks),
+            deck_slides: self.deck_slides,
+            bishop: self.bishop,
+        };
         for cue in &mut self.cues {
             cue.rebuild(&ctx);
         }
@@ -388,7 +413,7 @@ impl Service {
     /// Replaces a liturgy cue's document and marks the cue modified.
     pub fn set_document(&mut self, id: &str, document: LiturgyDocument) -> Result<(), ServiceError> {
         let i = self.position(id)?;
-        let ctx = BuildContext { color: self.color, looks: None, deck_slides: self.deck_slides };
+        let ctx = BuildContext { color: self.color, looks: None, deck_slides: self.deck_slides, bishop: self.bishop };
         let Service { cues, looks, .. } = self;
         let cue = &mut cues[i];
         match &mut cue.content {
@@ -405,7 +430,7 @@ impl Service {
     /// Sets a cue's plan-level overrides.
     pub fn set_overrides(&mut self, id: &str, overrides: CueOverrides) -> Result<(), ServiceError> {
         let i = self.position(id)?;
-        let ctx = BuildContext { color: self.color, looks: None, deck_slides: self.deck_slides };
+        let ctx = BuildContext { color: self.color, looks: None, deck_slides: self.deck_slides, bishop: self.bishop };
         let Service { cues, looks, .. } = self;
         cues[i].overrides = overrides;
         cues[i].rebuild(&BuildContext { looks: Some(looks), ..ctx });
@@ -522,6 +547,8 @@ impl Service {
             title: plan.title,
             date: plan.date,
             time: plan.time,
+            bishop: plan.bishop,
+            liturgy: plan.liturgy,
             season,
             color,
             announcements_deck: plan.announcements_deck,
@@ -661,6 +688,8 @@ impl Service {
             title: self.title.clone(),
             date: self.date.clone(),
             time: self.time.clone(),
+            bishop: self.bishop,
+            liturgy: self.liturgy.clone(),
             season: self.season.map(|s| s.label().to_string()),
             // Only write a colour that differs from the season default.
             color: self.color.filter(|c| Some(*c) != self.season.map(Season::default_color)).map(|c| c.label().into()),
@@ -706,6 +735,10 @@ struct ServicePlan {
     date: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     time: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    bishop: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    liturgy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     season: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

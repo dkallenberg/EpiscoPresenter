@@ -282,6 +282,24 @@ export function openServiceSettings() {
     rite: el("select", {}, [["II", "Rite II (contemporary)"], ["I", "Rite I (traditional)"]].map(([v, l]) => el("option", { value: v, selected: (s.rite ?? "II") === v }, l))),
     track: el("select", {}, [[1, "Track 1"], [2, "Track 2"]].map(([v, l]) => el("option", { value: v, selected: (s.track ?? 1) === v }, l))),
     bible: el("select", {}, [["NRSVue", "NRSVue (Updated Edition)"], ["NRSV", "NRSV"]].map(([v, l]) => el("option", { value: v, selected: (s.bible ?? "NRSVue") === v }, l))),
+    bishop: el("input", { type: "checkbox", checked: Boolean(s.bishop) }),
+    baptismal: el(
+      "select",
+      {},
+      [["", "Choose…"], ["baptism", "Holy Baptism"], ["renewal", "Renewal of Baptismal Vows"], ["confirmation", "Confirmation, Reception, Reaffirmation"]].map(([v, l]) => el("option", { value: v }, l)),
+    ),
+  };
+  const addBaptismal = async () => {
+    const v = f.baptismal.value;
+    if (!v) return toast("Choose what to add.", "warn");
+    const ok = await call("service_add_baptismal", {
+      baptismal: v === "confirmation" ? null : v,
+      confirmation: v === "confirmation",
+    });
+    if (ok !== undefined) {
+      if (v === "confirmation") f.bishop.checked = true;
+      toast(v === "baptism" ? "Holy Baptism added in place of the Creed" : v === "renewal" ? "Renewal of Baptismal Vows added in place of the Creed" : "Confirmation added, with the bishop presiding");
+    }
   };
   f.key.addEventListener("change", () => (f.customKey.hidden = f.key.value !== "custom"));
   const deckNote = el("p.small.deck-note");
@@ -322,7 +340,12 @@ export function openServiceSettings() {
         bible: f.bible.value,
       },
     });
-    if (ok !== undefined) close();
+    if (ok === undefined) return;
+    if (f.bishop.checked !== Boolean(app.service?.bishop)) {
+      const added = await call("set_service_bishop", { bishop: f.bishop.checked });
+      if (added) toast("The Bishop's Blessing was added before the dismissal");
+    }
+    close();
   };
   const row = (label, input) => el("label.field", {}, el("span", {}, label), input);
   const overlay = el(
@@ -336,6 +359,18 @@ export function openServiceSettings() {
       el("div.look-row", {}, row("Date", f.date), row("Season", f.season), row("Colour", f.color)),
       el("div.look-row", {}, row("Rite", f.rite), row("Readings (after Pentecost)", f.track), row("Bible for reading texts", f.bible)),
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
+      el(
+        "label.field.check",
+        { title: "The Celebrant's and Priest's parts are labelled Bishop on the slides, bulletin and script" },
+        f.bishop,
+        el("span", {}, "A bishop presides (labels the Celebrant's parts “Bishop” and adds the Bishop's Blessing)"),
+      ),
+      el(
+        "div.settings-rites",
+        {},
+        row("Add to this service", f.baptismal),
+        el("button.small", { onclick: addBaptismal, title: "Added in place of the Creed, with the Prayer Book's changes to the order" }, "Add"),
+      ),
       row("Announcements deck (Google Slides link)", f.deck),
       deckNote,
       el(

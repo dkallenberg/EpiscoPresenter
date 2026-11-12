@@ -32,6 +32,45 @@ Both cards have three choices, remembered for next time:
 The same three are in **⚙ Service** for the open service. Changing them
 there affects texts added from then on.
 
+### Kind of service, bishop and baptism
+
+**Service** chooses the order. *Holy Eucharist* is the Sunday or holy-day
+order. Ash Wednesday, Palm Sunday, Maundy Thursday, Good Friday and Holy
+Saturday are suggested from the date. The Great Vigil of Easter and the
+Ordinations of a Deacon, Priest or Bishop are chosen by hand. These use the
+Prayer Book's own order instead of a template:
+
+| Service | Order (BCP) |
+| --- | --- |
+| Ash Wednesday (264) | Salutation, Collect and readings, sermon, Invitation to a Holy Lent, Imposition of Ashes, Psalm 51, Litany of Penitence, the Peace, the Eucharist |
+| Palm Sunday (270) | The Liturgy of the Palms, procession, Collect and readings with the Passion Gospel's announcement, sermon, Creed, Confession, the Eucharist |
+| Maundy Thursday (274) | The usual order with the Washing of Feet after the sermon |
+| Good Friday (276) | Opening and Collect, readings and the Passion (John), sermon, the Solemn Collects, Devotions before the Cross, Confession, Lord's Prayer, Concluding Prayer (no blessing or dismissal) |
+| Holy Saturday (283) | Collect, readings, sermon, "In the midst of life" |
+| Great Vigil of Easter (285) | Service of Light, Exsultet, Liturgy of the Word, the Renewal of Baptismal Vows (or Holy Baptism), "Alleluia. Christ is risen" and Collect, Epistle, Psalm 114, the Gospel of the year, the Eucharist |
+| Ordinations (512-551) | Opening, Presentation, Litany for Ordinations, Collect, readings (the Prayer Book's first choices), sermon, Creed (deacons and priests), Examination, Consecration, the Peace, the Eucharist, After Communion with the new minister's blessing and dismissal |
+
+* **A bishop presides**: on the slides, bulletin and script the
+  Celebrant's and Priest's parts are labelled *Bishop* (the texts are not
+  changed), and the Bishop's Blessing (BCP 523) is added before the
+  dismissal. Ordinations always have it. It can be turned on or off later
+  in **⚙ Service**.
+* **Baptism → Holy Baptism**: the baptismal opening acclamation replaces
+  the usual one, Collect for Purity and Salutation; the Presentation and
+  Examination, the Baptismal Covenant, the Prayers for the Candidates, the
+  Thanksgiving over the Water (and, with a bishop, the Consecration of the
+  Chrism) and the Baptism take the place of the Creed; there is no
+  Confession, and the Peace is in the Baptism.
+* **Baptism → Renewal of Baptismal Vows** takes the place of the Creed.
+* **Confirmation, Reception, Reaffirmation** (with the bishop): with a
+  baptism, its prayers and laying on of hands follow the Baptism; without,
+  the Confirmation rite (BCP 413) takes the place of the Creed, Confession
+  and Peace.
+
+These texts print in full in the bulletin by default. In **⚙ Service**,
+*Add to this service* adds Holy Baptism, the Renewal or Confirmation to an
+existing service.
+
 ### Starting from
 
 New and scheduled services start from either:

@@ -15,6 +15,7 @@ mod deck;
 mod engine;
 mod library;
 mod media;
+mod occasions;
 mod scripture;
 mod services;
 mod storage;
@@ -121,6 +122,9 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         scripture::bible_import,
         scripture::bible_remove,
         scripture::reading_fill,
+        occasions::occasions_list,
+        occasions::set_service_bishop,
+        occasions::service_add_baptismal,
         storage::storage_get,
         storage::storage_set,
         storage::storage_pick_folder,

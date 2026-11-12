@@ -484,3 +484,13 @@ body.planner .badge.gs { display: none !important; }
 body.planner .hint.presenter-hint { display: none; }
 .hint.planner-hint { display: none; }
 body.planner .hint.planner-hint { display: block; }
+
+/* New service: the kind of service and the bishop / baptism options */
+.occasion { display: flex; flex-direction: column; gap: 6px; }
+.occasion .home-row { grid-template-columns: 1fr 1fr; }
+.home-row.checks { display: flex; gap: 18px; flex-wrap: wrap; }
+.field.check { flex-direction: row; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text, inherit); }
+.field.check input { width: auto; }
+.occasion-note:empty { display: none; }
+.occasion-note { margin: 0; }
+.settings-rites { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
