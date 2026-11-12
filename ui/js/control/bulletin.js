@@ -283,6 +283,15 @@ export async function openParish() {
     email: input("email", ""),
     licence: area("licence", 2, "e.g. Music reprinted under OneLicense #A-000000. All rights reserved."),
     welcome: area("welcome", 4, "A word to visitors for the back page. Leave a blank line between paragraphs."),
+    people_label: el(
+      "select",
+      {},
+      [
+        ["never", "Never: bold type shows the people's parts"],
+        ["once", "Once in each item"],
+        ["always", "Every time"],
+      ].map(([v, l]) => el("option", { value: v, selected: v === (info.people_label ?? "never") }, l)),
+    ),
   };
   const logoImg = el("img.parish-logo");
   const showLogo = () => {
@@ -298,7 +307,7 @@ export async function openParish() {
     el(
       "div.modal.wide",
       {},
-      el("h3", {}, "Parish details"),
+      el("h3", {}, "Parish details and bulletin options"),
       el("p.muted.small", {}, "Printed on the bulletin's cover and back page. Kept in the parish library folder, so everyone shares them."),
       el(
         "div.parish-grid",
@@ -334,6 +343,7 @@ export async function openParish() {
         el("span"),
         field("Music licence notice", f.licence, true),
         field("Welcome for visitors", f.welcome, true),
+        field("“People” label in the bulletin", f.people_label),
       ),
       el(
         "div.modal-actions",

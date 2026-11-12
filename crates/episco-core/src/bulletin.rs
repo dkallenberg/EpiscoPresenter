@@ -84,6 +84,37 @@ pub struct ParishInfo {
     pub logo: Option<PathBuf>,
     /// The cover title; default "The Holy Eucharist".
     pub liturgy_title: String,
+    /// When the bulletin labels the people's parts "People" (their words
+    /// are in bold either way).
+    pub people_label: PeopleLabel,
+}
+
+/// When the bulletin prints the "People" label.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PeopleLabel {
+    /// Never: bold type shows what the people say.
+    #[default]
+    Never,
+    /// On the first of the people's parts in each item.
+    Once,
+    /// Every time.
+    Always,
+}
+
+/// Drops "People" labels as `mode` asks.
+fn people_labels(pieces: &mut [Piece], mode: PeopleLabel) {
+    let mut seen = false;
+    for p in pieces {
+        if let Piece::Speech { label, .. } = p {
+            if label.as_deref() == Some(Role::People.label()) {
+                if mode == PeopleLabel::Never || (mode == PeopleLabel::Once && seen) {
+                    *label = None;
+                }
+                seen = true;
+            }
+        }
+    }
 }
 
 /// A run of text.
@@ -504,7 +535,11 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
     let entries = service
         .cues
         .iter()
-        .map(|cue| entry(cue, style_of(cue), false))
+        .map(|cue| {
+            let mut e = entry(cue, style_of(cue), false);
+            people_labels(&mut e.pieces, parish.people_label);
+            e
+        })
         .filter(|e| e.style != BulletinStyle::Hidden)
         .collect();
     Doc { kind: DocKind::Bulletin, cover: cover(service, parish), entries, back: Some(parish.clone()) }
@@ -769,6 +804,37 @@ mod tests {
         assert_eq!(r.pieces.len(), 2);
         assert!(is_people(&r.pieces[1]));
         assert!(!needs_text(&collect));
+    }
+
+    #[test]
+    fn people_label_never_once_or_always() {
+        let mut s = Service::default();
+        s.insert_cue(0, cue("---\ntitle: Salutation\n---\n[Rubric] *The people respond.*\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Celebrant] Let us pray.\n[People] **Amen.**\n"));
+        let labels = |mode| {
+            let parish = ParishInfo { people_label: mode, ..Default::default() };
+            let b = bulletin(&s, &parish);
+            b.entries[0]
+                .pieces
+                .iter()
+                .filter_map(|p| match p {
+                    Piece::Speech { label, .. } => Some(label.clone().unwrap_or_default()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(labels(PeopleLabel::Never), ["Celebrant", "", "Celebrant", ""]);
+        assert_eq!(labels(PeopleLabel::Once), ["Celebrant", "People", "Celebrant", ""]);
+        assert_eq!(labels(PeopleLabel::Always), ["Celebrant", "People", "Celebrant", "People"]);
+        // The script keeps every label.
+        let sc = script(&s, &ParishInfo::default());
+        assert!(
+            sc.entries[0]
+                .pieces
+                .iter()
+                .filter(|p| matches!(p, Piece::Speech { label: Some(l), .. } if l == "People"))
+                .count()
+                == 2
+        );
     }
 
     #[test]

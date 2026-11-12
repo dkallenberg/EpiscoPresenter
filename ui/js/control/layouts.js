@@ -136,6 +136,21 @@ const save = debounce(async () => {
   if (saved) lt.templates = saved;
 }, 400);
 
+/** Shows or hides the "People" label on every slide type that has one. */
+async function setPeopleLabel(show) {
+  for (const type of SLIDE_TYPES.filter((t) => t.elements.people)) {
+    const t = (lt.templates[type.key] ??= { elements: {} });
+    const e = ((t.elements ??= {}).people ??= {});
+    if (show) delete e.hidden;
+    else e.hidden = true;
+    if (!Object.keys(e).length) delete t.elements.people;
+    const saved = await call("layouts_set", { key: type.key, template: t });
+    if (saved) lt.templates = saved;
+  }
+  toast(show ? "“People” label shown on the slides" : "“People” label left off the slides");
+  draw();
+}
+
 /** Sets one property of the selected element (null: back to default). */
 function setProp(name, prop, value) {
   const def = slideType(lt.key).elements[name];
@@ -482,6 +497,14 @@ function drawInspector(T) {
             isFont ? null : choice(name, "valign", spec, "Vertical", [["top", "Top"], ["center", "Middle"], ["bottom", "Bottom"]]),
           ),
         ),
+    name === "people"
+      ? el(
+          "label.toggle",
+          {},
+          el("input", { type: "checkbox", checked: !spec.hidden, disabled: app.readonly, onchange: (e) => setPeopleLabel(e.target.checked) }),
+          "Show the “People” label on every slide type (bold already marks the people's parts)",
+        )
+      : null,
     isFont
       ? null
       : el(

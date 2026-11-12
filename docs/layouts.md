@@ -36,3 +36,12 @@ would not fit its box, and the text box grows upward into a title's space on
 slides that have no title.
 
 The sanctuary hymn lyrics and the welcome bar keep their fixed layouts.
+
+## The “People” label
+
+Choose **People (bold) lines** as the element on any slide type and untick
+**Show the “People” label** to leave the label off every slide type at
+once (the bold text already marks the people's parts; the text keeps its
+place beside the other speakers'). Tick it again to bring it back. In the
+layout file this is `hidden = true` on each type's `people` element.
+

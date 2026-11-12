@@ -166,7 +166,10 @@ function renderBlocks(blocks, cue, opts) {
     const row = el("div", "row");
     const people = b.role === "People";
     if (people) row.classList.add("people");
-    if (b.role && opts.labels && !(isVerseNumber(b.role) && !opts.numbers)) {
+    if (people && opts.labels && opts.peopleLabel === false) {
+      // No "People" label (bold shows it), but keep the text column.
+      row.append(el("div", "label"));
+    } else if (b.role && opts.labels && !(isVerseNumber(b.role) && !opts.numbers)) {
       row.append(el("div", isVerseNumber(b.role) ? "label number" : "label", b.role));
     } else {
       row.classList.add("span");
@@ -435,7 +438,7 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     const hymn = key === "stream.hymn";
     const stream = key.startsWith("stream.");
     const blocks = p.text;
-    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, reflow: hymn, bold: hymn }));
+    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, reflow: hymn, bold: hymn, peopleLabel: !T.people?.hidden }));
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
   }
 }
