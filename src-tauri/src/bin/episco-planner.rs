@@ -3,5 +3,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    episco_presenter_lib::run_planner()
+    // The planner's own config (name, app identity, window title).
+    episco_presenter_lib::run_planner(tauri::generate_context!("planner/tauri.conf.json"))
 }

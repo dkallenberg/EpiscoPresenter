@@ -51,7 +51,11 @@ fn init_tracing() {
 
 /// EpiscoPlanner: plan services, keep the parish library in a shared
 /// folder, and (later) make scripts and bulletins.
-pub fn run_planner() {
+///
+/// `context` is `tauri::generate_context!("planner/tauri.conf.json")`, made in
+/// the planner's own binary: each app's context must live in its own binary
+/// (on macOS it embeds an Info.plist under a fixed symbol name).
+pub fn run_planner(context: tauri::Context<tauri::Wry>) {
     init_tracing();
     builder()
         .setup(|app| {
@@ -65,11 +69,13 @@ pub fn run_planner() {
             app.manage(NodeConfig::default());
             Ok(())
         })
-        .run(tauri::generate_context!("planner/tauri.conf.json"))
+        .run(context)
         .expect("error while running EpiscoPlanner");
 }
 
-pub fn run() {
+/// The presentation app. `context` is `tauri::generate_context!()`, made in
+/// the app's binary (see [`run_planner`]).
+pub fn run(context: tauri::Context<tauri::Wry>) {
     init_tracing();
     builder()
         .setup(|app| {
@@ -90,7 +96,7 @@ pub fn run() {
             app.manage(config);
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running EpiscoPresenter");
 }
 

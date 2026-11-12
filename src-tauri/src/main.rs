@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    episco_presenter_lib::run()
+    episco_presenter_lib::run(tauri::generate_context!())
 }
