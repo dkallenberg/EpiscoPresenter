@@ -15,6 +15,7 @@ mod engine;
 mod library;
 mod media;
 mod services;
+mod storage;
 mod templates;
 mod windows;
 
@@ -28,15 +29,53 @@ use crate::engine::Engine;
 
 const CONFIG_FILE: &str = "node.json";
 
-pub fn run() {
+/// Which program is running: the presentation app, or EpiscoPlanner (the
+/// planning tool: no output windows, live controls or network sync).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AppMode {
+    Presenter,
+    Planner,
+}
+
+#[tauri::command]
+fn app_mode(mode: tauri::State<'_, AppMode>) -> AppMode {
+    *mode
+}
+
+fn init_tracing() {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .init();
+}
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
+/// EpiscoPlanner: plan services, keep the parish library in a shared
+/// folder, and (later) make scripts and bulletins.
+pub fn run_planner() {
+    init_tracing();
+    builder()
+        .setup(|app| {
+            storage::init(app.handle());
+            templates::init(app.handle());
+            tracing::info!("starting EpiscoPlanner");
+            let engine = tauri::async_runtime::block_on(Engine::start_local(app.handle().clone()));
+            app.manage(engine);
+            app.manage(AppMode::Planner);
+            // Commands that read the node config get a plain one (no outputs are opened).
+            app.manage(NodeConfig::default());
+            Ok(())
+        })
+        .run(tauri::generate_context!("planner/tauri.conf.json"))
+        .expect("error while running EpiscoPlanner");
+}
+
+pub fn run() {
+    init_tracing();
+    builder()
         .setup(|app| {
             let config = load_config(app.handle());
+            storage::init(app.handle());
+            app.manage(AppMode::Presenter);
             templates::init(app.handle());
             tracing::info!("starting as {:?} node `{}`", config.role, config.node_name);
 
@@ -51,79 +90,87 @@ pub fn run() {
             app.manage(config);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![
-            commands::get_node_config,
-            windows::outputs_status,
-            deck::deck_fetch,
-            deck::deck_local,
-            deck::deck_set_slides,
-            windows::output_show,
-            windows::output_close,
-            windows::output_set_fullscreen,
-            commands::get_snapshot,
-            commands::send_command,
-            commands::vocabulary,
-            commands::parse_ewm,
-            commands::format_ewm,
-            commands::confirm,
-            commands::pick_image,
-            commands::open_service,
-            commands::new_service,
-            commands::load_example_service,
-            commands::add_items,
-            commands::new_item,
-            commands::update_cue_document,
-            commands::set_cue_overrides,
-            commands::set_announcement_mode,
-            commands::set_cue_look,
-            commands::set_default_look,
-            commands::set_service_details,
-            commands::list_backgrounds,
-            commands::import_backgrounds,
-            commands::pick_background,
-            commands::move_cue,
-            commands::remove_cue,
-            commands::save_cue,
-            commands::save_service,
-            library::library_list,
-            library::library_preview,
-            library::library_add,
-            library::library_save_cue,
-            library::library_delete,
-            library::library_folder,
-            library::parse_propers,
-            library::add_propers,
-            library::psalm_arrange,
-            library::lectionary_propers,
-            library::reading_set_text,
-            library::reading_url,
-            library::open_passage,
-            library::hymn_set_text,
-            library::library_import_hymns,
-            media::media_list,
-            media::media_import,
-            media::media_delete,
-            media::media_rename,
-            media::media_folder,
-            media::media_add,
-            media::blank_add,
-            templates::layouts_get,
-            templates::layouts_set,
-            templates::layouts_reset,
-            services::liturgical_info,
-            services::services_list,
-            services::service_create,
-            services::services_schedule,
-            services::service_delete,
-            services::service_keep,
-            services::templates_list,
-            services::template_save,
-            services::template_update,
-            services::template_delete,
-            services::template_open,
-        ])
         .run(tauri::generate_context!())
         .expect("error while running EpiscoPresenter");
+}
+
+/// What both programs share: plugins and commands.
+fn builder() -> tauri::Builder<tauri::Wry> {
+    tauri::Builder::default().plugin(tauri_plugin_dialog::init()).invoke_handler(tauri::generate_handler![
+        app_mode,
+        storage::storage_get,
+        storage::storage_set,
+        storage::storage_pick_folder,
+        commands::get_node_config,
+        windows::outputs_status,
+        deck::deck_fetch,
+        deck::deck_local,
+        deck::deck_set_slides,
+        windows::output_show,
+        windows::output_close,
+        windows::output_set_fullscreen,
+        commands::get_snapshot,
+        commands::send_command,
+        commands::vocabulary,
+        commands::parse_ewm,
+        commands::format_ewm,
+        commands::confirm,
+        commands::pick_image,
+        commands::open_service,
+        commands::new_service,
+        commands::load_example_service,
+        commands::add_items,
+        commands::new_item,
+        commands::update_cue_document,
+        commands::set_cue_overrides,
+        commands::set_announcement_mode,
+        commands::set_cue_look,
+        commands::set_default_look,
+        commands::set_service_details,
+        commands::list_backgrounds,
+        commands::import_backgrounds,
+        commands::pick_background,
+        commands::move_cue,
+        commands::remove_cue,
+        commands::save_cue,
+        commands::save_service,
+        library::library_list,
+        library::library_preview,
+        library::library_add,
+        library::library_save_cue,
+        library::library_delete,
+        library::library_folder,
+        library::parse_propers,
+        library::add_propers,
+        library::psalm_arrange,
+        library::lectionary_propers,
+        library::reading_set_text,
+        library::reading_url,
+        library::open_passage,
+        library::hymn_set_text,
+        library::library_import_hymns,
+        media::media_list,
+        media::media_import,
+        media::media_delete,
+        media::media_rename,
+        media::media_folder,
+        media::media_add,
+        media::blank_add,
+        templates::layouts_get,
+        templates::layouts_set,
+        templates::layouts_reset,
+        services::liturgical_info,
+        services::services_list,
+        services::service_create,
+        services::services_schedule,
+        services::service_delete,
+        services::service_keep,
+        services::templates_list,
+        services::template_save,
+        services::template_update,
+        services::template_delete,
+        services::template_open,
+    ])
 }
 
 fn role_title(role: NodeRole) -> &'static str {

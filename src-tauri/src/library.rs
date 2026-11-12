@@ -18,7 +18,7 @@ use episco_core::ewm;
 use episco_core::propers::{self, ProperItem, Propers};
 use episco_core::{Cue, CueOverrides, LiturgyDocument};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::commands::slug_file_name;
 use crate::engine::Engine;
@@ -106,7 +106,7 @@ pub struct LibraryEntry {
 }
 
 fn user_dir(app: &AppHandle) -> CmdResult<PathBuf> {
-    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?.join("library");
+    let dir = crate::storage::data_dir(app, "library")?;
     Ok(dir)
 }
 

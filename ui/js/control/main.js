@@ -1,6 +1,7 @@
 // Operator control window: boot, top bar, tabs and keyboard shortcuts.
 
-import { connectStore, inTauri, invoke, listen, send } from "/js/bridge.js";
+import { connectStore, inTauri, invoke, listen, send, setPlannerMode } from "/js/bridge.js";
+import { initStorage } from "/js/control/storage.js";
 import { initEditor } from "/js/control/editor.js";
 import { initHome, showHome } from "/js/control/home.js";
 import { openLayouts } from "/js/control/layouts.js";
@@ -148,6 +149,15 @@ app.on(renderTopbar);
 if (!inTauri) {
   $("link").textContent = "Open this page inside the EpiscoPresenter app";
 } else {
+  // EpiscoPlanner: the same window without the output screens and live controls.
+  app.mode = (await invoke("app_mode").catch(() => "presenter")) ?? "presenter";
+  if (app.mode === "planner") {
+    document.body.classList.add("planner");
+    setPlannerMode(true);
+    document.querySelector(".brand").textContent = "EpiscoPlanner";
+    document.title = "EpiscoPlanner";
+  }
+  initStorage();
   app.vocab = await invoke("vocabulary");
   let last = { service: undefined, state: undefined, link: undefined };
   connectStore((snap) => {

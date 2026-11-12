@@ -76,30 +76,40 @@ impl Engine {
     /// Starts the engine for `config`. Must be called inside a Tokio runtime.
     pub async fn start(app: AppHandle, config: &NodeConfig) -> Engine {
         if config.role.hosts_sync() {
-            Self::start_host(app, config).await
+            Self::start_host(app, config, true).await
         } else {
             Self::start_follower(app, config)
         }
     }
 
-    async fn start_host(app: AppHandle, config: &NodeConfig) -> Engine {
+    /// The planner's engine: the service in memory and autosave, without a
+    /// sync server (nothing else follows a planner).
+    pub async fn start_local(app: AppHandle) -> Engine {
+        Self::start_host(app, &NodeConfig::default(), false).await
+    }
+
+    async fn start_host(app: AppHandle, config: &NodeConfig, serve: bool) -> Engine {
         let hub = SyncHub::new(HubConfig {
             server_name: config.node_name.clone(),
             access_token: config.access_token.clone(),
         });
         let mut link = LinkStatus { role: config.role, endpoint: config.sync_listen.to_string(), ..Default::default() };
-        let server = match hub.serve(config.sync_listen).await {
-            Ok(handle) => {
-                link.online = true;
-                link.endpoint = display_addr(handle.local_addr());
-                Some(handle)
-            }
-            Err(e) => {
-                // Keep running: the local outputs still work without the network.
-                let msg = format!("sync server could not listen on {}: {e}", config.sync_listen);
-                tracing::error!("{msg}");
-                link.error = Some(msg);
-                None
+        let server = if !serve {
+            None
+        } else {
+            match hub.serve(config.sync_listen).await {
+                Ok(handle) => {
+                    link.online = true;
+                    link.endpoint = display_addr(handle.local_addr());
+                    Some(handle)
+                }
+                Err(e) => {
+                    // Keep running: the local outputs still work without the network.
+                    let msg = format!("sync server could not listen on {}: {e}", config.sync_listen);
+                    tracing::error!("{msg}");
+                    link.error = Some(msg);
+                    None
+                }
             }
         };
 

@@ -14,7 +14,7 @@ over the LAN, and builds everything from one plain-text liturgy format
 | 2. Operator control interface | **Done**: service timeline, slide grid, interactive block editor, live previews, quick actions ([operator guide](docs/operator-guide.md)) |
 | 3. Output engine | **Mostly done**: per-cue backgrounds and layouts on both outputs, built-in stained-glass designs, lower thirds on a key colour, text fitted to its area ([backgrounds](docs/backgrounds.md)) |
 | 4. Google Slides | **Done**: the deck is downloaded as a PDF and shown as slide pictures (pdf.js): Pre-Service loop, single-pass stepping in any order, loop mode ([operator guide](docs/operator-guide.md#announcements-google-slides)) |
-| 5. Scripts and bulletins | Not started |
+| 5. Scripts and bulletins | **Planner app** (EpiscoPlanner) with a shared parish library folder ([planner](docs/planner.md)); scripts and bulletins next |
 | 6. Tablet remote | The protocol is ready (`remote` client role); web app not started |
 | Services & autosave | Services screen at start-up, scheduling about a month of Sundays ahead with church-year names and the day's propers, Rite I or Rite II, autosave ([services](docs/services.md)) |
 | Library & propers | Built-in Rite I and Rite II texts, your saved items, a media library (images, videos); the lectionary (Years A–C, Tracks 1 & 2, holy days) with BCP collects (both rites), Psalter and canticles; NRSV/NRSVue reading texts pasted from a licensed source ([library](docs/library.md)) |
@@ -45,10 +45,17 @@ Run the library tests (no GUI toolchain needed):
 cargo test
 ```
 
-Run the desktop app:
+Run the presentation app:
 
 ```bash
 cargo run -p episco-presenter
+```
+
+Run **EpiscoPlanner**, the planning tool (no output screens or live controls;
+services and the library in a shared folder; see [docs/planner.md](docs/planner.md)):
+
+```bash
+cargo run -p episco-presenter --bin episco-planner
 ```
 
 Once it opens, the Services screen offers **Schedule upcoming Sundays** to plan
@@ -64,6 +71,12 @@ cargo install tauri-cli --version "^2"
 
 ```bash
 cargo tauri build
+```
+
+and for the planner's own installer (its own name and app identity):
+
+```bash
+cargo tauri build --config src-tauri/planner/bundle.json
 ```
 
 ## Quick check of a liturgy file

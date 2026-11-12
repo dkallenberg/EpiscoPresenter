@@ -1,0 +1,77 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "EpiscoPlanner",
+  "version": "0.1.0",
+  "identifier": "org.episcopresenter.planner",
+  "build": {
+    "frontendDist": "../../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "control",
+        "title": "EpiscoPlanner",
+        "url": "index.html",
+        "width": 1600,
+        "height": 1000,
+        "minWidth": 1100,
+        "minHeight": 700,
+        "maximized": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost",
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": [
+            "**/*.png",
+            "**/*.PNG",
+            "**/*.jpg",
+            "**/*.JPG",
+            "**/*.jpeg",
+            "**/*.JPEG",
+            "**/*.gif",
+            "**/*.GIF",
+            "**/*.svg",
+            "**/*.SVG",
+            "**/*.webp",
+            "**/*.WEBP",
+            "**/*.mp4",
+            "**/*.MP4",
+            "**/*.m4v",
+            "**/*.M4V",
+            "**/*.mov",
+            "**/*.MOV",
+            "**/*.webm",
+            "**/*.WEBM",
+            "**/*.ogv",
+            "**/*.OGV",
+            "**/*.pdf",
+            "**/*.PDF"
+          ],
+          "requireLiteralLeadingDot": false
+        }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "category": "Productivity",
+    "icon": [
+      "../icons/32x32.png",
+      "../icons/128x128.png",
+      "../icons/128x128@2x.png",
+      "../icons/icon.icns",
+      "../icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  },
+  "mainBinaryName": "episco-planner"
+}

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 
 use episco_core::template::{self, SlideTemplate, Templates};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::engine::Engine;
 
@@ -16,17 +16,22 @@ type CmdResult<T> = Result<T, String>;
 static CURRENT: RwLock<Templates> = RwLock::new(Templates::new());
 
 fn file(app: &AppHandle) -> CmdResult<PathBuf> {
-    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("layouts.json"))
+    crate::storage::data_dir(app, "layouts.json")
 }
 
 /// Loads the saved layouts at startup.
 pub fn init(app: &AppHandle) {
-    let Ok(path) = file(app) else { return };
-    let Ok(text) = std::fs::read_to_string(&path) else { return };
-    match serde_json::from_str::<Templates>(&text) {
-        Ok(t) => *CURRENT.write().unwrap_or_else(|e| e.into_inner()) = t,
-        Err(e) => tracing::warn!("ignoring {}: {e}", path.display()),
+    // A folder without layouts.json uses the built-in layouts.
+    let mut loaded = Templates::new();
+    if let Ok(path) = file(app) {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            match serde_json::from_str::<Templates>(&text) {
+                Ok(t) => loaded = t,
+                Err(e) => tracing::warn!("ignoring {}: {e}", path.display()),
+            }
+        }
     }
+    *CURRENT.write().unwrap_or_else(|e| e.into_inner()) = loaded;
 }
 
 /// The layouts every loaded service gets.

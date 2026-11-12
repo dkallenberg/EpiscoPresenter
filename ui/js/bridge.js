@@ -21,8 +21,15 @@ export function listen(event, cb) {
   return T.event.listen(event, (e) => cb(e.payload));
 }
 
+let planner = false;
+/** In EpiscoPlanner nothing goes on screen: presentation commands do nothing. */
+export function setPlannerMode(on) {
+  planner = on;
+}
+
 /** Sends a presentation command, e.g. send({ type: "next" }). */
 export function send(command) {
+  if (planner) return Promise.resolve();
   return invoke("send_command", { command });
 }
 

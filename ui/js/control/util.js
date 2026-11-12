@@ -92,6 +92,8 @@ export const app = {
   snap: null,
   vocab: null,
   readonly: false,
+  /** "presenter" or "planner" (EpiscoPlanner). */
+  mode: "presenter",
   selectedId: null, // cue shown in the slide grid / editor
   listeners: new Set(),
   on(fn) {

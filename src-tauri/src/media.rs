@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use episco_core::{Cue, CueOverrides, ElementCategory, Fit, Layout, LiturgyDocument, Look, Output};
 use serde::Serialize;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::engine::Engine;
@@ -28,7 +28,7 @@ pub struct MediaEntry {
 }
 
 fn media_dir(app: &AppHandle) -> CmdResult<PathBuf> {
-    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("media"))
+    crate::storage::data_dir(app, "media")
 }
 
 fn ext(p: &Path) -> String {

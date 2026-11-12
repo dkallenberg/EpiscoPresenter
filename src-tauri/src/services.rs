@@ -22,7 +22,7 @@ use episco_core::{
     Span,
 };
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 
 use crate::commands::slug_file_name;
 use crate::engine::Engine;
@@ -33,7 +33,7 @@ type CmdResult<T> = Result<T, String>;
 pub const PLAN_FILE: &str = "service.toml";
 
 pub fn services_dir(app: &AppHandle) -> CmdResult<PathBuf> {
-    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("services"))
+    crate::storage::data_dir(app, "services")
 }
 
 fn parse_date(s: &str) -> CmdResult<Date> {
@@ -393,7 +393,7 @@ pub fn services_schedule(
 /// service folder in `<app data>/templates/` (plan and texts, without
 /// propers) with a `template.json` naming it.
 pub fn templates_dir(app: &AppHandle) -> CmdResult<PathBuf> {
-    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("templates"))
+    crate::storage::data_dir(app, "templates")
 }
 
 const TEMPLATE_META: &str = "template.json";

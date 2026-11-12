@@ -1,7 +1,7 @@
 // The Services screen: upcoming scheduled services, scheduling ahead, and
 // opening services. Shown when the app starts and from "☰ Services".
 
-import { invoke } from "/js/bridge.js";
+import { invoke, listen } from "/js/bridge.js";
 import { app, call, el, reportWarnings, toast } from "/js/control/util.js";
 
 const SWATCH = {
@@ -53,6 +53,8 @@ function formatDate(iso, opts) {
 }
 
 export function initHome() {
+  // A different library folder: show its services.
+  listen("episco://storage", () => showHome());
   app.on((what) => {
     if (what === "link") return;
     // On start (and if the open service is closed), show the Services screen.

@@ -12,7 +12,7 @@ use episco_core::{
 };
 use episco_sync::NodeConfig;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 use crate::engine::{Engine, Snapshot};
@@ -412,7 +412,7 @@ fn library_dirs(app: &AppHandle, engine: &Engine) -> Vec<PathBuf> {
     if let Some(dir) = plan_dir(engine) {
         dirs.push(dir.join("backgrounds"));
     }
-    if let Ok(d) = app.path().app_data_dir() {
+    if let Ok(d) = crate::storage::data_root(app) {
         dirs.push(d.join("backgrounds"));
         // Images in the media library can be backgrounds too.
         dirs.push(d.join("media"));

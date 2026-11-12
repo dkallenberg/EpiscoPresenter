@@ -2,6 +2,7 @@
 // the operator's own saved items), browsable by type, with previews; plus the
 // "Propers" dialog: the Collect, readings and psalm for a date from the lectionary.
 
+import { listen } from "/js/bridge.js";
 import { mountStage, renderOutput } from "/js/render.js";
 import { renderMedia } from "/js/control/media.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
@@ -26,6 +27,7 @@ function insertionPoint() {
 }
 
 export function initLibrary() {
+  listen("episco://storage", () => refresh());
   document.querySelector('.tabs button[data-tab="library"]').addEventListener("click", refresh);
 }
 

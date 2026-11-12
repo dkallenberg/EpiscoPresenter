@@ -4,6 +4,8 @@ description = "Episcopal worship presentation engine: sanctuary display, stream 
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+# `cargo run` starts the presentation app; `cargo run --bin episco-planner` the planner.
+default-run = "episco-presenter"
 
 [lib]
 # `_lib` suffix avoids a name clash with the binary on Windows (cargo#8519).
