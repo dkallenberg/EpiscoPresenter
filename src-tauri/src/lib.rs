@@ -176,6 +176,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::open_passage,
         library::hymn_set_text,
         library::library_import_hymns,
+        library::library_create_from_text,
         media::media_list,
         media::media_import,
         media::media_delete,

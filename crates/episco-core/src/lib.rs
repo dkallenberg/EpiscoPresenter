@@ -23,6 +23,7 @@ pub mod ewm;
 pub mod hymn;
 pub mod lectionary;
 pub mod look;
+pub mod paste;
 pub mod portable;
 pub mod propers;
 pub mod role;

@@ -285,6 +285,36 @@ pub fn library_save_cue(app: AppHandle, engine: State<'_, Engine>, id: String, r
     Ok(format!("user:{name}"))
 }
 
+/// Makes a library item from pasted text (e.g. a prayer from the parish's
+/// own copy of a supplemental liturgy) and saves it to the parish library.
+/// With `replace` false, refuses to overwrite an item of the same name.
+#[tauri::command]
+pub fn library_create_from_text(
+    app: AppHandle,
+    title: String,
+    category: episco_core::ElementCategory,
+    citation: Option<String>,
+    text: String,
+    replace: bool,
+) -> CmdResult<String> {
+    if title.trim().is_empty() {
+        return Err("give the item a title".into());
+    }
+    let doc = episco_core::paste::document_from_text(&title, category, citation.as_deref(), &text, 70);
+    if !doc.blocks.iter().any(|b| matches!(b, episco_core::Block::Paragraph { .. })) {
+        return Err("paste the text first".into());
+    }
+    let dir = user_dir(&app)?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let name = slug_file_name(&doc.meta.title, ewm::EXTENSION);
+    let path = dir.join(&name);
+    if path.exists() && !replace {
+        return Err(format!("exists:{}", doc.meta.title));
+    }
+    std::fs::write(&path, ewm::to_string(&doc)).map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    Ok(format!("user:{name}"))
+}
+
 /// Deletes an item from My Library (built-in items cannot be deleted).
 #[tauri::command]
 pub fn library_delete(app: AppHandle, id: String) -> CmdResult<()> {

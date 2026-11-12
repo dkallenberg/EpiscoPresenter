@@ -110,6 +110,7 @@ function render() {
         search,
         el("button.small", { title: "The day's Collect, readings and psalm from the lectionary", onclick: openPropers }, "Propers…"),
         el("button.small", { title: "Add hymns to your library from text files (one per hymn, named with its number and title)", onclick: importHymns }, "Import hymns…"),
+        el("button.small", { title: "Make a library item from a prayer or rite pasted from your own copy (e.g. Enriching Our Worship)", onclick: () => pasteText() }, "Paste a text…"),
       ),
       chips,
       list,
@@ -169,6 +170,72 @@ async function importHymns() {
   if (r.skipped.length) toast(`Skipped: ${r.skipped.join(", ")}`, "warn");
   lib.category = "hymn";
   await refresh();
+}
+
+/**
+ * A prayer or rite pasted from the parish's own copy of a book that cannot
+ * be built in (e.g. Enriching Our Worship), saved to the parish library.
+ */
+export function pasteText() {
+  const title = el("input", { placeholder: "e.g. Eucharistic Prayer 1 (EOW)" });
+  const type = el(
+    "select",
+    {},
+    [["eucharistic_prayer", "Eucharistic Prayer"], ["prayer", "Prayer or dialogue"], ["collect", "Collect"], ["acclamation", "Acclamation"], ["anthem", "Anthem or canticle"], ["other", "Other"]].map(([v, l]) =>
+      el("option", { value: v }, l),
+    ),
+  );
+  const citation = el("input", { placeholder: "e.g. EOW 1, p. 57" });
+  const text = el("textarea.paste-text", {
+    rows: 14,
+    placeholder:
+      "Paste the text here.\n\nStart each speaker's part with their name, e.g.\nPresider\tThe Lord be with you.\nPeople\tAnd also with you.\n\nLines after it continue that part; a blank line starts a new paragraph. “Presider and People” or “All” is said together (bold). Instructions in [brackets] become rubrics.",
+  });
+  const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
+  const save = async (replace = false) => {
+    let id;
+    try {
+      id = await window.__TAURI__.core.invoke("library_create_from_text", {
+        title: title.value,
+        category: type.value,
+        citation: citation.value || null,
+        text: text.value,
+        replace,
+      });
+    } catch (e) {
+      const msg = String(e);
+      if (msg.startsWith("exists:")) {
+        const ok = await call("confirm", { title: "Replace library item", message: `Your library already has “${msg.slice(7)}”. Replace it?`, okLabel: "Replace" });
+        if (ok) return save(true);
+        return;
+      }
+      return toast(msg, "error");
+    }
+    overlay.remove();
+    toast(`“${title.value.trim()}” added to your library`);
+    lib.selected = id;
+    await refresh();
+  };
+  const overlay = el(
+    "div.modal-overlay",
+    { onmousedown: (e) => e.target === overlay && overlay.remove() },
+    el(
+      "div.modal.wide",
+      {},
+      el("h3", {}, "Paste a text"),
+      el(
+        "p.muted.small",
+        {},
+        "For texts the app cannot include, such as the Eucharistic Prayers of Enriching Our Worship (© Church Pension Fund): copy them from your parish's copy and paste here. The item is saved in the parish library folder, where everyone can use it; check it in the Editor afterwards.",
+      ),
+      el("div.home-row", {}, field("Title", title), field("Type", type)),
+      field("Where it comes from (printed on the bulletin)", citation),
+      text,
+      el("div.modal-actions", {}, el("button", { onclick: () => overlay.remove() }, "Cancel"), el("button.primary", { onclick: () => save(false) }, "Add to library")),
+    ),
+  );
+  document.body.append(overlay);
+  title.focus();
 }
 
 async function remove(entry) {

@@ -179,3 +179,34 @@ To check how the app reads a pasted page, save it as a text file and run:
 ```bash
 cargo run -p episco-core --example propers_dump -- page.txt
 ```
+
+## Pasting a text (Enriching Our Worship and other supplemental rites)
+
+Some texts the parish uses are copyright and cannot be built into the app:
+the Eucharistic Prayers of *Enriching Our Worship* (© The Church Pension
+Fund), for example. Add them from the parish's own copy:
+
+1. **Library → Paste a text…**
+2. Give it a title ("Eucharistic Prayer 1 (EOW)"), a type (Eucharistic
+   Prayer) and where it comes from ("EOW 1, p. 57"; printed on the
+   bulletin).
+3. Copy the prayer from the book or PDF and paste it. Start each speaker's
+   part with the speaker's name, as the book prints it:
+
+   ```text
+   Presider    The Lord be with you.
+   People      And also with you.
+   Presider and People
+   Holy, holy, holy Lord, God of power and might, …
+   ```
+
+   A line starting with a speaker's name (Celebrant, Presider, People, All,
+   Deacon, Reader, Leader; then a tab, a colon or spaces) starts that part,
+   and the lines after it continue it. A blank line starts a new paragraph
+   by the same speaker. "Presider and People" or "All" is said together
+   (bold). *Presider* is shown as *Celebrant*, like the parish's other
+   items, so "A bishop presides" relabels it too. Lines in [brackets] become
+   rubrics.
+4. **Add to library**. The item is saved in the parish library folder, so
+   everyone can use it. Look it over in the Editor (speakers, rubrics, slide
+   breaks) and save any corrections back with **Save to Library**.
