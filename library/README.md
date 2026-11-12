@@ -4,6 +4,9 @@ compiled into the app.
 * `*.ewm` — the Holy Eucharist, Rite Two (`rite: II`; items without a `rite`
   key are the same in both rites, e.g. the dismissals).
 * `rite1/*.ewm` — the Holy Eucharist, Rite One (`rite: I`), BCP pp. 323-340.
+* `prayers-of-the-people-1` … `-6`, `prayers-of-the-people-collects` — the
+  Prayers of the People, Forms I–VI and the Collects at the Prayers (BCP
+  383-395); `rite1/prayers-of-the-people` — the Rite I prayer (BCP 328).
 * `occasions/*.ewm` — Holy Baptism (BCP 299-311), Confirmation (413-419),
   the Renewal of Baptismal Vows (292), the Bishop's Blessing (523), Ash
   Wednesday (264-269), Palm Sunday, Maundy Thursday, Good Friday, Holy

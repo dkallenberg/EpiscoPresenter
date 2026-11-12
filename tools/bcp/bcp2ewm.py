@@ -57,6 +57,9 @@ class Page(HTMLParser):
             self.cell = {"cls": cls, "text": ""}
         elif tag == "br":
             self.add("\n")
+        elif tag == "u":
+            # a blank for a name: remember where it starts
+            self.u_start = len(self.cell["text"]) if self.cell is not None else len(self.buf["text"]) if self.buf else None
         elif tag in ("em", "i"):
             if not (cls in ("smaller", "small", "rubric")):
                 self.add("*")
@@ -74,6 +77,11 @@ class Page(HTMLParser):
             cls = ""
         if tag in ("em", "i"):
             self.add("*" if cls not in ("smaller", "small", "rubric") else "]_")
+        elif tag == "u" and getattr(self, "u_start", None) is not None:
+            target = self.cell if self.cell is not None else self.buf
+            if target is not None and not target["text"][self.u_start:].replace("\xa0", " ").strip():
+                target["text"] = target["text"][: self.u_start] + " *N.* "
+            self.u_start = None
         elif tag in ("h1", "h2", "h3", "h4") and self.buf:
             b = self.end_buf()
             t = clean(b["text"])

@@ -145,7 +145,8 @@ fn table(rite: Rite, postcommunion: Option<Cue>, dismissal: bool) -> Vec<Option<
 /// The order of a service that is not the Sunday Eucharist (None for the
 /// Eucharist and Maundy Thursday, which use the standard or saved order).
 /// Propers are added afterwards before the sermon.
-pub fn order(o: Options, rite: Rite) -> Option<Vec<Cue>> {
+pub fn order(o: Options, rite: Rite, prayers: Option<crate::services::PrayersForm>) -> Option<Vec<Cue>> {
+    let pop = || lib(rite, &crate::services::prayers_item(rite, prayers));
     let sermon = Some(sermon_cue());
     let mut v: Vec<Option<Cue>> = match o.occasion {
         Occasion::Eucharist | Occasion::MaundyThursday => return None,
@@ -170,6 +171,7 @@ pub fn order(o: Options, rite: Rite) -> Option<Vec<Cue>> {
                 lib(rite, "salutation"),
                 sermon,
                 lib(rite, "nicene-creed"),
+                pop(),
                 lib(rite, "confession"),
                 lib(rite, "absolution"),
                 lib(rite, "the-peace"),
@@ -196,6 +198,8 @@ pub fn order(o: Options, rite: Rite) -> Option<Vec<Cue>> {
                 // Holy Baptism or the Renewal of Vows goes here (see `apply`).
                 occ("vigil-first-eucharist"),
                 sermon,
+                // "The celebration continues with the Prayers of the People."
+                pop(),
                 lib(rite, "the-peace"),
             ];
             v.extend(table(rite, None, true));
@@ -453,7 +457,9 @@ pub fn apply(s: &mut Service, o: Options) {
                     o.confirmation.then(|| occ("baptism-confirmation")).flatten(),
                 ],
             );
-            // The Baptism ends with the Peace; there is no Confession.
+            // The Prayers for the Candidates take the place of the Prayers of
+            // the People; the Baptism ends with the Peace; there is no Confession.
+            remove(s, &crate::services::PRAYERS_FORMS);
             remove(s, &["confession", "absolution", "the-peace"]);
         }
         (_, true) => {
@@ -471,6 +477,7 @@ pub fn apply(s: &mut Service, o: Options) {
                     occ("confirmation"),
                 ],
             );
+            remove(s, &crate::services::PRAYERS_FORMS);
             remove(s, &["confession", "absolution", "the-peace"]);
         }
         (Some(Baptismal::Renewal), false) => {

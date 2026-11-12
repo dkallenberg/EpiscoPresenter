@@ -32,6 +32,16 @@ Both cards have three choices, remembered for next time:
 The same three are in **⚙ Service** for the open service. Changing them
 there affects texts added from then on.
 
+### Prayers of the People
+
+The standard order has the Prayers of the People between the Creed and the
+Confession. **Prayers of the People** chooses the form: Forms I–VI (BCP
+383-393) or the Rite I prayer "for the whole state of Christ's Church"
+(BCP 328); *Usual for the rite* gives the Rite I prayer in Rite I and Form I
+in Rite II. The choice is remembered. The Collects at the Prayers (BCP
+394-395) are in the Library to add after the form. Services and templates
+made before this have no Prayers of the People: add a form from the Library.
+
 ### Kind of service, bishop and baptism
 
 **Service** chooses the order. *Holy Eucharist* is the Sunday or holy-day

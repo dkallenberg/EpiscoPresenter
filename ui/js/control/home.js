@@ -244,10 +244,16 @@ function serviceOptions() {
   const rite = sel("svc.rite", "II", [["II", "Rite II"], ["I", "Rite I"]], "Contemporary (Rite II) or traditional (Rite I) language");
   const track = sel("svc.track", "1", [["1", "Track 1"], ["2", "Track 2"]], "Season after Pentecost: which Old Testament track");
   const bible = sel("svc.bible", "NRSVue", [["NRSVue", "NRSVue"], ["NRSV", "NRSV"]], "Translation for reading texts you paste in");
+  const prayers = sel(
+    "svc.prayers",
+    "",
+    [["", "Usual for the rite"], ["1", "Form I"], ["2", "Form II"], ["3", "Form III"], ["4", "Form IV"], ["5", "Form V"], ["6", "Form VI"], ["rite1", "Rite I prayer (BCP 328)"]],
+    "The Prayers of the People (BCP 383-393; Rite I, 328). Usual: the Rite I prayer in Rite I, Form I in Rite II",
+  );
   const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
   return {
-    row: el("div.home-row.three", {}, field("Rite", rite), field("Readings", track), field("Bible", bible)),
-    value: () => ({ rite: rite.value, track: Number(track.value), bible: bible.value }),
+    row: el("div.home-row.four", {}, field("Rite", rite), field("Readings", track), field("Bible", bible), field("Prayers of the People", prayers)),
+    value: () => ({ rite: rite.value, track: Number(track.value), bible: bible.value, prayers: prayers.value || null }),
   };
 }
 

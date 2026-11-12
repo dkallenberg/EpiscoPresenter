@@ -495,3 +495,4 @@ body.planner .hint.planner-hint { display: block; }
 .occasion-note { margin: 0; }
 .settings-rites { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
 .paste-text { width: 100%; resize: vertical; font: inherit; font-size: 13px; min-height: 220px; }
+.home-row.four { grid-template-columns: 1fr 1fr 1fr 1.4fr; }

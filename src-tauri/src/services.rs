@@ -141,6 +141,56 @@ fn sermon() -> LiturgyDocument {
     }
 }
 
+/// The Prayers of the People for a service: `prayers` is a form of BCP
+/// 383-393 ("1" to "6") or "rite1" (the Rite I prayer, BCP 328); by default
+/// the Rite I prayer in Rite I and Form I in Rite II.
+pub(crate) fn prayers_item(rite: Rite, prayers: Option<PrayersForm>) -> String {
+    use PrayersForm::*;
+    let form = match prayers {
+        Some(RiteOne) => return "rite1/prayers-of-the-people".into(),
+        None if rite == Rite::One => return "rite1/prayers-of-the-people".into(),
+        None | Some(I) => 1,
+        Some(II) => 2,
+        Some(III) => 3,
+        Some(IV) => 4,
+        Some(V) => 5,
+        Some(VI) => 6,
+    };
+    format!("prayers-of-the-people-{form}")
+}
+
+/// A form of the Prayers of the People (Roman numerals, as the Prayer Book).
+#[allow(clippy::upper_case_acronyms)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PrayersForm {
+    #[serde(rename = "1")]
+    I,
+    #[serde(rename = "2")]
+    II,
+    #[serde(rename = "3")]
+    III,
+    #[serde(rename = "4")]
+    IV,
+    #[serde(rename = "5")]
+    V,
+    #[serde(rename = "6")]
+    VI,
+    /// The Rite I prayer "for the whole state of Christ's Church".
+    #[serde(rename = "rite1")]
+    RiteOne,
+}
+
+/// Every form of the Prayers of the People.
+pub(crate) const PRAYERS_FORMS: [&str; 7] = [
+    "prayers-of-the-people-1",
+    "prayers-of-the-people-2",
+    "prayers-of-the-people-3",
+    "prayers-of-the-people-4",
+    "prayers-of-the-people-5",
+    "prayers-of-the-people-6",
+    "rite1/prayers-of-the-people",
+];
+
 /// The library item for `name` in `rite` (Rite I has its own forms).
 pub(crate) fn rite_name(rite: Rite, name: &str) -> String {
     let rite1 = match name {
@@ -172,7 +222,7 @@ pub(crate) fn rite_name(rite: Rite, name: &str) -> String {
 
 /// The standard order of the Holy Eucharist in `rite`, with seasonal
 /// choices for `day`.
-fn standard_cues(day: &LiturgicalDay, rite: Rite) -> Vec<Cue> {
+fn standard_cues(day: &LiturgicalDay, rite: Rite, prayers: Option<PrayersForm>) -> Vec<Cue> {
     let lib = |name: &str, label: Option<&str>| {
         builtin_doc(&rite_name(rite, name)).map(|doc| {
             let overrides = CueOverrides { title: label.map(String::from), ..Default::default() };
@@ -205,6 +255,7 @@ fn standard_cues(day: &LiturgicalDay, rite: Rite) -> Vec<Cue> {
         lib("salutation", None),
         Some(Cue::liturgy("", sermon(), None, CueOverrides::default())),
         lib("nicene-creed", None),
+        lib(&prayers_item(rite, prayers), None),
         lib("confession", None),
         lib("absolution", None),
         lib("the-peace", None),
@@ -271,6 +322,10 @@ pub struct ServiceOptions {
     /// if there is one, else the standard order.
     #[serde(default)]
     pub by_season: bool,
+    /// The form of the Prayers of the People: "1"–"6" (BCP 383-393) or
+    /// "rite1" (BCP 328). Default: the rite's usual one.
+    #[serde(default)]
+    pub prayers: Option<PrayersForm>,
     /// The kind of service (Holy Week, ordinations) and the bishop,
     /// baptism, renewal and confirmation options.
     #[serde(default, flatten)]
@@ -290,7 +345,7 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
     let rite = opts.rite.or(template.as_ref().and_then(|t| t.rite)).unwrap_or_default();
     let track = opts.track.or(template.as_ref().and_then(|t| t.track)).unwrap_or(1);
     let bible = opts.bible.or(template.as_ref().and_then(|t| t.bible));
-    let special = crate::occasions::order(opts.occasion, rite);
+    let special = crate::occasions::order(opts.occasion, rite, opts.prayers);
     let template = if special.is_some() { None } else { template };
     let mut service = match template {
         Some(mut service) => {
@@ -307,7 +362,7 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
             let mut s = Service::default();
             let cues = match special {
                 Some(cues) => crate::occasions::with_loop(cues),
-                None => standard_cues(&day, rite),
+                None => standard_cues(&day, rite, opts.prayers),
             };
             for cue in cues {
                 let at = s.cues.len();
@@ -635,6 +690,38 @@ mod tests {
     }
 
     #[test]
+    fn prayers_of_the_people_follow_the_creed() {
+        let next = |s: &Service, title: &str| {
+            let t = titles(s);
+            let i = t.iter().position(|x| *x == title).unwrap();
+            t[i + 1].to_string()
+        };
+        let two = build("2026-11-15".parse().unwrap(), None, None, ServiceOptions::default());
+        assert_eq!(next(&two, "The Nicene Creed"), "The Prayers of the People (Form I)");
+        assert_eq!(next(&two, "The Prayers of the People (Form I)"), "Confession of Sin");
+        let one = build(
+            "2026-11-15".parse().unwrap(),
+            None,
+            None,
+            ServiceOptions { rite: Some(Rite::One), ..Default::default() },
+        );
+        assert!(titles(&one).contains(&"The Prayers of the People (Rite I)"), "{:?}", titles(&one));
+        let form3 = build(
+            "2026-11-15".parse().unwrap(),
+            None,
+            None,
+            ServiceOptions { prayers: Some(PrayersForm::III), ..Default::default() },
+        );
+        assert!(titles(&form3).contains(&"The Prayers of the People (Form III)"));
+        // Form VI ends with its own confession; the slides and bulletin have it in full.
+        let doc = builtin_doc("prayers-of-the-people-6").unwrap();
+        assert!(doc.blocks.iter().any(|b| b.role() == Some(&Role::All)));
+        assert_eq!(doc.meta.extra("bulletin"), Some("full"));
+        let opts: ServiceOptions = serde_json::from_str(r#"{"prayers": "rite1"}"#).unwrap();
+        assert_eq!(opts.prayers, Some(PrayersForm::RiteOne));
+    }
+
+    #[test]
     fn holy_baptism_replaces_the_creed_prayers_and_confession() {
         use crate::occasions::{Baptismal, Options};
         let s = build(
@@ -916,6 +1003,7 @@ mod tests {
             propers: None,
             by_season: false,
             occasion: Default::default(),
+            prayers: None,
         };
         let s = build("2026-11-15".parse().unwrap(), None, None, opts);
         let t = titles(&s);

@@ -107,6 +107,15 @@ ITEMS = [
      "Ordination of a Bishop: After Communion", "prayer", "All", {"bishop": "true"}, ()),
     ("ordination-collect", "EpiscopalServices/ordination_of_a_priest.html", "All kneel, and the Person appointed", "=The Ministry of the Word",
      "Collect after the Litany (Ordinations)", "prayer", "Bishop", {"bishop": "true"}, ()),
+    # ---- The Prayers of the People (BCP 383-395; Rite I, 328-330)
+    ("prayers-of-the-people-1", "HE/pop.html", "=Form I", "=Form II", "The Prayers of the People (Form I)", "prayer", "Deacon", {"bulletin": "full"}, ()),
+    ("prayers-of-the-people-2", "HE/pop.html", "=Form II", "=Form III", "The Prayers of the People (Form II)", "prayer", "Leader", {"bulletin": "full"}, ()),
+    ("prayers-of-the-people-3", "HE/pop.html", "=Form III", "=Form IV", "The Prayers of the People (Form III)", "prayer", "Leader", {"bulletin": "full"}, ()),
+    ("prayers-of-the-people-4", "HE/pop.html", "=Form IV", "=Form V", "The Prayers of the People (Form IV)", "prayer", "Deacon", {"bulletin": "full"}, ()),
+    ("prayers-of-the-people-5", "HE/pop.html", "=Form V", "=Form VI", "The Prayers of the People (Form V)", "prayer", "Deacon", {"bulletin": "full"}, ()),
+    ("prayers-of-the-people-6", "HE/pop.html", "=Form VI", "=The Collect at the Prayers", "The Prayers of the People (Form VI)", "prayer", "Leader", {"bulletin": "full"}, ()),
+    ("prayers-of-the-people-collects", "HE/pop.html", "=The Collect at the Prayers", None, "The Collect at the Prayers", "collect", "Celebrant", {}, ()),
+    ("prayers-of-the-people-rite1", "HE/he1.html", "Intercession is offered according", "If there is no celebration of the Communion", "The Prayers of the People (Rite I)", "prayer", "Deacon", {"bulletin": "full"}, ()),
     ("litany-for-ordinations", "EpiscopalServices/litany_for_ordinations.html", "The Litany for Ordinations", None,
      "The Litany for Ordinations", "prayer", "Leader", {}, ()),
 ]
@@ -115,6 +124,7 @@ ITEMS = [
 # Hand corrections: (item, the start of a paragraph's text, new speaker).
 # The paragraph's bold follows the new speaker.
 FIXES = [
+    ("prayers-of-the-people-5", "For yours is the majesty", "Celebrant"),
     ("baptism-the-baptism", "*N.*, I baptize you", "Celebrant"),
     ("exsultet", "And also with you.", "People"),
     ("exsultet", "It is right to give him thanks and praise.", "People"),
@@ -136,6 +146,18 @@ FIXES = [
 ]
 # Plain text corrections: (item, old, new).
 TEXT_FIXES = [
+    ("prayers-of-the-people-collects", "# 1\n", "# Collect 1\n"),
+    ("prayers-of-the-people-collects", "# 2\n", "# Collect 2\n"),
+    ("prayers-of-the-people-collects", "# 3\n", "# Collect 3\n"),
+    ("prayers-of-the-people-collects", "# 4\n", "# Collect 4\n"),
+    ("prayers-of-the-people-collects", "# 5\n", "# Collect 5\n"),
+    ("prayers-of-the-people-collects", "# 6\n", "# Collect 6\n"),
+    ("prayers-of-the-people-collects", "# 7\n", "# Collect 7\n"),
+    ("prayers-of-the-people-collects", "# 8\n", "# Collect 8\n"),
+
+    ("prayers-of-the-people-5", "For yours is the majesty", "Celebrant"),
+    ("prayers-of-the-people-5", "we pray to you, O Lord.]]", "we pray to you, O Lord.]"),
+    ("prayers-of-the-people-3", "Let us pray for our own needs and those of others.*", "Let us pray for our own needs and those of others."),
     ("ordination-deacon-presentation", "[Presenters] N.*,", "[Presenters] *N.*,"),
     ("ordination-priest-presentation", "[Presenters] N.*,", "[Presenters] *N.*,"),
 ]
@@ -189,7 +211,10 @@ def find(events, marker, start=0):
 
 def main():
     os.makedirs(OUT, exist_ok=True)
+    only = set(filter(None, os.environ.get("ONLY", "").split(",")))
     for name, src, a, b, title, typ, speaker, extra, drop in ITEMS:
+        if only and name not in only:
+            continue
         ev = parse(os.path.join(B, src))
         i = find(ev, a)
         j = find(ev, b, i + 1) if b else len(ev)

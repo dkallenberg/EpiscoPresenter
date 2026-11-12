@@ -4,7 +4,7 @@ import re
 
 ROLE_WORDS = [
     ("celebrant and people", "All"), ("bishop and people", "All"), ("people and celebrant", "All"),
-    ("all", "All"), ("together", "All"),
+    ("all", "All"), ("together", "All"), ("leader and people", "All"),
     ("bishop or priest", "Celebrant"), ("bishop or a priest", "Celebrant"), ("bishop, if present, or the priest", "Celebrant"),
     ("presiding bishop", "Bishop"), ("new priest", "New Priest"), ("new bishop", "New Bishop"), ("new deacon", "New Deacon"),
     ("answer", "Answer"), ("bishop", "Bishop"), ("celebrant", "Celebrant"), ("priest", "Celebrant"),
@@ -40,6 +40,8 @@ def label_role(label, current):
 def speaker_from_rubric(t):
     """The speaker a rubric hands over to, or None."""
     low = t.lower().replace("\n", " ")
+    # "the Deacon or other person appointed says": the Deacon
+    low = re.sub(r",? or (the )?other (person appointed|leader)", "", low)
     short = low.strip(" .:")
     if len(short.split()) <= 4 and not re.search(SAY, short):
         for w, r in ROLE_WORDS:
@@ -71,7 +73,7 @@ RUBRIC_P = re.compile(r"^(the|then|after|when|here|if|all|each|at|before|in|duri
 
 def is_heading_p(t):
     t2 = t.strip("* ")
-    if "_[" in t2 or t2.lower().startswith("let us"):
+    if "_[" in t2 or t2.lower().startswith("let us") or "," in t2:
         return False
     return "\n" not in t2 and len(t2.split()) <= 6 and not t2.endswith((".", ",", ";", ":", "?", "!")) and t2[:1].isupper() and not re.search(SAY, t2.lower())
 
@@ -229,7 +231,9 @@ def render(events, speaker="Celebrant", skip_vs=True, drop=()):
                 out.heading(t.strip("* "))
                 cur = asker
                 continue
-            emit_text(out, cur, t)
+            # A long paragraph is not a response: it goes back to the leader.
+            who = asker if cur == "People" and len(t.split()) > 14 and not t.lstrip().startswith("*") else cur
+            emit_text(out, who, t)
     return out.text(), pages
 
 
@@ -262,6 +266,7 @@ def emit_text(out, role, text):
     they read like an instruction, a rubric); a trailing *Amen.* is the people's."""
     text = re.sub(r"\*Amen\*\.", "*Amen.*", text)
     text = fix_italics(text)
+    text = re.sub(r"\*N\.\*\s+([)\].,;:])", r"*N.*\1", text)
     text = re.sub(r"\*Amen\.\s*\n([^*]*?)\*", lambda m: "*Amen.*\n_[" + m.group(1).replace("\n", " ") + "]_", text)
     text = re.sub(r"(?m)^>", "", text)
     # an instruction at the end of a line goes on its own line

@@ -60,6 +60,13 @@ const BUILTIN: &[(&str, &str)] = builtin![
     "dismissal-go-in-peace",
     "dismissal-rejoicing",
     "dismissal-bless-the-lord",
+    "prayers-of-the-people-1",
+    "prayers-of-the-people-2",
+    "prayers-of-the-people-3",
+    "prayers-of-the-people-4",
+    "prayers-of-the-people-5",
+    "prayers-of-the-people-6",
+    "prayers-of-the-people-collects",
     "rite1/acclamation-ordinary",
     "rite1/acclamation-easter",
     "rite1/acclamation-lent",
@@ -84,6 +91,7 @@ const BUILTIN: &[(&str, &str)] = builtin![
     "rite1/invitation",
     "rite1/postcommunion",
     "rite1/blessing",
+    "rite1/prayers-of-the-people",
     // Holy Baptism, Confirmation, the bishop's parts, Holy Week and
     // ordinations (BCP 264-311, 413-419, 512-551).
     "occasions/ash-wednesday-ashes",
