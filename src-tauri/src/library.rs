@@ -458,6 +458,12 @@ mod tests {
             c.blocks.iter().filter(|b| b.role() == Some(&episco_core::Role::People)).map(|b| b.plain_text()).collect();
         assert!(people.contains(&"Glory to you for ever and ever.".to_string()), "{people:?}");
         assert!(people.contains(&"Risen Lord, be known to us in the breaking of the Bread.".to_string()));
+        // Texts said by everyone together are marked All.
+        for name in ["nicene-creed", "rite1/nicene-creed", "lords-prayer", "confession", "rite1/humble-access"] {
+            let d = builtin_doc(name).unwrap();
+            assert!(d.blocks.iter().any(|b| b.role() == Some(&episco_core::Role::All)), "{name}");
+            assert!(!d.blocks.iter().any(|b| b.role() == Some(&episco_core::Role::People)), "{name}");
+        }
         let one = builtin_doc("rite1/eucharistic-prayer-1").unwrap();
         assert!(one.blocks.iter().any(|b| b.plain_text().starts_with("All glory be to thee, Almighty God")));
     }

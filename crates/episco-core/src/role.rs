@@ -19,6 +19,9 @@ pub enum Role {
     Reader,
     /// The congregation. Always rendered bold / full black.
     People,
+    /// Everyone together, priest and people (the Creed, the Lord's Prayer).
+    /// Bold like the people's parts.
+    All,
     /// Instructions to the participants; not spoken aloud.
     Rubric,
     /// Any non-standard role name, preserved as written.
@@ -27,8 +30,16 @@ pub enum Role {
 
 impl Role {
     /// The standard roles offered by the editor's role selector, in menu order.
-    pub const STANDARD: [Role; 7] =
-        [Role::Celebrant, Role::Priest, Role::Bishop, Role::Deacon, Role::Reader, Role::People, Role::Rubric];
+    pub const STANDARD: [Role; 8] = [
+        Role::Celebrant,
+        Role::Priest,
+        Role::Bishop,
+        Role::Deacon,
+        Role::Reader,
+        Role::People,
+        Role::All,
+        Role::Rubric,
+    ];
 
     /// Parses a role name case-insensitively, accepting common aliases.
     ///
@@ -41,7 +52,8 @@ impl Role {
             "bishop" => Role::Bishop,
             "deacon" => Role::Deacon,
             "reader" | "lector" => Role::Reader,
-            "people" | "all" | "congregation" => Role::People,
+            "people" | "congregation" => Role::People,
+            "all" | "together" => Role::All,
             "rubric" => Role::Rubric,
             _ => Role::Custom(trimmed.to_string()),
         }
@@ -56,6 +68,7 @@ impl Role {
             Role::Deacon => "Deacon",
             Role::Reader => "Reader",
             Role::People => "People",
+            Role::All => "All",
             Role::Rubric => "Rubric",
             Role::Custom(name) => name,
         }
@@ -63,7 +76,7 @@ impl Role {
 
     /// True for text spoken by the congregation (included in bulletins, bold on screen).
     pub fn is_congregational(&self) -> bool {
-        matches!(self, Role::People)
+        matches!(self, Role::People | Role::All)
     }
 
     /// True for roles whose text is not spoken (rubrics).
@@ -74,7 +87,7 @@ impl Role {
     /// Default formatting for this role across editor and display outputs.
     pub fn style(&self) -> RoleStyle {
         match self {
-            Role::People => RoleStyle {
+            Role::People | Role::All => RoleStyle {
                 text_color: "#000000",
                 bold: true,
                 italic: false,
@@ -167,7 +180,8 @@ mod tests {
     fn parses_case_insensitively_with_aliases() {
         assert_eq!(Role::parse("PRIEST"), Role::Priest);
         assert_eq!(Role::parse(" people "), Role::People);
-        assert_eq!(Role::parse("All"), Role::People);
+        assert_eq!(Role::parse("All"), Role::All);
+        assert_eq!(Role::parse("congregation"), Role::People);
         assert_eq!(Role::parse("Lector"), Role::Reader);
         assert_eq!(Role::parse("Cantor"), Role::Custom("Cantor".into()));
     }

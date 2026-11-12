@@ -656,8 +656,9 @@ function suggestRole(index) {
   const before = ed.doc.blocks.slice(0, index).filter((b) => b.kind === "paragraph" && b.role);
   const last = before[before.length - 1];
   if (!last) return "Celebrant";
+  if (last.role === "All") return "All";
   if (last.role !== "People") return "People";
-  const speaker = [...before].reverse().find((b) => b.role !== "People" && b.role !== "Rubric");
+  const speaker = [...before].reverse().find((b) => b.role !== "People" && b.role !== "All" && b.role !== "Rubric");
   return speaker?.role ?? "Celebrant";
 }
 
@@ -725,7 +726,7 @@ function applyRoleStyle(row, role) {
   const antiphon = /^antiphon$/i.test(role ?? "");
   row.style.setProperty("--bar", info?.style.editor_bar_color ?? (antiphon ? "#efe3c0" : "#f2f2f2"));
   row.style.setProperty("--accent", info?.style.editor_accent_color ?? (antiphon ? "#9a7a1c" : "#9a9a9a"));
-  row.classList.toggle("people", role === "People");
+  row.classList.toggle("people", role === "People" || role === "All");
   row.classList.toggle("rubric", role === "Rubric");
 }
 

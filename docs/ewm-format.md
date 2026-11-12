@@ -219,3 +219,11 @@ people's, plain verses the choir's.
 [2] **Sing to the Lord and bless his Name; ***
     **proclaim the good news of his salvation from day to day.**
 ```
+
+## Everyone together: `[All]`
+
+`[All]` marks text said by priest and people together (the Creed, the
+Lord's Prayer, the Confession, the Postcommunion Prayer). It is bold like
+`[People]` and prints as *All* in bulletins and scripts. (`[All]` used to
+be read as `[People]`.)
+

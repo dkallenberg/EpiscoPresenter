@@ -84,35 +84,42 @@ pub struct ParishInfo {
     pub logo: Option<PathBuf>,
     /// The cover title; default "The Holy Eucharist".
     pub liturgy_title: String,
-    /// When the bulletin labels the people's parts "People" (their words
-    /// are in bold either way).
-    pub people_label: PeopleLabel,
+    /// How often a speaker's label is printed in the bulletin and script.
+    pub speaker_labels: SpeakerLabels,
 }
 
-/// When the bulletin prints the "People" label.
+/// How often the bulletin and script print a speaker's label.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum PeopleLabel {
-    /// Never: bold type shows what the people say.
+pub enum SpeakerLabels {
+    /// Once at the start of each block by the same speaker: the Creed's
+    /// paragraphs share one "All", a run of "People" responses one label.
     #[default]
-    Never,
-    /// On the first of the people's parts in each item.
     Once,
-    /// Every time.
-    Always,
+    /// On every paragraph.
+    Every,
 }
 
-/// Drops "People" labels as `mode` asks.
-fn people_labels(pieces: &mut [Piece], mode: PeopleLabel) {
-    let mut seen = false;
+/// Drops a speaker's label where the same speaker carries on: the label
+/// prints at the start of each block of text by one speaker. Rubrics and
+/// pictures between do not break the block.
+fn speaker_labels(pieces: &mut [Piece], mode: SpeakerLabels) {
+    if mode == SpeakerLabels::Every {
+        return;
+    }
+    let mut last: Option<String> = None;
     for p in pieces {
-        if let Piece::Speech { label, .. } = p {
-            if label.as_deref() == Some(Role::People.label()) {
-                if mode == PeopleLabel::Never || (mode == PeopleLabel::Once && seen) {
+        match p {
+            Piece::Speech { label: Some(l), .. } => {
+                if last.as_deref() == Some(l.as_str()) {
+                    let Piece::Speech { label, .. } = p else { unreachable!() };
                     *label = None;
+                } else {
+                    last = Some(l.clone());
                 }
-                seen = true;
             }
+            Piece::Rubric { .. } | Piece::Image { .. } => {}
+            _ => last = None,
         }
     }
 }
@@ -490,7 +497,7 @@ pub fn needs_text(cue: &Cue) -> bool {
 
 fn is_people(p: &Piece) -> bool {
     match p {
-        Piece::Speech { label: Some(l), .. } => l == Role::People.label(),
+        Piece::Speech { label: Some(l), .. } => Role::parse(l).is_congregational(),
         Piece::Speech { label: None, lines } => lines.iter().flatten().all(|r| r.bold || r.text.trim().is_empty()),
         _ => false,
     }
@@ -569,7 +576,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
         .iter()
         .map(|cue| {
             let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
-            people_labels(&mut e.pieces, parish.people_label);
+            speaker_labels(&mut e.pieces, parish.speaker_labels);
             e
         })
         .filter(|e| e.style != BulletinStyle::Hidden)
@@ -598,6 +605,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
         {
             e.pieces.insert(0, Piece::PageBreak);
         }
+        speaker_labels(&mut e.pieces, parish.speaker_labels);
         entries.push(e);
     }
     Doc { kind: DocKind::Script, cover: cover(service, parish), entries, back: None }
@@ -1007,13 +1015,13 @@ mod tests {
     }
 
     #[test]
-    fn people_label_never_once_or_always() {
+    fn a_speakers_label_prints_once_per_block() {
         let mut s = Service::default();
-        s.insert_cue(0, cue("---\ntitle: Salutation\n---\n[Rubric] *The people respond.*\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Celebrant] Let us pray.\n[People] **Amen.**\n"));
-        let labels = |mode| {
-            let parish = ParishInfo { people_label: mode, ..Default::default() };
-            let b = bulletin(&s, &parish);
-            b.entries[0]
+        s.insert_cue(0, cue("---\ntitle: Salutation\n---\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Celebrant] Let us pray.\n[People] **Amen.**\n"));
+        s.insert_cue(1, cue("---\ntitle: The Nicene Creed\n---\n[Rubric] *All say together*\n[All] **We believe in one God,**\n[All] **We believe in one Lord, Jesus Christ,**\n[Rubric] *All may bow.*\n[All] **We believe in the Holy Spirit,**\n"));
+        s.insert_cue(2, cue("---\ntitle: Confession\n---\n[Deacon] Let us confess our sins.\n[People] **Most merciful God,**\n[People] **we confess that we have sinned.**\n[Priest] Almighty God have mercy on you.\n[People] **Amen.**\n"));
+        let labels = |doc: &Doc, i: usize| {
+            doc.entries[i]
                 .pieces
                 .iter()
                 .filter_map(|p| match p {
@@ -1022,19 +1030,20 @@ mod tests {
                 })
                 .collect::<Vec<_>>()
         };
-        assert_eq!(labels(PeopleLabel::Never), ["Celebrant", "", "Celebrant", ""]);
-        assert_eq!(labels(PeopleLabel::Once), ["Celebrant", "People", "Celebrant", ""]);
-        assert_eq!(labels(PeopleLabel::Always), ["Celebrant", "People", "Celebrant", "People"]);
-        // The script keeps every label.
-        let sc = script(&s, &ParishInfo::default());
-        assert!(
-            sc.entries[0]
-                .pieces
-                .iter()
-                .filter(|p| matches!(p, Piece::Speech { label: Some(l), .. } if l == "People"))
-                .count()
-                == 2
-        );
+        for doc in [bulletin(&s, &ParishInfo::default()), script(&s, &ParishInfo::default())] {
+            // Alternating speakers keep every label.
+            assert_eq!(labels(&doc, 0), ["Celebrant", "People", "Celebrant", "People"]);
+            // The Creed: one "All" for the whole block, rubrics between and all.
+            assert_eq!(labels(&doc, 1), ["All", "", ""]);
+            assert_eq!(labels(&doc, 2), ["Deacon", "People", "", "Priest", "People"]);
+        }
+        // "On every paragraph" keeps them all.
+        let every = bulletin(&s, &ParishInfo { speaker_labels: SpeakerLabels::Every, ..Default::default() });
+        assert_eq!(labels(&every, 1), ["All", "All", "All"]);
+        // All is bold like the people's parts, and counts as a response.
+        assert!(matches!(&every.entries[1].pieces[2], Piece::Speech { lines, .. } if lines[0][0].bold));
+        let r = entry(&s.cues[1], BulletinStyle::Responses, false, None);
+        assert_eq!(r.pieces.len(), 4, "{:?}", r.pieces);
     }
 
     #[test]

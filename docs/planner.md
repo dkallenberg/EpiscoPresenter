@@ -98,10 +98,11 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   beyond what the parish's use of the translation allows.
 * **Service time** goes on the cover: *November 9, 2025 at 8 o'clock in the
   morning*. The cover also names the Sunday from the date.
-* **The “People” label**: the people's parts are in bold, so by default
-  the bulletin leaves off the *People* label. **Parish details…** has the
-  choice: never, once in each item, or every time. The script always
-  keeps it.
+* **Speaker labels** (*People*, *All*, *Celebrant*…) print once at the
+  start of each block by the same speaker, in the bulletin and the script:
+  the Creed's paragraphs share one *All*, and a rubric in the middle does
+  not repeat the label. **Parish details…** can switch this to every
+  paragraph.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),
   address, phone, website, email, the music licence notice and a welcome
   for visitors. They print on the cover and back page and are kept in

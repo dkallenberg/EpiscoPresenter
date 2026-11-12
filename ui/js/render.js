@@ -164,9 +164,10 @@ function renderBlocks(blocks, cue, opts) {
       continue;
     }
     const row = el("div", "row");
-    const people = b.role === "People";
+    // The people's parts and everyone's together are bold.
+    const people = b.role === "People" || b.role === "All";
     if (people) row.classList.add("people");
-    if (people && opts.labels && opts.peopleLabel === false) {
+    if (b.role === "People" && opts.labels && opts.peopleLabel === false) {
       // No "People" label (bold shows it), but keep the text column.
       row.append(el("div", "label"));
     } else if (b.role && opts.labels && !(isVerseNumber(b.role) && !opts.numbers)) {
