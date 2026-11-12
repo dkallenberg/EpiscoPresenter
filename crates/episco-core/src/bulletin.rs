@@ -395,15 +395,15 @@ fn work_title(cue: &Cue) -> Option<String> {
     (!meta.title.is_empty() && meta.title != cue.title).then(|| meta.title.clone())
 }
 
-fn resolve(src: &str, cue: &Cue) -> Option<PathBuf> {
-    let p = Path::new(src);
-    let full = if p.is_absolute() { p.to_path_buf() } else { cue.source()?.parent()?.join(p) };
+fn resolve(src: &str, cue: &Cue, root: Option<&Path>) -> Option<PathBuf> {
+    let p = crate::portable::resolve(src, root)?;
+    let full = if p.is_absolute() { p } else { cue.source()?.parent()?.join(p) };
     full.is_file().then_some(full)
 }
 
 /// The full text of an item as pieces. `script`: rubrics are kept and
 /// slide headings become section lines.
-fn body(cue: &Cue, script: bool) -> Vec<Piece> {
+fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
     let Some(doc) = cue.document() else { return Vec::new() };
     let mut out = Vec::new();
     // Where a reading's text goes: the start of its last slide.
@@ -423,7 +423,7 @@ fn body(cue: &Cue, script: bool) -> Vec<Piece> {
         match b {
             Block::Heading { .. } | Block::SlideBreak => {}
             Block::Image { src, alt } => {
-                if let Some(path) = resolve(src, cue) {
+                if let Some(path) = resolve(src, cue, root) {
                     out.push(Piece::Image { path, alt: alt.clone() });
                 }
             }
@@ -535,7 +535,7 @@ fn title_line(cue: &Cue, style: BulletinStyle) -> Piece {
     }
 }
 
-fn entry(cue: &Cue, style: BulletinStyle, script: bool) -> Entry {
+fn entry(cue: &Cue, style: BulletinStyle, script: bool, root: Option<&Path>) -> Entry {
     let mut pieces = Vec::new();
     match style {
         BulletinStyle::Hidden => {}
@@ -547,7 +547,7 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool) -> Entry {
                 incipit: work_title(cue),
                 reference: reference(cue),
             });
-            pieces.extend(body(cue, script));
+            pieces.extend(body(cue, script, root));
         }
         BulletinStyle::Responses => {
             pieces.push(Piece::Line {
@@ -556,7 +556,7 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool) -> Entry {
                 incipit: work_title(cue),
                 reference: reference(cue),
             });
-            pieces.extend(responses(body(cue, script)));
+            pieces.extend(responses(body(cue, script, root)));
         }
     }
     Entry { cue: Some(cue.id.clone()), style, pieces }
@@ -568,7 +568,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
         .cues
         .iter()
         .map(|cue| {
-            let mut e = entry(cue, style_of(cue), false);
+            let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
             people_labels(&mut e.pieces, parish.people_label);
             e
         })
@@ -592,7 +592,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
             }
             _ => BulletinStyle::Full,
         };
-        let mut e = entry(cue, style, true);
+        let mut e = entry(cue, style, true, service.library_root.as_deref());
         if cue.category == ElementCategory::EucharisticPrayer
             && !entries.iter().any(|x: &Entry| x.pieces.contains(&Piece::PageBreak))
         {
@@ -888,7 +888,7 @@ mod tests {
 
         let reading = cue("---\ntitle: First Reading\ntype: reading\ncitation: Job 19:23-27a\n---\n# The First Reading\n\n---\n\nO that my words were written down!\n\n---\n\n[Reader] The Word of the Lord.\n[People] **Thanks be to God.**\n");
         assert_eq!(default_style(&reading), BulletinStyle::Full);
-        let e = entry(&reading, BulletinStyle::Full, false);
+        let e = entry(&reading, BulletinStyle::Full, false, None);
         assert!(matches!(&e.pieces[0], Piece::Line { detail: Some(d), .. } if d == "Job 19:23-27a"));
         assert!(matches!(&e.pieces[1], Piece::Prose { .. }));
         assert!(matches!(&e.pieces[3], Piece::Speech { label: Some(l), lines } if l == "People" && lines[0][0].bold));
@@ -913,7 +913,7 @@ mod tests {
     fn responses_only_and_missing_reading_text() {
         let gospel = cue("---\ntitle: The Holy Gospel\ntype: gospel\ncitation: Matthew 25:1-13\n---\n# The Holy Gospel\n\n---\n\n[Deacon] The Holy Gospel of our Lord Jesus Christ according to Matthew.\n[People] **Glory to you, Lord Christ.**\n\n---\n\n[Deacon] The Gospel of the Lord.\n[People] **Praise to you, Lord Christ.**\n");
         assert!(needs_text(&gospel));
-        let full = entry(&gospel, BulletinStyle::Full, false);
+        let full = entry(&gospel, BulletinStyle::Full, false, None);
         // The placeholder sits where the text goes: before the closing response.
         assert!(
             matches!(&full.pieces[3], Piece::MissingText { citation } if citation == "Matthew 25:1-13"),
@@ -929,7 +929,7 @@ mod tests {
         })
         .contains("The text of Matthew 25:1-13 goes here"));
 
-        let r = entry(&gospel, BulletinStyle::Responses, false);
+        let r = entry(&gospel, BulletinStyle::Responses, false, None);
         let said: Vec<String> = r.pieces[1..]
             .iter()
             .map(|p| match p {
@@ -949,7 +949,7 @@ mod tests {
 
         // A long prayer is left out; only the people's Amen remains.
         let collect = cue("---\ntitle: Collect of the Day\ntype: collect\n---\n[Priest] Almighty God, you have knit together your elect in one communion and fellowship in the mystical body of your Son Christ our Lord: Give us grace so to follow your blessed saints.\n[People] **Amen.**\n");
-        let r = entry(&collect, BulletinStyle::Responses, false);
+        let r = entry(&collect, BulletinStyle::Responses, false, None);
         assert_eq!(r.pieces.len(), 2);
         assert!(is_people(&r.pieces[1]));
         assert!(!needs_text(&collect));
@@ -966,7 +966,7 @@ mod tests {
         let html = to_html(&Doc {
             kind: DocKind::Script,
             cover: cover(&Service::default(), &ParishInfo::default()),
-            entries: vec![entry(&c, BulletinStyle::Full, true)],
+            entries: vec![entry(&c, BulletinStyle::Full, true, None)],
             back: None,
         });
         assert!(html.contains("data-src=\"0\">The people respond."), "{html}");

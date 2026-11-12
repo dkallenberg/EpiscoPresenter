@@ -44,7 +44,7 @@ export async function connectStore(onChange) {
   const emit = () => ready && onChange(snap);
 
   await listen(EVENTS.state, (state) => { snap.state = state; emit(); });
-  await listen(EVENTS.service, (service) => { snap.service = service; emit(); });
+  await listen(EVENTS.service, (service) => { snap.service = service; setLibraryRoot(service?.library_root); emit(); });
   await listen(EVENTS.link, (link) => { snap.link = link; emit(); });
 
   if (inTauri) {
@@ -53,6 +53,7 @@ export async function connectStore(onChange) {
     if ((snap.state.revision ?? 0) <= initial.state.revision) {
       snap.state = initial.state;
       snap.service = initial.service;
+      setLibraryRoot(initial.service?.library_root);
     }
     snap.link = { ...initial.link, ...snap.link };
   }
@@ -76,8 +77,28 @@ export function activeSlide(snap) {
  * (On a slave node these are the master's paths; the stream overlay never
  * shows images, so that is fine.)
  */
+// ---- the parish library folder ----
+// Pictures and videos inside the shared library folder are stored as
+// "library:media/x.png" (the folder is in a different place on each
+// computer); each service arrives with the folder's path on this computer.
+const LIBRARY = "library:";
+let libraryRoot = null;
+
+export function setLibraryRoot(root) {
+  if (root) libraryRoot = root;
+}
+
+function libraryUrl(value, root = libraryRoot) {
+  root = root ?? libraryRoot;
+  if (!root) return "";
+  const sep = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+  const path = root.replace(/[\\/]+$/, "") + sep + value.slice(LIBRARY.length).replace(/\//g, sep);
+  return T?.core?.convertFileSrc ? T.core.convertFileSrc(path) : path;
+}
+
 export function assetUrl(cue, src) {
   if (!src || /^(https?:|data:|asset:|blob:)/i.test(src)) return src;
+  if (src.startsWith(LIBRARY)) return libraryUrl(src);
   const absolute = src.startsWith("/") || /^[A-Za-z]:[\\/]/.test(src);
   const source = cue?.content?.source;
   let path = src;
@@ -94,6 +115,7 @@ export function assetUrl(cue, src) {
  */
 export function backgroundUrl(service, value) {
   if (!value || /^(https?:|data:|asset:|blob:)/i.test(value)) return value;
+  if (value.startsWith(LIBRARY)) return libraryUrl(value, service?.library_root);
   const absolute = value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value);
   let path = value;
   if (!absolute) {

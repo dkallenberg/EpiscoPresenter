@@ -331,6 +331,7 @@ fn create(
         None => None,
     };
     let mut service = build(date, title, template, opts);
+    service.library_root = crate::storage::root();
     // Reading texts from the parish's Bible file, if it has one.
     crate::scripture::fill_service(app, &mut service);
 

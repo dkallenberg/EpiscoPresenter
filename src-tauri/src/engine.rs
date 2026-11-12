@@ -215,6 +215,7 @@ impl Engine {
                 // Every service is shown with the operator's slide layouts.
                 let service = service.map(|mut s| {
                     s.templates = crate::templates::current();
+                    s.library_root = crate::storage::root();
                     s
                 });
                 hub.load_service(service);

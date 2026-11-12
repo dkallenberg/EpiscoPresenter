@@ -42,6 +42,18 @@ pub struct StorageSettings {
 }
 
 static SETTINGS: RwLock<Option<StorageSettings>> = RwLock::new(None);
+/// The data root as last worked out (see [`root`]).
+static ROOT: RwLock<Option<PathBuf>> = RwLock::new(None);
+
+/// The folder in use (as [`data_root`]), for code without the app handle;
+/// `library:…` paths in services are relative to it.
+pub fn root() -> Option<PathBuf> {
+    let settings = settings();
+    match settings.folder {
+        Some(f) if f.is_dir() => Some(f),
+        _ => ROOT.read().unwrap_or_else(|e| e.into_inner()).clone(),
+    }
+}
 
 fn settings_path(app: &AppHandle) -> CmdResult<PathBuf> {
     Ok(app.path().app_config_dir().map_err(|e| e.to_string())?.join(SETTINGS_FILE))
@@ -55,6 +67,7 @@ pub fn init(app: &AppHandle) {
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     *SETTINGS.write().unwrap_or_else(|e| e.into_inner()) = Some(settings);
+    *ROOT.write().unwrap_or_else(|e| e.into_inner()) = app.path().app_data_dir().ok();
 }
 
 pub fn settings() -> StorageSettings {

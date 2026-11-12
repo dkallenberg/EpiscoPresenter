@@ -78,6 +78,10 @@ pub struct Service {
     /// The plan file this service was loaded from / last saved to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_path: Option<PathBuf>,
+    /// The parish library folder on this computer, for `library:…` paths
+    /// (runtime only, not saved in the plan).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub library_root: Option<PathBuf>,
     /// Cue order or service details changed since the plan was loaded / saved.
     #[serde(default)]
     pub modified: bool,
@@ -568,6 +572,10 @@ impl Service {
     /// a file in `liturgies/` beside the plan, every modified item is written,
     /// then the plan itself. Afterwards nothing is marked modified.
     pub fn save_to(&mut self, plan_path: &Path) -> Result<(), ServiceError> {
+        // Paths inside the parish library folder are saved relative to it.
+        if let Some(root) = self.library_root.clone() {
+            self.make_portable(&root);
+        }
         let io = |path: &Path, e: std::io::Error| ServiceError::Io {
             path: path.display().to_string(),
             message: e.to_string(),
