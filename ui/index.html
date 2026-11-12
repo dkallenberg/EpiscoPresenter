@@ -6,6 +6,7 @@
     <link rel="stylesheet" href="/css/output.css" />
     <link rel="stylesheet" href="/css/control.css" />
     <link rel="stylesheet" href="/css/bulletin.css" />
+    <link rel="stylesheet" href="/css/day.css" />
   </head>
   <body>
     <script>
@@ -13,6 +14,10 @@
       if (window.__EPISCO_MODE__ === "planner") {
         document.body.classList.add("planner");
         document.title = "EpiscoPlanner";
+        // Day or night: as chosen last, else as the computer is set.
+        let theme = null;
+        try { theme = localStorage.getItem("planner.theme"); } catch (e) {}
+        if (theme === "day" || (!theme && matchMedia("(prefers-color-scheme: light)").matches)) document.body.classList.add("day");
       }
     </script>
     <header class="topbar">
@@ -27,6 +32,7 @@
       <button id="save-status" class="save-status" hidden></button>
       <button id="btn-settings" class="small" title="Service title, date, season, colour, announcements deck, stream key colour">⚙ Service</button>
       <button id="btn-library-folder" class="small" title="The shared parish library folder">📁 Library</button>
+      <button id="btn-theme" class="small planner-only" title="Day or night colours">☾</button>
       <button id="handoff-note" class="small warn-btn" hidden title="This service was changed in EpiscoPlanner after it was copied here. Click to refresh it.">⟳ Updated in the planner</button>
       <button id="btn-outputs" class="small" title="Open the sanctuary and stream screens">▣ Outputs</button>
       <button id="btn-layouts" class="small" title="Where text, titles and music go on each kind of slide, and their fonts">▦ Layouts</button>

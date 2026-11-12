@@ -509,3 +509,9 @@ body.planner .hint.planner-hint { display: block; }
 .badge.ready-updated, .badge.ready-new { background: #3d2f0c; color: #ffe39a; }
 .badge.ready-conflict { background: #5a2226; color: #fff; }
 .warn-btn { border-color: var(--accent); color: var(--accent); }
+.sermon-row { display: grid; grid-template-columns: 1.2fr 0.9fr 1.4fr 1fr; gap: 8px; }
+.home-row.date-time { grid-template-columns: 150px 130px 1fr; }
+.time-pick { display: flex; gap: 4px; }
+.time-pick select, .time-pick input { min-width: 0; flex: 1; }
+.svc-time { font-size: 12px; font-weight: 600; color: var(--accent); }
+.sched-times { align-items: center; margin-top: 4px; }

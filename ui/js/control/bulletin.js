@@ -464,6 +464,10 @@ export async function openParish() {
     email: input("email", ""),
     licence: area("licence", 2, "e.g. Music reprinted under OneLicense #A-000000. All rights reserved."),
     welcome: area("welcome", 4, "A word to visitors for the back page. Leave a blank line between paragraphs."),
+    service_times: el("input", {
+      value: (info.service_times ?? []).map((t) => t.replace(/^0/, "")).join(", "),
+      placeholder: "e.g. 8:00, 10:30",
+    }),
     speaker_labels: el(
       "select",
       {},
@@ -485,10 +489,11 @@ export async function openParish() {
   const clergy = {};
   const clergyRow = (key, label, title) => {
     const c = (clergy[key] = {
-      name: el("input", { value: info[key]?.name ?? "", placeholder: "e.g. The Rev. Jane Doe" }),
+      honorific: el("input", { value: info[key]?.honorific ?? "", placeholder: key === "bishop" ? "The Rt. Rev." : "The Rev.", list: "parish-honorifics" }),
+      name: el("input", { value: info[key]?.name ?? "", placeholder: "e.g. Jane Doe" }),
       title: el("input", { value: info[key]?.title || title, placeholder: title }),
     });
-    return el("div.clergy-row", {}, el("span.clergy-label", {}, label), c.name, c.title);
+    return el("div.clergy-row", {}, el("span.clergy-label", {}, label), c.honorific, c.name, c.title);
   };
   const overlay = el(
     "div.modal-overlay",
@@ -533,10 +538,12 @@ export async function openParish() {
         field("Music licence notice", f.licence, true),
         field("Welcome for visitors", f.welcome, true),
         field("Speaker labels (People, All, Celebrant…) in the bulletin and script", f.speaker_labels),
+        field("Sunday service times (24-hour, e.g. 8:00, 10:30, 17:00)", f.service_times),
         el(
           "div.field.wide",
           {},
-          el("span", {}, "Clergy (offered as preachers for the sermon): name and position"),
+          el("span", {}, "Clergy (offered as preachers for the sermon): title, name and position"),
+          el("datalist", { id: "parish-honorifics" }, ["The Rev.", "The Very Rev.", "The Rt. Rev.", "The Most Rev.", "The Ven.", "The Rev. Canon", "The Rev. Dr.", "The Rev. Deacon"].map((h) => el("option", { value: h }))),
           clergyRow("rector", "Rector", "Rector"),
           clergyRow("assistant", "Assistant", "Assistant Rector"),
           clergyRow("bishop", "Bishop", "Bishop"),
@@ -552,7 +559,13 @@ export async function openParish() {
             onclick: async () => {
               const out = { logo };
               for (const [k, n] of Object.entries(f)) out[k] = n.value;
-              for (const [k, c] of Object.entries(clergy)) out[k] = { name: c.name.value.trim(), title: c.title.value.trim() };
+              // "8:00, 10:30" → ["08:00", "10:30"]
+              out.service_times = f.service_times.value
+                .split(/[,;\s]+/)
+                .map((t) => /^(\d{1,2})(?::(\d{2}))?$/.exec(t.trim()))
+                .filter((m) => m && Number(m[1]) < 24 && Number(m[2] ?? 0) < 60)
+                .map((m) => `${m[1].padStart(2, "0")}:${m[2] ?? "00"}`);
+              for (const [k, c] of Object.entries(clergy)) out[k] = { honorific: c.honorific.value.trim(), name: c.name.value.trim(), title: c.title.value.trim() };
               if (await call("parish_set", { info: out })) {
                 overlay.remove();
                 toast("Parish details saved");

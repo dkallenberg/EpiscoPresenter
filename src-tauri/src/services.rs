@@ -56,6 +56,9 @@ pub struct ServiceSummary {
     title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     date: Option<String>,
+    /// Start time, "08:00".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     day: Option<LiturgicalDay>,
     cues: usize,
@@ -71,6 +74,7 @@ fn summary(path: PathBuf, service: &Service) -> ServiceSummary {
     ServiceSummary {
         title: service.title.clone(),
         date: service.date.clone(),
+        time: service.time.clone(),
         day,
         cues: service.cues.len(),
         needs_propers: !service
@@ -99,7 +103,7 @@ pub fn services_list(app: AppHandle) -> CmdResult<Vec<ServiceSummary>> {
         }
     }
     out.sort_by(|a, b| match (&a.date, &b.date) {
-        (Some(x), Some(y)) => x.cmp(y).then(a.title.cmp(&b.title)),
+        (Some(x), Some(y)) => x.cmp(y).then(a.time.cmp(&b.time)).then(a.title.cmp(&b.title)),
         (Some(_), None) => std::cmp::Ordering::Less,
         (None, Some(_)) => std::cmp::Ordering::Greater,
         (None, None) => a.title.cmp(&b.title),
@@ -407,6 +411,7 @@ fn create(
     title: Option<String>,
     template: Option<&Path>,
     opts: ServiceOptions,
+    time: Option<&str>,
 ) -> CmdResult<PathBuf> {
     let seasonal = match template {
         None if opts.by_season => season_template(app, liturgical_day(date).season),
@@ -417,12 +422,16 @@ fn create(
         None => None,
     };
     let mut service = build(date, title, template, opts);
+    service.time = time.map(str::trim).filter(|t| !t.is_empty()).map(String::from);
     service.library_root = crate::storage::root();
     // Reading texts from the parish's Bible file, if it has one.
     crate::scripture::fill_service(app, &mut service);
 
     let dir = services_dir(app)?;
-    let base = format!("{date}-{}", slug_file_name(&service.title, "x").trim_end_matches(".x"));
+    // "2026-11-15-0800-the-twenty-fifth-sunday…": two services a day stay apart.
+    let when =
+        service.time.as_deref().map(|t| format!("{date}-{}", t.replace(':', ""))).unwrap_or_else(|| date.to_string());
+    let base = format!("{when}-{}", slug_file_name(&service.title, "x").trim_end_matches(".x"));
     let mut folder = dir.join(&base);
     let mut n = 2;
     while folder.exists() {
@@ -444,15 +453,21 @@ pub fn service_create(
     title: Option<String>,
     template: Option<PathBuf>,
     options: Option<ServiceOptions>,
+    time: Option<String>,
 ) -> CmdResult<PathBuf> {
-    let plan = create(&app, parse_date(&date)?, title, template.as_deref(), options.unwrap_or_default())?;
+    if let Some(t) = time.as_deref().filter(|t| !t.trim().is_empty()) {
+        episco_core::bulletin::time_phrase(t).ok_or_else(|| format!("“{t}” is not a time like 08:00 or 10:30"))?;
+    }
+    let plan =
+        create(&app, parse_date(&date)?, title, template.as_deref(), options.unwrap_or_default(), time.as_deref())?;
     let Loaded { service, .. } = Service::load_plan(&plan).map_err(|e| e.to_string())?;
     engine.load_service(Some(service))?;
     Ok(plan)
 }
 
 /// Creates services for the next `weeks` Sundays from `from` (a date) that
-/// do not have one yet. Returns the new plans.
+/// do not have one yet: one for each of `times` ("08:00", "10:30"), or one
+/// a Sunday without times. Returns the new plans.
 #[tauri::command]
 pub fn services_schedule(
     app: AppHandle,
@@ -460,17 +475,28 @@ pub fn services_schedule(
     weeks: u32,
     template: Option<PathBuf>,
     options: Option<ServiceOptions>,
+    times: Option<Vec<String>>,
 ) -> CmdResult<Vec<PathBuf>> {
     let options = options.unwrap_or_default();
-    let existing: Vec<String> = services_list(app.clone())?.into_iter().filter_map(|s| s.date).collect();
+    let existing: Vec<(String, Option<String>)> =
+        services_list(app.clone())?.into_iter().filter_map(|s| s.date.map(|d| (d, s.time))).collect();
+    let times: Vec<Option<String>> = match times.filter(|t| !t.is_empty()) {
+        Some(t) => t.into_iter().map(Some).collect(),
+        None => vec![None],
+    };
     let first = parse_date(&from)?.next_sunday();
     let mut created = Vec::new();
     for w in 0..weeks.min(26) {
         let date = first.add_days(7 * i64::from(w));
-        if existing.contains(&date.to_string()) {
-            continue;
+        let day = date.to_string();
+        for time in &times {
+            // Already planned: a service that day at that time (or, without
+            // times, any service that day).
+            let taken = existing.iter().any(|(d, t)| *d == day && (time.is_none() || t == time));
+            if !taken {
+                created.push(create(&app, date, None, template.as_deref(), options, time.as_deref())?);
+            }
         }
-        created.push(create(&app, date, None, template.as_deref(), options)?);
     }
     Ok(created)
 }

@@ -268,6 +268,8 @@ fn copy_between(shared: &Path, local_root: &Path, folder: &str) -> CmdResult<(Pa
     }
     // The slide layouts go with the services.
     let layouts = copy_if_newer(&shared.join("layouts.json"), &local_root.join("layouts.json"))?;
+    // The parish details too (service times, clergy, the bulletin's back page).
+    copy_if_newer(&shared.join("parish.json"), &local_root.join("parish.json"))?;
     let _ = std::fs::remove_dir_all(&to);
     std::fs::rename(&tmp, &to).map_err(|e| format!("could not replace {}: {e}", to.display()))?;
     let src = Source { shared_modified: newest(&from), local_modified: newest(&to), copied_at: now() };

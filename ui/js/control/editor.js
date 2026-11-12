@@ -10,7 +10,7 @@
 import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom } from "/js/control/richtext.js";
 import { saveCueToLibrary } from "/js/control/library.js";
-import { lookPanel } from "/js/control/looks.js";
+import { lookCards, lookPanel } from "/js/control/looks.js";
 import { pickMedia } from "/js/control/media.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
@@ -33,7 +33,8 @@ function canon(v) {
   if (Array.isArray(v)) return `[${v.map(canon).join(",")}]`;
   if (v && typeof v === "object")
     return `{${Object.keys(v)
-      .filter((k) => v[k] !== undefined)
+      // false and empty lists are the same as absent (the app leaves them out)
+      .filter((k) => v[k] !== undefined && v[k] !== null && v[k] !== false && !(Array.isArray(v[k]) && v[k].length === 0))
       .sort()
       .map((k) => `${JSON.stringify(k)}:${canon(v[k])}`)
       .join(",")}}`;
@@ -99,6 +100,15 @@ export function initEditor() {
     }
   });
 
+  // Changes that arrived while typing are shown once the focus leaves.
+  root.addEventListener("focusout", () =>
+    setTimeout(() => {
+      if (ed.behind && !typing()) {
+        ed.behind = false;
+        load(app.selectedCue(), false);
+      }
+    }, 0),
+  );
   app.on((what) => {
     if (what === "link") return;
     const c = app.selectedCue();
@@ -113,6 +123,12 @@ export function initEditor() {
   });
 }
 
+/** True while the focus is in a text field of the editor. */
+function typing() {
+  const a = document.activeElement;
+  return Boolean(a && root.contains(a) && (a.matches("input, textarea, select") || a.isContentEditable));
+}
+
 /** Shows `c` in the editor. Unless `force`, keeps local edits in progress and
  *  skips the rebuild when the service just echoed our own change. */
 function load(c, force) {
@@ -124,6 +140,11 @@ function load(c, force) {
   }
   const incoming = c.content.kind === "liturgy" ? c.content.document : null;
   if (!force && c.id === ed.id) {
+    // Never rebuild under the operator's typing: catch up when they leave.
+    if (typing()) {
+      ed.behind = true;
+      return renderStatus();
+    }
     refreshLooks(c);
     if (ed.dirty || ed.held) return renderStatus(); // ours is newer
     if (incoming && ed.doc && canon(incoming) === canon(ed.doc)) return renderStatus();
@@ -167,7 +188,17 @@ function render(c) {
 /** Re-renders the backgrounds & layout panel (cheap; keeps the editor intact). */
 function refreshLooks(c) {
   const slot = document.getElementById("look-slot");
-  if (slot && c) slot.replaceChildren(lookPanel(c));
+  if (!slot || !c) return;
+  // The same item: refresh inside the section, keeping it open or closed
+  // (and drawing nothing while it is closed).
+  const existing = slot.querySelector("details.slides-card");
+  if (existing && existing.dataset.cue === c.id) {
+    const panel = existing.querySelector(".look-panel");
+    if (existing.open) panel.replaceChildren(...lookCards(c));
+    else panel.replaceChildren();
+    return;
+  }
+  slot.replaceChildren(lookPanel(c));
 }
 
 function header(c) {
@@ -526,13 +557,17 @@ function hymnPanel(c) {
 
 // ----- the sermon -----
 
-/** The sermon's title and preacher: name and position, or one of the
+/** Clergy styles offered for the preacher's title. */
+export const HONORIFICS = ["The Rev.", "The Very Rev.", "The Rt. Rev.", "The Most Rev.", "The Ven.", "The Rev. Canon", "The Rev. Dr.", "The Rev. Deacon", "Br.", "Sr.", "Dr.", "Mr.", "Ms.", "Mrs."];
+
+/** The preacher: title ("The Very Rev."), name and position, or one of the
  *  parish's clergy (Parish details). Shown on the slide, bulletin and script. */
 function sermonPanel(c) {
-  const input = (key, placeholder) =>
-    el("input", { value: extraOf(ed.doc, key) ?? "", placeholder, disabled: app.readonly, oninput: () => update() });
-  const title = input("sermon_title", "e.g. The Kingdom Is Near");
-  const name = input("preacher", "e.g. The Rev. Jane Doe");
+  const input = (key, placeholder, props = {}) =>
+    el("input", { value: extraOf(ed.doc, key) ?? "", placeholder, disabled: app.readonly, oninput: () => update(), ...props });
+  const listId = "honorifics";
+  const honorific = input("preacher_honorific", "The Rev.", { list: listId, className: "honorific" });
+  const name = input("preacher", "e.g. Jane Doe");
   const job = input("preacher_title", "e.g. Rector");
   const who = el(
     "select",
@@ -541,13 +576,10 @@ function sermonPanel(c) {
   );
   let clergy = {};
   const defaults = { rector: "Rector", assistant: "Assistant Rector", bishop: "Bishop" };
+  const full = (p) => [p?.honorific, p?.name].filter((x) => x?.trim()).join(" ");
   call("parish_get").then((p) => {
     clergy = p ?? {};
-    for (const o of who.options) {
-      const n = clergy[o.value]?.name;
-      if (n) o.textContent = `${o.textContent}: ${n}`;
-    }
-    // Show which one it is now.
+    for (const o of who.options) if (clergy[o.value]?.name) o.textContent = `${o.textContent}: ${full(clergy[o.value])}`;
     const now = Object.keys(defaults).find((k) => clergy[k]?.name && clergy[k].name === name.value);
     if (now) who.value = now;
     else if (name.value) who.value = "other";
@@ -555,44 +587,40 @@ function sermonPanel(c) {
   const pick = () => {
     const k = who.value;
     if (k in defaults) {
+      honorific.value = clergy[k]?.honorific ?? "";
       name.value = clergy[k]?.name ?? "";
       job.value = clergy[k]?.title || defaults[k];
       if (!name.value) toast(`Add the ${defaults[k].toLowerCase()}'s name in Parish details (Bulletin tab) to fill it in.`, "warn");
       update();
     } else if (k === "other") {
-      name.value = job.value = "";
+      honorific.value = name.value = job.value = "";
       update();
       name.focus();
     }
   };
   const update = () => {
-    setExtra("sermon_title", title.value.trim());
+    setExtra("preacher_honorific", honorific.value.trim());
     setExtra("preacher", name.value.trim());
     setExtra("preacher_title", job.value.trim());
-    // The slide: the title, then the preacher and their position.
-    const lines = [
-      title.value.trim() ? [{ text: title.value.trim(), bold: false, italic: true }] : null,
-      name.value.trim() ? [{ text: name.value.trim(), bold: false, italic: false }] : null,
-      job.value.trim() ? [{ text: job.value.trim(), bold: false, italic: false }] : null,
-    ].filter(Boolean);
+    // The slide: "The Very Rev. Jane Doe", then the position.
+    const line = (text) => [{ text, bold: false, italic: false }];
+    const person = [honorific.value.trim(), name.value.trim()].filter(Boolean).join(" ");
+    const lines = [person ? line(person) : null, job.value.trim() ? line(job.value.trim()) : null].filter(Boolean);
     const blocks = ed.doc.blocks;
     const i = blocks.findIndex((b) => b.kind === "paragraph" && !b.role);
-    const para = { kind: "paragraph", lines: lines.length ? lines : [[{ text: "", bold: false, italic: false }]] };
+    const para = { kind: "paragraph", lines: lines.length ? lines : [line("")] };
     if (i >= 0) blocks[i] = { ...blocks[i], lines: para.lines };
-    else {
-      const h = blocks.findIndex((b) => b.kind === "heading");
-      blocks.splice(h + 1, 0, para);
-    }
+    else blocks.splice(blocks.findIndex((b) => b.kind === "heading") + 1, 0, para);
     renderBlocks();
     changed();
   };
   return el(
     "details.section.reading-panel.sermon-panel",
     { open: true },
-    el("summary", {}, "The sermon", el("span.muted.small", {}, name.value ? ` · ${name.value}` : " · preacher not chosen")),
-    el("div.reading-row", {}, field("Title", title)),
-    el("div.reading-row", {}, field("Preacher", who), field("Name", name), field("Position", job)),
-    el("p.muted.small", {}, "The clergy's names and positions are set once in Parish details (Bulletin tab)."),
+    el("summary", {}, "The preacher", el("span.muted.small", {}, name.value ? ` · ${[honorific.value, name.value].filter(Boolean).join(" ")}` : " · not chosen")),
+    el("datalist", { id: listId }, HONORIFICS.map((h) => el("option", { value: h }))),
+    el("div.reading-row.sermon-row", {}, field("Preacher", who), field("Title", honorific), field("Name", name), field("Position", job)),
+    el("p.muted.small", {}, "Title is the person's style (The Rev., The Very Rev., The Rt. Rev. …): choose one or type your own. The clergy are set once in Parish details (Bulletin tab)."),
   );
 }
 

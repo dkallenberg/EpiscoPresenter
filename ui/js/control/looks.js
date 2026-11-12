@@ -88,14 +88,31 @@ async function setCueLook(cue, output, look) {
 // ---------- the editor panel ----------
 
 /** Two cards (sanctuary, stream) for the selected cue. */
-let panelOpen = true;
+/** Open or closed as last left; at first, closed in the planner, open in the presenter. */
+let panelOpen = null;
+
+/** The cards inside the Slides section (to refresh it in place). */
+export function lookCards(cue) {
+  return OUTPUTS.map(([output, label]) => lookCard(cue, output, label));
+}
 
 export function lookPanel(cue) {
-  const panel = el("div.look-panel", {}, OUTPUTS.map(([output, label]) => lookCard(cue, output, label)));
+  // Closed, the cards (and their slide previews) are only made when opened.
+  const open = panelOpen ?? app.mode !== "planner";
+  const panel = el("div.look-panel", {}, open ? OUTPUTS.map(([output, label]) => lookCard(cue, output, label)) : []);
   return el(
-    "details.section",
-    { open: panelOpen, ontoggle: (e) => (panelOpen = e.target.open) },
-    el("summary", {}, "Backgrounds & layout", el("span.muted.small", {}, ` · ${titleCase(cue.category)}`)),
+    "details.section.slides-card",
+    {
+      open,
+      dataset: { cue: cue.id },
+      ontoggle: (e) => {
+        panelOpen = e.target.open;
+        // The item as it is now (it may have changed since this was made).
+        const now = app.service?.cues.find((x) => x.id === cue.id) ?? cue;
+        if (panelOpen && !panel.children.length) panel.replaceChildren(...lookCards(now));
+      },
+    },
+    el("summary", {}, "Slides", el("span.muted.small", {}, ` · backgrounds and layout · ${titleCase(cue.category)}`)),
     panel,
   );
 }

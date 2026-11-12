@@ -27,6 +27,8 @@ export function initStage() {
 
   app.on((what) => {
     if (what === "link" || what === "selection") return;
+    // EpiscoPlanner has no output previews.
+    if (app.mode === "planner") return;
     const active = activeSlide(app.snap);
     renderSanctuary(sanctuary, app.snap, active);
     renderStream(stream, app.snap, active);

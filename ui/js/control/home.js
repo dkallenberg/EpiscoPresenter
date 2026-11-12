@@ -14,6 +14,16 @@ const SWATCH = {
 };
 
 let services = [];
+/** The parish's usual service times ("08:00", "10:30"), from Parish details. */
+let parishTimes = [];
+
+/** "08:00" → "8:00 am". */
+export function timeLabel(t) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t ?? "");
+  if (!m) return t ?? "";
+  const h = Number(m[1]);
+  return `${((h + 11) % 12) + 1}:${m[2]} ${h < 12 ? "am" : "pm"}`;
+}
 /** EpiscoPresenter: services marked Ready in the parish library. */
 let ready = [];
 let templates = [];
@@ -72,7 +82,9 @@ export async function showHome() {
   const home = document.getElementById("home");
   home.hidden = false;
   home.replaceChildren(el("p.muted.home-loading", {}, "Loading services…"));
-  [services, templates] = await Promise.all([call("services_list"), call("templates_list")]);
+  let parish;
+  [services, templates, parish] = await Promise.all([call("services_list"), call("templates_list"), call("parish_get")]);
+  parishTimes = parish?.service_times ?? [];
   services ??= [];
   templates ??= [];
   if (app.mode === "presenter") ready = (await call("handoff_status")) ?? [];
@@ -377,11 +389,21 @@ function render() {
   date.addEventListener("change", updateDay);
   updateDay();
   const newOpts = serviceOptions();
+  // The time: one of the parish's service times, another, or none.
+  const time = el(
+    "select",
+    { onchange: () => (otherTime.hidden = time.value !== "other") },
+    el("option", { value: "" }, "No time"),
+    parishTimes.map((t, i) => el("option", { value: t, selected: i === 0 }, timeLabel(t))),
+    el("option", { value: "other" }, "Other…"),
+  );
+  const otherTime = el("input", { type: "time", hidden: true });
   const create = async () => {
     if (!date.value) return toast("Choose a date", "warn");
     const plan = await call("service_create", {
       date: date.value,
       title: title.value || null,
+      time: (time.value === "other" ? otherTime.value : time.value) || null,
       ...startFrom(newTemplate, { ...newOpts.value(), ...occasion.value() }),
     });
     if (plan) {
@@ -394,10 +416,13 @@ function render() {
   const weeks = el("select", {}, [2, 3, 4, 5, 6, 8].map((n) => el("option", { value: n, selected: n === 4 }, `${n} Sundays`)));
   const schedTemplate = templateSelect();
   const schedOpts = serviceOptions();
+  // One service for each parish time that is ticked.
+  const schedTimes = parishTimes.map((t) => ({ t, box: el("input", { type: "checkbox", checked: true }) }));
   const schedule = async () => {
     const made = await call("services_schedule", {
       from: now,
       weeks: Number(weeks.value),
+      times: schedTimes.filter((x) => x.box.checked).map((x) => x.t),
       ...startFrom(schedTemplate, schedOpts.value()),
     });
     if (made === undefined) return;
@@ -426,7 +451,7 @@ function render() {
           "div.home-card",
           {},
           el("h3", {}, "New service"),
-          el("div.home-row", {}, field("Date", date), field("Title", title)),
+          el("div.home-row.date-time", {}, field("Date", date), field("Time", el("div.time-pick", {}, time, otherTime)), field("Title", title)),
           info,
           occasion.row,
           field("Start from", newTemplate),
@@ -443,6 +468,14 @@ function render() {
             "Creates a service for each coming Sunday that does not have one yet, named for the day in the church year, with its Collect, readings and psalm from the lectionary.",
           ),
           el("div.home-row", {}, field("How far ahead", weeks), field("Start from", schedTemplate)),
+          schedTimes.length
+            ? el(
+                "div.home-row.checks.sched-times",
+                {},
+                el("span.muted.small", {}, "A service at"),
+                schedTimes.map(({ t, box }) => el("label.field.inline.check", {}, box, el("span", {}, timeLabel(t)))),
+              )
+            : el("p.muted.small", {}, "Add the parish's service times in Parish details (Bulletin tab) to schedule a service for each."),
           schedOpts.row,
           el("div.home-card-actions", {}, el("button.primary", { onclick: schedule }, "Schedule")),
         ),
@@ -470,7 +503,11 @@ function row(s) {
       "div.svc-date",
       {},
       s.date
-        ? [el("span.svc-dow", {}, formatDate(s.date, { weekday: "short" })), el("span.svc-day", {}, formatDate(s.date, { month: "short", day: "numeric" })), el("span.svc-year", {}, formatDate(s.date, { year: "numeric" }))]
+        ? [
+            el("span.svc-dow", {}, formatDate(s.date, { weekday: "short" })),
+            el("span.svc-day", {}, formatDate(s.date, { month: "short", day: "numeric" })),
+            s.time ? el("span.svc-time", {}, timeLabel(s.time)) : el("span.svc-year", {}, formatDate(s.date, { year: "numeric" })),
+          ]
         : el("span.muted", {}, "No date"),
     ),
     el("span.svc-swatch", { style: { background: SWATCH[day?.color] ?? "#555" }, title: day?.color ?? "" }),

@@ -1,0 +1,61 @@
+/* EpiscoPlanner's day mode (body.planner.day). The presentation app is
+   always dark: these rules apply only in the planner. Slide previews and
+   thumbnails stay black, as on the screens. */
+
+body.planner.day {
+  --bg: #f4f3ef;
+  --panel: #ffffff;
+  --panel-2: #f0eee8;
+  --line: #d6d3ca;
+  --text: #1f2024;
+  --muted: #6b6e77;
+  --accent: #9a7414;
+  color: var(--text);
+  background: var(--bg);
+}
+:root:has(body.planner.day) { color-scheme: light; background: #f4f3ef; color: #1f2024; }
+
+body.planner.day button { background: #ffffff; color: var(--text); border-color: var(--line); }
+body.planner.day button:hover:not(:disabled) { background: #ece9e1; }
+body.planner.day button.primary { background: #c9a646; color: #1b1b1b; border-color: #b08f30; }
+body.planner.day button.primary:hover:not(:disabled) { background: #d6b75a; }
+body.planner.day button.danger, body.planner.day .icon.danger { color: #b3261e; }
+body.planner.day input, body.planner.day select, body.planner.day textarea { background: #ffffff; color: var(--text); border-color: var(--line); }
+body.planner.day .menu button:hover { background: #ece9e1; }
+body.planner.day .topbar { background: #ebe8e0; border-color: var(--line); }
+body.planner.day .tabs { background: var(--bg); }
+body.planner.day .tabs button.active { border-color: var(--accent); color: var(--accent); }
+body.planner.day .seg button.active { background: var(--accent); color: #fff; }
+
+body.planner.day .cue.selected { border-color: #b9b4a6; background: #ebe7dc; }
+body.planner.day .cue:hover { background: #efece4; }
+body.planner.day .badge { background: #e6e2d7; color: #45474e; }
+body.planner.day .badge.needs { background: #fbe9c8; color: #7a5300; }
+body.planner.day .badge.modified { background: transparent; color: var(--accent); }
+body.planner.day .slide-group.selected { background: #ebe7dc; outline-color: #c9c4b6; }
+body.planner.day .slide-num { background: #e6e2d7; }
+
+body.planner.day .toast { background: #ffffff; color: var(--text); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+body.planner.day .toast.error { background: #fdecea; border-color: #c62828; }
+body.planner.day .warn-note { background: #fff4d6; color: #6b4e00; border-color: #e3c56f; }
+body.planner.day .warn-text { color: #8a5d00; }
+body.planner.day .lib-path { background: #ffffff; }
+body.planner.day .save-status.ok { color: #2e7d32; border-color: #9fd3a5; }
+body.planner.day .save-status.pending { color: #8a5d00; border-color: #e3c56f; }
+body.planner.day .save-status.warn { color: #8a5d00; }
+body.planner.day .save-status.error { color: #fff; background: #c62828; }
+body.planner.day .svc-row:hover { border-color: #c9c4b6; background: #efece4; }
+body.planner.day .home, body.planner.day .home-card, body.planner.day details.section { background: var(--panel); }
+body.planner.day .home { background: var(--bg); }
+body.planner.day .modal { background: #ffffff; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25); }
+body.planner.day .modal-overlay { background: rgba(40, 36, 28, 0.35); }
+
+body.planner.day .ready-toggle.on { border-color: #9fd3a5; color: #2e7d32; }
+body.planner.day .badge.ready-copied { background: #e2f3e4; color: #2e7d32; }
+body.planner.day .badge.ready-updated, body.planner.day .badge.ready-new { background: #fff4d6; color: #7a5300; }
+
+/* The bulletin and script previews sit on a light desk. */
+body.planner.day .doc-scroll { background: #dcd8ce; }
+body.planner.day .bible-file-row { background: var(--panel-2); }
+
+#btn-theme { min-width: 34px; }

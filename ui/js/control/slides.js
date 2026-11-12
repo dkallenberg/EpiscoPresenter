@@ -21,7 +21,15 @@ export function initSlides() {
       highlight(false);
     }),
   );
+  // The grid draws every slide: only while it can be seen (the planner
+  // keeps it on a tab), catching up when the tab is shown.
+  const shown = () => document.getElementById("tab-slides")?.classList.contains("active") ?? true;
+  document.querySelector('.tabs button[data-tab="slides"]')?.addEventListener("click", () => {
+    if (builtFor !== app.service) build();
+    highlight(true);
+  });
   app.on((what) => {
+    if (!shown()) return;
     if (what === "service" || builtFor !== app.service) build();
     if (what !== "link") highlight(what === "selection");
   });

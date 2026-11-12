@@ -86,19 +86,39 @@ pub struct ParishInfo {
     pub liturgy_title: String,
     /// How often a speaker's label is printed in the bulletin and script.
     pub speaker_labels: SpeakerLabels,
+    /// The parish's usual service times on a Sunday, "08:00", "10:30".
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub service_times: Vec<String>,
     /// The clergy, offered as preachers in a sermon's details.
     pub rector: Clergy,
     pub assistant: Clergy,
     pub bishop: Clergy,
 }
 
-/// One of the parish's clergy: "The Rev. Jane Doe", "Rector".
+/// One of the parish's clergy: "The Very Rev.", "Jane Doe", "Rector".
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Clergy {
+    /// Their style or title: "The Rev.", "The Very Rev.", "The Rt. Rev.".
+    pub honorific: String,
     pub name: String,
-    /// Their position, printed after the name.
+    /// Their position, printed after the name ("Rector").
     pub title: String,
+}
+
+/// "The Very Rev. Jane Doe, Rector" from a sermon's details.
+pub fn preacher_line(honorific: Option<&str>, name: &str, position: Option<&str>) -> String {
+    let mut s = String::new();
+    if let Some(h) = honorific.map(str::trim).filter(|h| !h.is_empty()) {
+        s.push_str(h);
+        s.push(' ');
+    }
+    s.push_str(name.trim());
+    if let Some(p) = position.map(str::trim).filter(|p| !p.is_empty()) {
+        s.push_str(", ");
+        s.push_str(p);
+    }
+    s
 }
 
 /// How often the bulletin and script print a speaker's label.
@@ -427,10 +447,7 @@ fn reference(cue: &Cue) -> Option<String> {
     }
     // The preacher and their position: "The Rev. Jane Doe, Rector".
     if let Some(p) = meta.extra("preacher").filter(|v| !v.trim().is_empty()) {
-        return Some(match meta.extra("preacher_title").map(str::trim).filter(|t| !t.is_empty()) {
-            Some(t) => format!("{}, {t}", p.trim()),
-            None => p.trim().to_string(),
-        });
+        return Some(preacher_line(meta.extra("preacher_honorific"), p, meta.extra("preacher_title")));
     }
     if let Some(v) = meta.extra("composer").filter(|v| !v.is_empty()) {
         return Some(v.to_string());
@@ -1128,7 +1145,7 @@ mod tests {
 
     #[test]
     fn the_sermon_line_names_the_preacher() {
-        let sermon = cue("---\ntitle: The Sermon\ntype: homily\nsermon_title: The Kingdom Is Near\npreacher: The Rev. Jane Doe\npreacher_title: Rector\n---\n# The Sermon\n");
+        let sermon = cue("---\ntitle: The Sermon\ntype: homily\nsermon_title: The Kingdom Is Near\npreacher_honorific: The Very Rev.\npreacher: Jane Doe\npreacher_title: Rector\n---\n# The Sermon\n");
         assert_eq!(default_style(&sermon), BulletinStyle::Title);
         assert_eq!(
             title_line(&sermon, BulletinStyle::Title),
@@ -1136,13 +1153,17 @@ mod tests {
                 title: "The Sermon".into(),
                 detail: None,
                 incipit: Some("The Kingdom Is Near".into()),
-                reference: Some("The Rev. Jane Doe, Rector".into()),
+                reference: Some("The Very Rev. Jane Doe, Rector".into()),
             }
         );
         let p: ParishInfo =
             serde_json::from_str(r#"{"name": "St. X", "rector": {"name": "The Rev. Jane Doe", "title": "Rector"}}"#)
                 .unwrap();
         assert_eq!(p.rector.title, "Rector");
+        assert_eq!(
+            preacher_line(Some("The Rt. Rev."), "John Smith", Some("Bishop of the Diocese")),
+            "The Rt. Rev. John Smith, Bishop of the Diocese"
+        );
         assert_eq!(p.bishop, Clergy::default());
     }
 

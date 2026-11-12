@@ -106,14 +106,22 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
 * **Prayers split across slides** print as one paragraph: when the same
   speaker carries on after a slide break, the bulletin and script run the
   text on (the slides keep their own breaks).
-* **The sermon**: in the Editor, the sermon item has a title, the
-  preacher's name and their position. **Preacher** offers the Rector,
-  Assistant and Bishop from Parish details (or someone else); the bulletin
-  prints *The Sermon — Title — The Rev. Jane Doe, Rector*, and the slide
-  shows the same.
+* **The sermon**: in the Editor, the sermon item has the preacher's title
+  (*The Rev.*, *The Very Rev.*, *The Rt. Rev.* … or your own), name and
+  position. **Preacher** offers the Rector, Assistant and Bishop from Parish
+  details (or someone else); the bulletin prints *The Sermon — The Very Rev.
+  Jane Doe, Rector*, and the slide shows the same.
+* **Service times**: Parish details holds the Sunday service times (e.g.
+  8:00, 10:30). New Service offers them, Schedule upcoming Sundays makes a
+  service for each time that is ticked, and every service card shows its
+  time.
+* **Day and night**: ☀ / ☾ in the top bar switches the planner's colours
+  (at first it follows the computer's setting). EpiscoPresenter is always
+  dark.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),
-  address, phone, website, email, the music licence notice, the clergy
-  (Rector, Assistant, Bishop: name and position) and a welcome
+  address, phone, website, email, the music licence notice, the service
+  times, the clergy (Rector, Assistant, Bishop: title, name and position)
+  and a welcome
   for visitors. They print on the cover and back page and are kept in
   `parish.json` in the library folder, so everyone shares them (a logo from
   elsewhere is copied in as `parish-logo.png`).

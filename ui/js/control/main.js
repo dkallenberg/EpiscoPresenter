@@ -28,6 +28,24 @@ document.querySelectorAll(".tabs button[data-tab]").forEach((b) =>
   }),
 );
 
+// EpiscoPlanner: day and night colours (the presenter is always dark).
+{
+  const btn = document.getElementById("btn-theme");
+  const show = () => {
+    const day = document.body.classList.contains("day");
+    btn.textContent = day ? "☾" : "☀";
+    btn.title = day ? "Night colours" : "Day colours";
+  };
+  btn?.addEventListener("click", () => {
+    const day = document.body.classList.toggle("day");
+    try {
+      localStorage.setItem("planner.theme", day ? "day" : "night");
+    } catch (e) {}
+    show();
+  });
+  if (btn) show();
+}
+
 // EpiscoPlanner opens on the bulletin straight away (it says so before the
 // page loads; see run_planner).
 if (window.__EPISCO_MODE__ === "planner") document.querySelector('.tabs button[data-tab="bulletin"]')?.click();
