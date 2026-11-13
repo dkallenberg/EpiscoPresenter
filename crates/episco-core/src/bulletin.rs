@@ -158,15 +158,18 @@ pub enum SpeakerLabels {
 /// Drops a speaker's label where the same speaker carries on: the label
 /// prints at the start of each block of text by one speaker. Rubrics and
 /// pictures between do not break the block.
-/// With a bishop presiding, the Celebrant's and Priest's parts are the Bishop's.
-fn bishop_labels(pieces: &mut [Piece], bishop: bool) {
-    if !bishop {
+/// With a bishop presiding, the Celebrant's and Priest's parts are the
+/// Bishop's; with no deacon, the Deacon's are a Priest's.
+fn presider_labels(pieces: &mut [Piece], service: &Service) {
+    if !service.bishop && !service.no_deacon {
         return;
     }
     for p in pieces {
         if let Piece::Speech { label: Some(l), .. } = p {
-            if l == Role::Celebrant.label() || l == Role::Priest.label() {
-                *l = Role::Bishop.label().to_string();
+            let role = Role::parse(l);
+            let said_by = role.at_service(service.bishop, service.no_deacon);
+            if said_by != role {
+                *l = said_by.label().to_string();
             }
         }
     }
@@ -684,7 +687,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
         .iter()
         .map(|cue| {
             let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
-            bishop_labels(&mut e.pieces, service.bishop);
+            presider_labels(&mut e.pieces, service);
             speaker_labels(&mut e.pieces, parish.speaker_labels);
             e
         })
@@ -714,7 +717,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
         {
             e.pieces.insert(0, Piece::PageBreak);
         }
-        bishop_labels(&mut e.pieces, service.bishop);
+        presider_labels(&mut e.pieces, service);
         speaker_labels(&mut e.pieces, parish.speaker_labels);
         entries.push(e);
     }
@@ -1216,6 +1219,18 @@ mod tests {
         let roles: Vec<String> =
             s.cues[0].slide(0).unwrap().blocks.iter().filter_map(|b| b.role().map(|r| r.label().to_string())).collect();
         assert_eq!(roles, ["Bishop", "People", "Bishop", "Deacon"]);
+        // No deacon: a priest says the Deacon's parts, even with a bishop.
+        s.no_deacon = true;
+        s.rebuild_all();
+        assert_eq!(labels(&bulletin(&s, &ParishInfo::default())), ["Bishop", "People", "Bishop", "Priest"]);
+        assert_eq!(labels(&script(&s, &ParishInfo::default())), ["Bishop", "People", "Bishop", "Priest"]);
+        let roles: Vec<String> =
+            s.cues[0].slide(0).unwrap().blocks.iter().filter_map(|b| b.role().map(|r| r.label().to_string())).collect();
+        assert_eq!(roles, ["Bishop", "People", "Bishop", "Priest"]);
+        s.bishop = false;
+        s.rebuild_all();
+        assert_eq!(labels(&script(&s, &ParishInfo::default())), ["Celebrant", "People", "Priest", ""]);
+        // the same speaker carries on
     }
 
     #[test]

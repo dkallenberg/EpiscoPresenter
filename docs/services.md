@@ -65,6 +65,11 @@ Prayer Book's own order instead of a template:
   changed), and the Bishop's Blessing (BCP 523) is added before the
   dismissal. Ordinations always have it. It can be turned on or off later
   in **⚙ Service**.
+* **A deacon is serving** (on unless you turn it off; the app remembers
+  your choice for the next new service): with no deacon, a priest says the
+  Deacon's parts ("the Deacon or a Priest"), so they are labelled *Priest*
+  on the slides, bulletin and script. With a bishop presiding they stay
+  *Priest*, not *Bishop*. It can be changed later in **⚙ Service**.
 * **Baptism → Holy Baptism**: the baptismal opening acclamation replaces
   the usual one, Collect for Purity and Salutation; the Presentation and
   Examination, the Baptismal Covenant, the Prayers for the Candidates, the

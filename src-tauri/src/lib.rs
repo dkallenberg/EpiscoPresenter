@@ -161,6 +161,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         scripture::reading_fill,
         occasions::occasions_list,
         occasions::set_service_bishop,
+        occasions::set_service_deacon,
         occasions::service_add_baptismal,
         handoff::service_set_ready,
         handoff::handoff_status,

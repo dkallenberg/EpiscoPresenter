@@ -74,6 +74,17 @@ impl Role {
         }
     }
 
+    /// Who says this part at a service: with a bishop presiding the
+    /// Celebrant's and Priest's parts are the Bishop's; with no deacon the
+    /// Deacon's parts are said by a priest ("the Deacon or a Priest").
+    pub fn at_service(&self, bishop: bool, no_deacon: bool) -> Role {
+        match self {
+            Role::Celebrant | Role::Priest if bishop => Role::Bishop,
+            Role::Deacon if no_deacon => Role::Priest,
+            r => r.clone(),
+        }
+    }
+
     /// True for text spoken by the congregation (included in bulletins, bold on screen).
     pub fn is_congregational(&self) -> bool {
         matches!(self, Role::People | Role::All)

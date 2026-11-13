@@ -846,6 +846,27 @@ mod tests {
     }
 
     #[test]
+    fn no_deacon_gives_the_deacons_parts_to_a_priest() {
+        use crate::occasions::Options;
+        let s =
+            build("2026-11-15".parse().unwrap(), None, None, with(Options { no_deacon: true, ..Default::default() }));
+        assert!(s.no_deacon);
+        let roles: Vec<String> = s
+            .cues
+            .iter()
+            .flat_map(|c| (0..c.slide_count()).filter_map(move |i| c.slide(i)))
+            .flat_map(|sl| sl.blocks.iter().filter_map(|b| b.role().map(|r| r.label().to_string())))
+            .collect();
+        assert!(roles.iter().any(|r| r == "Priest"));
+        assert!(!roles.iter().any(|r| r == "Deacon"), "{roles:?}");
+        let dir = std::env::temp_dir().join(format!("episco-deacon-{}", std::process::id()));
+        let mut copy = s.clone();
+        copy.save_to(&dir.join("service.toml")).unwrap();
+        assert!(Service::load_plan(dir.join("service.toml")).unwrap().service.no_deacon);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn holy_week_and_ordinations() {
         use crate::occasions::{suggested, Occasion, Options};
         // Easter 2027 is March 28.

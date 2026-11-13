@@ -300,6 +300,7 @@ export function openServiceSettings() {
     track: el("select", {}, [[1, "Track 1"], [2, "Track 2"]].map(([v, l]) => el("option", { value: v, selected: (s.track ?? 1) === v }, l))),
     bible: el("select", {}, [["NRSVue", "NRSVue (Updated Edition)"], ["NRSV", "NRSV"]].map(([v, l]) => el("option", { value: v, selected: (s.bible ?? "NRSVue") === v }, l))),
     bishop: el("input", { type: "checkbox", checked: Boolean(s.bishop) }),
+    deacon: el("input", { type: "checkbox", checked: !s.no_deacon }),
     baptismal: el(
       "select",
       {},
@@ -362,6 +363,7 @@ export function openServiceSettings() {
       const added = await call("set_service_bishop", { bishop: f.bishop.checked });
       if (added) toast("The Bishop's Blessing was added before the dismissal");
     }
+    if (f.deacon.checked === Boolean(app.service?.no_deacon)) await call("set_service_deacon", { deacon: f.deacon.checked });
     close();
   };
   const row = (label, input) => el("label.field", {}, el("span", {}, label), input);
@@ -381,6 +383,12 @@ export function openServiceSettings() {
         { title: "The Celebrant's and Priest's parts are labelled Bishop on the slides, bulletin and script" },
         f.bishop,
         el("span", {}, "A bishop presides (labels the Celebrant's parts “Bishop” and adds the Bishop's Blessing)"),
+      ),
+      el(
+        "label.field.check",
+        { title: "With no deacon, a priest says the Deacon's parts: they are labelled Priest on the slides, bulletin and script" },
+        f.deacon,
+        el("span", {}, "A deacon is serving (if not, the Deacon's parts are labelled “Priest”)"),
       ),
       el(
         "div.settings-rites",

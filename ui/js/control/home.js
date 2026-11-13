@@ -287,6 +287,22 @@ function occasionOptions(onKind) {
     },
   });
   const bishop = el("input", { type: "checkbox", onchange: () => changed() });
+  // Remembered: most parishes either always or never have a deacon.
+  let deaconUsual = true;
+  try {
+    deaconUsual = localStorage.getItem("service.deacon") !== "no";
+  } catch {}
+  const deacon = el("input", {
+    type: "checkbox",
+    checked: deaconUsual,
+    title: "With no deacon, the Deacon's parts are labelled Priest",
+    onchange: () => {
+      try {
+        localStorage.setItem("service.deacon", deacon.checked ? "yes" : "no");
+      } catch {}
+      changed();
+    },
+  });
   const baptismal = el(
     "select",
     { onchange: () => changed() },
@@ -316,6 +332,7 @@ function occasionOptions(onKind) {
             : bishop.checked
               ? "The Celebrant's parts are labelled Bishop, and the Bishop's Blessing is added before the dismissal."
               : "";
+    if (!deacon.checked) note.textContent = `${note.textContent} The Deacon's parts are labelled Priest.`.trim();
     onKind?.(k, labels.get(k));
   };
   const load = async (date) => {
@@ -337,7 +354,7 @@ function occasionOptions(onKind) {
       "div.occasion",
       {},
       el("div.home-row", {}, field("Service", kind), field("Baptism", baptismal)),
-      el("div.home-row.checks", {}, check(bishop, "A bishop presides"), check(confirmation, "Confirmation, Reception, Reaffirmation")),
+      el("div.home-row.checks", {}, check(bishop, "A bishop presides"), check(deacon, "A deacon is serving"), check(confirmation, "Confirmation, Reception, Reaffirmation")),
       note,
     ),
     load,
@@ -347,6 +364,7 @@ function occasionOptions(onKind) {
       bishop: bishop.checked,
       baptismal: baptismal.value || null,
       confirmation: confirmation.checked,
+      no_deacon: !deacon.checked,
     }),
   };
 }

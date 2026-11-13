@@ -112,6 +112,9 @@ pub struct Options {
     /// Confirmation, Reception and Reaffirmation (with a bishop).
     #[serde(default)]
     pub confirmation: bool,
+    /// No deacon is serving: a priest says the Deacon's parts.
+    #[serde(default)]
+    pub no_deacon: bool,
 }
 
 fn lib(rite: Rite, name: &str) -> Option<Cue> {
@@ -379,6 +382,7 @@ const DISMISSALS: [&str; 4] =
 pub fn apply(s: &mut Service, o: Options) {
     let bishop = o.bishop || o.confirmation || o.occasion.is_ordination();
     s.bishop = bishop;
+    s.no_deacon = o.no_deacon;
     // The cover names the liturgy (Palm Sunday and Maundy Thursday are
     // the Eucharist of the day).
     if !matches!(o.occasion, Occasion::Eucharist | Occasion::PalmSunday | Occasion::MaundyThursday) {
@@ -514,7 +518,7 @@ pub fn service_add_baptismal(
 ) -> Result<(), String> {
     engine.edit_service(|s| {
         let bishop = s.bishop || confirmation;
-        apply(s, Options { occasion: Occasion::Eucharist, bishop, baptismal, confirmation });
+        apply(s, Options { occasion: Occasion::Eucharist, bishop, baptismal, confirmation, no_deacon: s.no_deacon });
         s.modified = true;
         s.rebuild_all();
         Ok(())
@@ -572,6 +576,18 @@ pub fn set_service_bishop(engine: tauri::State<'_, crate::engine::Engine>, bisho
         s.modified = true;
         s.rebuild_all();
         Ok(added)
+    })
+}
+
+/// Says whether a deacon is serving at the open service: with none, the
+/// Deacon's parts are labelled Priest on the slides, bulletin and script.
+#[tauri::command]
+pub fn set_service_deacon(engine: tauri::State<'_, crate::engine::Engine>, deacon: bool) -> Result<(), String> {
+    engine.edit_service(|s| {
+        s.no_deacon = !deacon;
+        s.modified = true;
+        s.rebuild_all();
+        Ok(())
     })
 }
 
