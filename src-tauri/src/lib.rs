@@ -171,6 +171,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         storage::storage_set,
         storage::storage_pick_folder,
         commands::get_node_config,
+        commands::node_info,
+        commands::node_settings_save,
         windows::outputs_status,
         deck::deck_fetch,
         deck::deck_local,
@@ -257,6 +259,14 @@ fn role_title(role: NodeRole) -> &'static str {
     }
 }
 
+/// Where this computer's node config is (`$EPISCO_CONFIG`, else
+/// `<app config dir>/node.json`).
+pub(crate) fn config_path(app: &tauri::AppHandle) -> Option<PathBuf> {
+    std::env::var_os("EPISCO_CONFIG")
+        .map(PathBuf::from)
+        .or_else(|| app.path().app_config_dir().ok().map(|d| d.join(CONFIG_FILE)))
+}
+
 /// Reads the node config.
 ///
 /// Resolution order: `$EPISCO_CONFIG` path, else `<app config dir>/node.json`
@@ -264,9 +274,7 @@ fn role_title(role: NodeRole) -> &'static str {
 /// override the file, which makes it easy to run a master and a slave side by
 /// side on one development machine.
 fn load_config(app: &tauri::AppHandle) -> NodeConfig {
-    let path = std::env::var_os("EPISCO_CONFIG")
-        .map(PathBuf::from)
-        .or_else(|| app.path().app_config_dir().ok().map(|d| d.join(CONFIG_FILE)));
+    let path = config_path(app);
 
     let mut config = match &path {
         Some(p) if p.exists() => read_config(p),

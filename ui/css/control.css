@@ -538,3 +538,12 @@ body.planner .hint.planner-hint { display: block; }
 .maker-tools { display: flex; gap: 4px; }
 .maker-thumb { width: 300px; align-self: start; }
 .maker-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+/* Connection dialog */
+#link { cursor: pointer; }
+.conn-roles { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 12px; }
+.conn-role { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.conn-role span { display: flex; flex-direction: column; gap: 2px; }
+.conn-role:has(input:checked) { border-color: var(--accent, #d4a43a); }
+.conn-addresses { margin: 6px 0; padding-left: 20px; font-size: 16px; }
+.conn-detail { margin-bottom: 10px; }

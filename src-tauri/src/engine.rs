@@ -170,6 +170,16 @@ impl Engine {
                         mirror.state = state;
                     }
                     ClientEvent::Service { service, state } => {
+                        // Pictures in the parish library are found in this
+                        // computer's copy of the folder, not the master's.
+                        let service = service.map(|s| match crate::storage::root() {
+                            Some(root) if s.library_root.as_ref() != Some(&root) => {
+                                let mut own = (*s).clone();
+                                own.library_root = Some(root);
+                                std::sync::Arc::new(own)
+                            }
+                            _ => s,
+                        });
                         let _ = app.emit(events::SERVICE, &service);
                         let _ = app.emit(events::STATE, &state);
                         mirror.service = service;

@@ -171,6 +171,36 @@ The raw `.ewm` text of the selected item. **Apply** parses it and applies it
 | Esc | Clear text |
 | M | Clear media |
 
+## Two computers: sanctuary and live stream
+
+One computer runs the service and the sanctuary screen; the other shows the
+live-stream overlay and follows it, so every slide changes on both at once.
+
+1. Put both computers on the same network (wired is best).
+2. On the **sanctuary computer**, click the connection status at the right of
+   the top bar ("Standalone · online"). In **Connection** choose
+   **Sanctuary computer**, then **Save** (the app restarts). The window lists
+   this computer's address, e.g. `Sanctuary-Mac-mini.local` or
+   `192.168.1.20`.
+3. On the **live-stream computer**, open **Connection**, choose
+   **Live-stream computer**, type that address and **Save**. The status then
+   reads "Slave · online · <the sanctuary computer's name>".
+4. On each, open the screen it drives with **▣ Outputs**: the sanctuary
+   screen on the sanctuary computer, the stream on the live-stream computer.
+
+The first time, macOS asks whether EpiscoPresenter may find devices on the
+local network (on the live-stream computer) and accept incoming connections
+(on the sanctuary computer): choose **Allow**. On a managed Mac, IT may need
+to allow these. If the live-stream computer stays offline, check the
+address, that both are on the same network, and that the sanctuary
+computer's firewall allows EpiscoPresenter.
+
+Pictures, PDFs and videos from the parish library are shown from each
+computer's own copy of the library folder, so set the parish library folder
+up on the live-stream computer as well (📁 Library); services marked ready
+are copied to it with their pictures. To go back to one computer, choose
+**One computer for both**.
+
 ## Slave (live-stream) node
 
 The same window, read-only: it follows the master and can send Next / Prev,

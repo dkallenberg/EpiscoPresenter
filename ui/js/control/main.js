@@ -14,6 +14,7 @@ import { initSlides } from "/js/control/slides.js";
 import { initStage } from "/js/control/stage.js";
 import { initTimeline } from "/js/control/timeline.js";
 import { app, call, reportWarnings, toast } from "/js/control/util.js";
+import { openConnection } from "/js/control/connection.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -156,11 +157,13 @@ function renderTopbar() {
   if (link.latency_us != null) text += ` · ${(link.latency_us / 1000).toFixed(2)} ms`;
   if (link.error) text += ` · ${link.error}`;
   $("link").textContent = text;
-  $("link").title = link.endpoint ?? "";
+  $("link").title = `${link.endpoint ? `${link.endpoint} · ` : ""}Click to connect this computer with the other one`;
   $("link").classList.toggle("ok", Boolean(link.online));
 }
 
 // ---------- boot ----------
+$("link").addEventListener("click", () => openConnection());
+$("link").setAttribute("role", "button");
 initTimeline();
 initSlides();
 initEditor();

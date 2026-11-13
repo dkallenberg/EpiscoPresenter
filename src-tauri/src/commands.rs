@@ -26,6 +26,96 @@ pub fn get_node_config(config: State<'_, NodeConfig>) -> NodeConfig {
     config.inner().clone()
 }
 
+/// This computer's part in a two-computer setup, and how the other one
+/// finds it.
+#[derive(Serialize)]
+pub struct NodeInfo {
+    config: NodeConfig,
+    /// This computer's addresses on the local network (for the other one).
+    addresses: Vec<String>,
+    /// Its Bonjour name (`Sanctuary-Mac-mini.local`), on a Mac.
+    host: Option<String>,
+}
+
+#[tauri::command]
+pub fn node_info(config: State<'_, NodeConfig>) -> NodeInfo {
+    NodeInfo { config: config.inner().clone(), addresses: local_addresses(), host: local_host() }
+}
+
+/// The local network address this computer would use (no packet is sent).
+fn local_addresses() -> Vec<String> {
+    let probe = || -> std::io::Result<std::net::IpAddr> {
+        let s = std::net::UdpSocket::bind("0.0.0.0:0")?;
+        s.connect("192.0.2.1:9")?;
+        Ok(s.local_addr()?.ip())
+    };
+    probe()
+        .ok()
+        .filter(|ip| !ip.is_loopback() && !ip.is_unspecified())
+        .map(|ip| vec![ip.to_string()])
+        .unwrap_or_default()
+}
+
+fn local_host() -> Option<String> {
+    let out = std::process::Command::new("scutil").args(["--get", "LocalHostName"]).output().ok()?;
+    let name = String::from_utf8(out.stdout).ok()?.trim().to_string();
+    (out.status.success() && !name.is_empty()).then(|| format!("{name}.local"))
+}
+
+/// The sync URL for what the operator typed: an address (`192.168.1.20`),
+/// a name (`Sanctuary-Mac-mini.local`), either with a port, or a full
+/// `ws://…` URL.
+pub fn master_url(input: &str) -> CmdResult<String> {
+    let t = input.trim();
+    if t.is_empty() {
+        return Err("type the sanctuary computer's address".into());
+    }
+    if t.starts_with("ws://") {
+        return Ok(t.to_string());
+    }
+    let host = t.trim_start_matches("http://").trim_start_matches("https://").trim_end_matches('/');
+    let host = host.split('/').next().unwrap_or(host);
+    if host.is_empty() || host.contains(char::is_whitespace) {
+        return Err(format!("`{t}` is not an address"));
+    }
+    let with_port = if host.rsplit_once(':').is_some_and(|(_, p)| p.parse::<u16>().is_ok()) {
+        host.to_string()
+    } else {
+        format!("{host}:{}", episco_sync::DEFAULT_SYNC_PORT)
+    };
+    Ok(format!("ws://{with_port}/ws"))
+}
+
+/// Saves this computer's part (`master`, `slave` or `standalone`), the
+/// sanctuary computer's address for a slave, and a name, then restarts the
+/// app so the change takes effect.
+#[tauri::command]
+pub fn node_settings_save(
+    app: AppHandle,
+    role: episco_sync::NodeRole,
+    master: Option<String>,
+    name: Option<String>,
+) -> CmdResult<()> {
+    let path = crate::config_path(&app).ok_or("no settings folder")?;
+    let mut config: NodeConfig =
+        std::fs::read_to_string(&path).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default();
+    config.role = role;
+    if role == episco_sync::NodeRole::Slave {
+        config.master_url = master_url(master.as_deref().unwrap_or(""))?;
+    }
+    if let Some(n) = name.map(|n| n.trim().to_string()).filter(|n| !n.is_empty()) {
+        config.node_name = n;
+    }
+    config.validate()?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    }
+    let json = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    tracing::info!("node settings saved ({:?}); restarting", role);
+    app.restart()
+}
+
 #[tauri::command]
 pub fn get_snapshot(engine: State<'_, Engine>) -> Snapshot {
     engine.snapshot()
@@ -574,4 +664,20 @@ pub async fn save_service(app: AppHandle, engine: State<'_, Engine>, save_as: bo
     let saved = path.clone();
     engine.edit_service(|s| s.save_to(&saved).map_err(|e| e.to_string()))?;
     Ok(Some(path))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_sanctuary_computers_address() {
+        assert_eq!(master_url("192.168.1.20").unwrap(), "ws://192.168.1.20:7878/ws");
+        assert_eq!(master_url(" Sanctuary-Mac-mini.local ").unwrap(), "ws://Sanctuary-Mac-mini.local:7878/ws");
+        assert_eq!(master_url("10.0.0.5:9000").unwrap(), "ws://10.0.0.5:9000/ws");
+        assert_eq!(master_url("http://10.0.0.5/").unwrap(), "ws://10.0.0.5:7878/ws");
+        assert_eq!(master_url("ws://10.0.0.5:7878/ws").unwrap(), "ws://10.0.0.5:7878/ws");
+        assert!(master_url("").is_err() && master_url("two words").is_err());
+        assert!(!local_addresses().iter().any(|a| a == "127.0.0.1"));
+    }
 }
