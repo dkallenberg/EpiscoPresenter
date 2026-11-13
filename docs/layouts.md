@@ -9,11 +9,12 @@ sent to the live-stream computer with the service.
 | --- | --- | --- | --- |
 | Live Stream | Left side | Prayers, collects, dialogues (left panel) | Title, Reference, Subtitle, Text |
 | Live Stream | Bottom Bar | Psalms, Eucharistic Prayer | Title in the gold box, Musical setting image, Text (and an optional title in the bar) |
-| Live Stream | Lower Third | Readings, short responses over the camera | Title, Reference, Text |
+| Live Stream | Lower Third | Readings, short responses over the camera; the sermon (the preacher's name in the bar, "The Sermon" and the position above) | Title, Reference, Text |
 | Live Stream | Hymn | Hymns (wide left panel) | Title, Hymn number, Hymn title, Verses, Credits |
 | Sanctuary | Prayer | Prayers and dialogues | Title, Section heading, Text |
 | Sanctuary | Title | Title slides ("The First Reading / Joshua 24:1-3a") | Heading, Main title |
-| Sanctuary | Psalm | Psalm verses and antiphons | Psalm title, Verses, Antiphon music, Antiphon words |
+| Sanctuary | Sermon | The sermon, laid out like a reading's title slide ("The Sermon / The Very Rev. Jane Doe / Rector") | Heading, Preacher, Position |
+| Sanctuary | Psalm | Psalm verses and antiphons, and the music line before the Gospel | Psalm title, Verses, Antiphon music, Antiphon words |
 
 Every piece also has **Speaker labels & verse numbers** and **People (bold)
 lines** styles, which apply inside the text box.

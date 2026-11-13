@@ -352,6 +352,14 @@ function textBox(stage, T, shown, content, cls = "", limits = {}) {
   return box;
 }
 
+/** The preacher on a sermon slide: the first line of its text is the name
+ *  ("The Very Rev. Jane Doe"), the rest the position ("Rector"). */
+function preacher(slide) {
+  const para = (slide?.blocks ?? []).find((b) => b.kind === "paragraph" && !b.role);
+  const lines = (para?.lines ?? []).map((l) => l.map((s) => s.text).join("").trim()).filter(Boolean);
+  return { name: lines[0] ?? "", position: lines.slice(1).join(", ") };
+}
+
 /** What each element shows on this slide (absent: not shown). */
 function pieces(key, cue, slide) {
   const meta = cue.content.document?.meta ?? {};
@@ -366,6 +374,14 @@ function pieces(key, cue, slide) {
     if (!main) [main, small] = [small ?? cue.title, null];
     p.title = main;
     if (small) p.subtitle = small;
+    return p;
+  }
+
+  if (key === "sanctuary.sermon") {
+    const who = preacher(slide);
+    p.subtitle = heading ?? cue.title;
+    if (who.name) p.title = who.name;
+    if (who.position) p.position = who.position;
     return p;
   }
 
@@ -385,6 +401,14 @@ function pieces(key, cue, slide) {
   }
 
   if (key === "stream.lower_third") {
+    if (cue.category === "homily" && slide) {
+      // The preacher's name in the bar, "The Sermon" and the position above.
+      const who = preacher(slide);
+      p.title = heading ?? cue.title;
+      if (who.position) p.reference = who.position;
+      if (who.name) p.big = who.name;
+      return p;
+    }
     if (titleSlide) {
       if (cue.content.kind === "announcements" || !slide) p.big = cue.title;
       else {

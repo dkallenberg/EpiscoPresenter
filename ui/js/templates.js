@@ -126,6 +126,20 @@ export const SLIDE_TYPES = [
     },
   },
   {
+    key: "sanctuary.sermon",
+    output: "sanctuary",
+    label: "Sermon",
+    hint: "The sermon: “The Sermon”, the preacher and their position, laid out like a reading's title slide.",
+    layout: "centered",
+    background: "builtin:glass-light",
+    sample: "sermon",
+    elements: {
+      subtitle: { label: "Heading (The Sermon)", x: 70, y: 300, w: 1780, h: 130, size: 73, align: "center", valign: "bottom" },
+      title: { label: "Preacher", x: 70, y: 460, w: 1780, h: 170, size: 104, align: "center", valign: "top" },
+      position: { label: "Position", x: 70, y: 640, w: 1780, h: 120, size: 64, italic: true, align: "center", valign: "top" },
+    },
+  },
+  {
     key: "sanctuary.psalm",
     output: "sanctuary",
     label: "Psalm",
@@ -169,6 +183,7 @@ export { isAntiphonSlide };
 export function slideTypeFor(cue, slide, output, look) {
   if (output === "sanctuary") {
     if (look.layout === "lyrics" || look.layout === "info_bar" || look.layout === "lower_third") return null;
+    if (cue.category === "homily") return "sanctuary.sermon";
     if (!slide || cue.content.kind === "announcements" || !slide.blocks.length) return "sanctuary.title";
     // The music line before the Gospel is laid out like the psalm's.
     if (cue.category === "psalm" || (cue.category === "gospel" && isAntiphonSlide(slide))) return "sanctuary.psalm";

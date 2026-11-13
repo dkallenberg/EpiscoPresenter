@@ -84,6 +84,14 @@ function builtinSamples(type) {
           slide: { heading: "Verse 1", section_start: true, blocks: [para("1", "Lift up your heads, ye mighty gates;", "behold, the King of glory waits;", "the King of kings is drawing near;", "the Savior of the world is here!")] },
         },
       ];
+    case "sermon":
+      return [
+        {
+          label: "Sermon",
+          cue: makeCue("The Sermon", "homily", {}, []),
+          slide: { heading: "The Sermon", section_start: true, blocks: [para(null, "The Very Rev. Jane Doe", "Rector")] },
+        },
+      ];
     case "title":
       return [
         {
