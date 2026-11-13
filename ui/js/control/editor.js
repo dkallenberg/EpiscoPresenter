@@ -174,6 +174,7 @@ function render(c) {
         looks,
         metaForm(c),
         c.category === "psalm" ? psalmPanel(c) : null,
+        c.category === "gospel" ? gospelMusicPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
       c.category === "hymn" ? hymnPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
@@ -551,6 +552,37 @@ function hymnPanel(c) {
       "p.muted.small",
       {},
       "Hymn texts are mostly under copyright, so the app does not include the Hymnal 1982. Use words your parish is licensed to project. To bring in many at once: Library → Import hymns… (text files named like “436 Lift Up Your Heads.txt”).",
+    ),
+  );
+}
+
+// ----- the music before the Gospel -----
+
+/** The music line sung before the Gospel (a picture from the media
+ *  library). Its slide comes first: music, the announcement, the title, the
+ *  text, the response. */
+function gospelMusicPanel(c) {
+  const blocks = ed.doc.blocks;
+  const h = blocks.findIndex((b) => b.kind === "heading" && b.text === "Gospel Acclamation");
+  const img = h >= 0 ? blocks.slice(h + 1).find((b) => b.kind === "image") : null;
+  const set = async (path) => {
+    await flush(true);
+    const ok = await call("gospel_set_music", { id: c.id, src: path, alt: "Gospel Acclamation" });
+    if (ok !== undefined) toast(path ? "Music added before the Gospel" : "Music removed");
+  };
+  return el(
+    "details.section.reading-panel.gospel-music",
+    { open: true },
+    el("summary", {}, "Music before the Gospel", el("span.muted.small", {}, img ? " · on the first slide" : " · none")),
+    imageField("Music line", img?.src ?? null, set, "A picture of the Alleluia or Gospel acclamation, from the media library."),
+    el(
+      "div.reading-row",
+      {},
+      el(
+        "button.small",
+        { disabled: app.readonly, title: "Music (if any), the announcement, the title slide, the text, the response", onclick: () => set(img?.src ?? null) },
+        "Put the slides in order",
+      ),
     ),
   );
 }

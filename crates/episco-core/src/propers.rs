@@ -675,13 +675,15 @@ pub fn build_document_in(item: &ProperItem, day: Option<&str>, rite: crate::bcp:
             meta.title = "The Holy Gospel".into();
             meta.citation = Some(item.citation.clone());
             meta.category = Some(ElementCategory::Gospel);
-            blocks.push(Block::Heading { level: 1, text: "The Holy Gospel".into() });
-            blocks.push(Block::SlideBreak);
+            // The announcement, then the title slide, then (when added) the
+            // text, then the response: see `arrange_gospel`.
             blocks.push(Block::speech(
                 Role::Deacon,
                 [format!("The Holy Gospel of our Lord Jesus Christ according to {who}.")],
             ));
             blocks.push(Block::Paragraph { role: Some(Role::People), lines: vec![bold(glory)] });
+            blocks.push(Block::SlideBreak);
+            blocks.push(Block::Heading { level: 1, text: "The Holy Gospel".into() });
             blocks.push(Block::SlideBreak);
             blocks.push(Block::speech(Role::Deacon, ["The Gospel of the Lord."]));
             blocks.push(Block::Paragraph { role: Some(Role::People), lines: vec![bold(praise)] });
@@ -702,6 +704,67 @@ pub fn build_document_in(item: &ProperItem, day: Option<&str>, rite: crate::bcp:
         }
     }
     LiturgyDocument { meta, blocks }
+}
+
+// ---------------------------------------------------------------------------
+// The Gospel
+// ---------------------------------------------------------------------------
+
+/// Heading of the slide with the music sung before the Gospel.
+pub const GOSPEL_MUSIC: &str = "Gospel Acclamation";
+
+/// Puts a Gospel's slides in the order they are used: the music sung before
+/// it (when there is a picture of it), the announcement and its response
+/// ("The Holy Gospel of our Lord…" / "Glory to you, Lord Christ."), the
+/// title slide, then the rest (the text, "The Gospel of the Lord."…).
+/// `music`: `Some(Some((src, alt)))` sets the music line, `Some(None)`
+/// removes it, `None` keeps what is there.
+pub fn arrange_gospel(doc: &LiturgyDocument, music: Option<Option<(String, String)>>) -> LiturgyDocument {
+    // Slides: the blocks between slide breaks.
+    let mut slides: Vec<Vec<Block>> = vec![Vec::new()];
+    for b in &doc.blocks {
+        match b {
+            Block::SlideBreak => slides.push(Vec::new()),
+            other => slides.last_mut().expect("at least one slide").push(other.clone()),
+        }
+    }
+    slides.retain(|s| !s.is_empty());
+    let is_music = |s: &Vec<Block>| matches!(s.first(), Some(Block::Heading { text, .. }) if text == GOSPEL_MUSIC);
+    let is_title = |s: &Vec<Block>| s.len() == 1 && matches!(s[0], Block::Heading { .. });
+    let is_announcement = |s: &Vec<Block>| {
+        s.iter().any(|b| {
+            matches!(b, Block::Paragraph { role: Some(r), .. } if !r.is_congregational() && !r.is_rubric())
+                && b.plain_text().starts_with("The Holy Gospel of our Lord")
+        })
+    };
+    let mut music_slide = slides.iter().find(|s| is_music(s)).cloned();
+    if let Some(m) = music {
+        music_slide =
+            m.map(|(src, alt)| vec![Block::Heading { level: 1, text: GOSPEL_MUSIC.into() }, Block::Image { src, alt }]);
+    }
+    let announcement = slides.iter().position(|s| !is_music(s) && is_announcement(s));
+    let title = slides.iter().position(|s| !is_music(s) && is_title(s));
+    let mut ordered: Vec<Vec<Block>> = Vec::new();
+    ordered.extend(music_slide);
+    if let Some(a) = announcement {
+        ordered.push(slides[a].clone());
+    }
+    if let Some(t) = title {
+        ordered.push(slides[t].clone());
+    }
+    for (i, s) in slides.iter().enumerate() {
+        if Some(i) != announcement && Some(i) != title && !is_music(s) {
+            ordered.push(s.clone());
+        }
+    }
+    let mut blocks = Vec::new();
+    for (i, s) in ordered.into_iter().enumerate() {
+        if i > 0 {
+            blocks.push(Block::SlideBreak);
+        }
+        blocks.extend(s);
+    }
+    LiturgyDocument { meta: doc.meta.clone(), blocks }
 }
 
 // ---------------------------------------------------------------------------
@@ -934,6 +997,61 @@ pub fn rearrange_psalm(doc: &LiturgyDocument, opts: &PsalmOptions) -> LiturgyDoc
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_gospel_in_the_order_it_is_used() {
+        let item = ProperItem {
+            kind: ProperKind::Gospel,
+            citation: "Matthew 25:1-13".into(),
+            text: String::new(),
+            variant: None,
+            alternative: false,
+            verses: Vec::new(),
+            antiphon: None,
+            antiphon_every: 0,
+        };
+        let doc = build_document_in(&item, None, crate::bcp::Rite::Two);
+        let titles = |d: &LiturgyDocument| -> Vec<String> {
+            d.slides()
+                .iter()
+                .map(|s| match s.blocks.first() {
+                    None => format!("[{}]", s.heading.clone().unwrap_or_default()),
+                    Some(Block::Image { .. }) => "music".into(),
+                    Some(b) => b.plain_text().lines().next().unwrap_or_default().to_string(),
+                })
+                .collect()
+        };
+        assert_eq!(
+            titles(&doc),
+            [
+                "The Holy Gospel of our Lord Jesus Christ according to Matthew.",
+                "[The Holy Gospel]",
+                "The Gospel of the Lord."
+            ]
+        );
+        // The text goes after the title slide, before the closing response.
+        let with_text = crate::bible::set_reading_passage(
+            &doc,
+            "Then the kingdom of heaven will be like this.",
+            crate::bible::BibleVersion::Nrsvue,
+            40,
+        );
+        assert_eq!(titles(&with_text)[2], "Then the kingdom of heaven will be like this. (NRSVue)");
+        // Music first; set again replaces it; None removes it.
+        let m = arrange_gospel(&with_text, Some(Some(("media/alleluia.png".into(), "Alleluia".into()))));
+        assert_eq!(titles(&m)[0], "music");
+        assert_eq!(titles(&m)[1], "The Holy Gospel of our Lord Jesus Christ according to Matthew.");
+        assert_eq!(titles(&m).len(), 5);
+        let again = arrange_gospel(&m, Some(Some(("media/other.png".into(), "".into()))));
+        assert_eq!(titles(&again).len(), 5);
+        assert_eq!(titles(&arrange_gospel(&again, Some(None))), titles(&with_text));
+        // An older Gospel (title slide first) is put in order.
+        let old: LiturgyDocument = "---\ntitle: The Holy Gospel\ntype: gospel\n---\n# The Holy Gospel\n\n---\n\n[Deacon] The Holy Gospel of our Lord Jesus Christ according to Luke.\n[People] **Glory to you, Lord Christ.**\n\n---\n\n[Deacon] The Gospel of the Lord.\n[People] **Praise to you, Lord Christ.**\n".parse().unwrap();
+        assert_eq!(titles(&arrange_gospel(&old, None))[1], "[The Holy Gospel]");
+        // It still saves and loads cleanly.
+        let text = crate::ewm::to_string(&m);
+        assert!(crate::ewm::parse(&text).unwrap().warnings.is_empty());
+    }
 
     const PAGE: &str = "
 The Lectionary Page
@@ -1176,7 +1294,8 @@ Matthew 25:1–13
         assert_eq!(doc.meta.category, Some(ElementCategory::Gospel));
         assert_eq!(doc.meta.citation.as_deref(), Some("Matthew 25:1-13"));
         assert!(doc.blocks.iter().any(|b| b.plain_text().contains("according to Matthew")));
-        assert!(doc.slides()[0].is_title());
+        // The announcement comes first, then the title slide.
+        assert!(doc.slides()[1].is_title());
 
         let collect = build_document(&p.items[0], p.day.as_deref());
         assert_eq!(collect.meta.title, "Collect of the Day");

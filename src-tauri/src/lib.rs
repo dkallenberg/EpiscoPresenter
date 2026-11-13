@@ -217,6 +217,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::hymn_set_text,
         library::library_import_hymns,
         library::library_create_from_text,
+        library::gospel_set_music,
         media::media_list,
         media::media_import,
         media::media_delete,

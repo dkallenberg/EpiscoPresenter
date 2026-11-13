@@ -161,7 +161,7 @@ export function resolveTemplate(templates, key) {
 }
 
 const isAntiphonSlide = (slide) =>
-  /^antiphon$/i.test(slide?.heading ?? "") || (slide?.blocks ?? []).some((b) => /^antiphon$/i.test(b.role ?? ""));
+  /^(antiphon|gospel acclamation)$/i.test(slide?.heading ?? "") || (slide?.blocks ?? []).some((b) => /^antiphon$/i.test(b.role ?? ""));
 export { isAntiphonSlide };
 
 /** Which slide type renders this slide, or null for the fixed layouts
@@ -170,7 +170,9 @@ export function slideTypeFor(cue, slide, output, look) {
   if (output === "sanctuary") {
     if (look.layout === "lyrics" || look.layout === "info_bar" || look.layout === "lower_third") return null;
     if (!slide || cue.content.kind === "announcements" || !slide.blocks.length) return "sanctuary.title";
-    return cue.category === "psalm" ? "sanctuary.psalm" : "sanctuary.prayer";
+    // The music line before the Gospel is laid out like the psalm's.
+    if (cue.category === "psalm" || (cue.category === "gospel" && isAntiphonSlide(slide))) return "sanctuary.psalm";
+    return "sanctuary.prayer";
   }
   return (
     {

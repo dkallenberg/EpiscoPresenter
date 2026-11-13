@@ -136,6 +136,19 @@ closing response. The version's initials, e.g. "(NRSVue)", follow the last
 slide, as the NCC asks for use in services. **Remove text** goes back to the
 citation and responses only.
 
+### Music before the Gospel
+
+The Gospel's slides run in the order they are used: the music line (if
+any), the announcement ("The Holy Gospel of our Lord Jesus Christ according
+to …" / "Glory to you, Lord Christ."), the title slide, the text (if shown),
+and "The Gospel of the Lord." / "Praise to you, Lord Christ."
+
+Select the Gospel and open the **Editor**. In **Music before the Gospel**,
+**Choose…** a picture of the Alleluia or Gospel acclamation from the media
+library; it goes on the first slide, laid out like the psalm's antiphon
+music. **Remove** takes it off. **Put the slides in order** rearranges a
+Gospel made before this order (or edited by hand).
+
 ### Psalm layout (after importing)
 
 Select the psalm and open the **Editor**. The **Psalm layout** panel has:

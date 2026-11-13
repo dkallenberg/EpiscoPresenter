@@ -367,6 +367,24 @@ pub fn add_propers(
     insert_documents(&engine, docs, after)
 }
 
+/// The Gospel's music line (a picture from the media library, sung before
+/// it): `src` sets it (`None` removes it). The slides are put in order:
+/// music, the announcement, the title, the text, the response.
+#[tauri::command]
+pub fn gospel_set_music(
+    engine: State<'_, Engine>,
+    id: String,
+    src: Option<String>,
+    alt: Option<String>,
+) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
+        let music = src.filter(|p| !p.trim().is_empty()).map(|p| (p, alt.unwrap_or_default()));
+        let new = propers::arrange_gospel(doc, Some(music));
+        s.set_document(&id, new).map_err(|e| e.to_string())
+    })
+}
+
 /// Rebuilds a psalm cue's slides: antiphon (start, end, every N verses),
 /// verses per slide. Verses alternate plain (choir) and bold (congregation).
 /// With `verses_text`, the verses are replaced by those pasted.
