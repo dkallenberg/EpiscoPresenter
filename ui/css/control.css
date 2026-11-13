@@ -121,6 +121,8 @@ select:disabled { opacity: 0.6; }
 .slide-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
 .slide-card { padding: 6px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
 .slide-card.on-air { border-color: var(--live); box-shadow: 0 0 0 2px var(--live); }
+.slide-card.held .thumb { opacity: 0.5; }
+.slide-card.held .slide-label::after { content: " · holds"; color: var(--muted, #888); }
 .slide-label { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
 .slide-num { background: #34363f; color: var(--text); border-radius: 4px; padding: 0 6px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .slide-card.on-air .slide-num { background: var(--live); color: #fff; }
@@ -168,7 +170,9 @@ select:disabled { opacity: 0.6; }
 .kind-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #666; }
 .brow-heading { --bar: #ececf4; --accent: #444b6e; }
 .heading-input { font-size: 17px; font-weight: 700; color: #222; background: #fff; border-color: #ccd; }
-.brow-slide_break { --bar: #fafafa; --accent: #bbb; padding: 4px 12px; }
+.brow-slide_break, .brow-output_break { --bar: #fafafa; --accent: #bbb; padding: 4px 12px; grid-template-columns: 130px minmax(0, 1fr) auto auto; }
+.brow-output_break { --accent: #7a9cc6; }
+.break-on { font-size: 12px; padding: 2px 6px; }
 .break-line { border-top: 2px dashed #bbb; margin-top: 10px; text-align: center; font-size: 11px; color: #999; line-height: 0; }
 .brow-image { --bar: #f4f1ea; --accent: #8a6d1f; }
 .image-fields { display: flex; flex-direction: column; gap: 6px; }
@@ -376,6 +380,9 @@ details.past > summary { cursor: pointer; color: var(--muted); margin-bottom: 8p
 .lyt-color { display: flex; gap: 6px; align-items: center; }
 .lyt-color input[type=color] { width: 48px; height: 32px; padding: 2px; }
 .lyt-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.lyt-type-opts { border-top: 1px solid var(--line, #333); margin-top: 6px; padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.lyt-type-opts h4 { margin: 0; font-size: 13px; }
+.lyt-type-opts input[type=number] { width: 100%; }
 
 /* ---------------- Media library ---------------- */
 .seg.lib-views { margin-left: 0; flex: none; }

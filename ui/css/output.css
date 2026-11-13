@@ -47,6 +47,10 @@
 .rubric, .score, .score-missing { grid-column: 1 / -1; }
 .rubric { font-style: italic; font-size: calc(var(--label) * var(--fit)); padding-left: 2.6em; }
 .people .text { font-weight: 700; }
+/* Lines: indented as written (tabs), sense lines hanging under themselves. */
+.text .ln { padding-left: calc(var(--in, 0) * 1.1em); }
+.text .ln.hang { padding-left: calc((var(--in, 0) + 1) * 1.1em); text-indent: -1.1em; }
+.lt-center .ln, .antiphon-words .ln { padding-left: 0; text-indent: 0; }
 
 .score { display: block; max-width: 100%; max-height: 520px; object-fit: contain; background: #fff; justify-self: center; }
 .score-missing {

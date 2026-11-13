@@ -216,6 +216,7 @@ impl Engine {
                 let service = service.map(|mut s| {
                     s.templates = crate::templates::current();
                     s.library_root = crate::storage::root();
+                    s.rebuild_all();
                     s
                 });
                 hub.load_service(service);

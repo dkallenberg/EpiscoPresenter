@@ -20,6 +20,7 @@ pub mod category;
 pub mod document;
 pub mod docx;
 pub mod ewm;
+pub mod fit;
 pub mod hymn;
 pub mod lectionary;
 pub mod look;

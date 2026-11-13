@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::calendar::{liturgical_day, Date};
 use crate::category::ElementCategory;
-use crate::document::{Block, LiturgyDocument, Span};
+use crate::document::{split_indent, with_indent, Block, LiturgyDocument, Span};
 use crate::role::Role;
 use crate::service::{Cue, CueContent, Service};
 
@@ -229,6 +229,8 @@ impl Run {
 /// line still gets one (empty) run, so it can be typed into.
 fn runs_at(line: &[Span], force_bold: bool, block: usize, line_no: usize) -> Vec<Run> {
     let src = Some(Src { block, line: Some(line_no) });
+    // The indent is printed as an indent, not as tabs (see `indents_of`).
+    let (_, line) = split_indent(line);
     let mut out: Vec<Run> =
         line.iter().map(|s| Run { text: s.text.clone(), bold: s.bold || force_bold, italic: s.italic, src }).collect();
     if out.is_empty() {
@@ -239,6 +241,24 @@ fn runs_at(line: &[Span], force_bold: bool, block: usize, line_no: usize) -> Vec
 
 fn lines_at(lines: &[Vec<Span>], force_bold: bool, block: usize) -> Vec<Vec<Run>> {
     lines.iter().enumerate().map(|(j, l)| runs_at(l, force_bold, block, j)).collect()
+}
+
+/// Each line's indent as written (its leading tabs); empty when none is.
+fn indents_of(lines: &[Vec<Span>]) -> Vec<usize> {
+    let v: Vec<usize> = lines.iter().map(|l| split_indent(l).0).collect();
+    if v.iter().all(|&n| n == 0) {
+        Vec::new()
+    } else {
+        v
+    }
+}
+
+/// A psalm verse's indents, as the Prayer Book prints them: the second
+/// half-verse (and any line after it) a step in, and every other verse a
+/// step further.
+fn verse_indents(number: &str, lines: &[Vec<Span>]) -> Vec<usize> {
+    let even = number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
+    lines.iter().enumerate().map(|(j, l)| split_indent(l).0 + usize::from(j > 0) + usize::from(even)).collect()
 }
 
 /// One printed piece of an entry.
@@ -272,9 +292,13 @@ pub enum Piece {
         /// split), printed after a space rather than on a new line.
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         joins: Vec<usize>,
+        /// Each line's indent in steps (empty: none). Lines too long for the
+        /// column hang under themselves.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        indents: Vec<usize>,
     },
-    /// A psalm verse.
-    Verse { number: String, lines: Vec<Vec<Run>> },
+    /// A psalm verse, with each line's indent.
+    Verse { number: String, lines: Vec<Vec<Run>>, indents: Vec<usize> },
     /// Running text (a reading), one paragraph.
     Prose { runs: Vec<Run> },
     /// A picture, e.g. a line of music.
@@ -526,7 +550,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
         let was_break = after_break;
         after_break = false;
         match b {
-            Block::SlideBreak => after_break = true,
+            Block::SlideBreak | Block::OutputBreak { .. } => after_break = true,
             Block::Heading { .. } => {}
             Block::Image { src, alt } => {
                 if let Some(path) = resolve(src, cue, root) {
@@ -543,24 +567,46 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                     }
                 }
                 Some(Role::Custom(n)) if n.chars().next().is_some_and(|c| c.is_ascii_digit()) => {
-                    out.push(Piece::Verse { number: n.clone(), lines: lines_at(lines, false, i) });
+                    out.push(Piece::Verse {
+                        number: n.clone(),
+                        lines: lines_at(lines, false, i),
+                        indents: verse_indents(n, lines),
+                    });
                 }
                 Some(Role::Custom(a)) if a.eq_ignore_ascii_case("antiphon") || a.eq_ignore_ascii_case("refrain") => {
-                    out.push(Piece::Speech { label: None, lines: lines_at(lines, true, i), joins: Vec::new() });
+                    out.push(Piece::Speech {
+                        label: None,
+                        lines: lines_at(lines, true, i),
+                        joins: Vec::new(),
+                        indents: indents_of(lines),
+                    });
                 }
                 Some(r) => {
                     let new = lines_at(lines, r.is_congregational(), i);
                     // A paragraph the slides split: the same speaker straight
                     // after a slide break runs on in the bulletin and script.
                     match out.last_mut() {
-                        Some(Piece::Speech { label: Some(l), lines: prev, joins }) if was_break && l == r.label() => {
-                            joins.push(prev.len());
+                        Some(Piece::Speech { label: Some(l), lines: prev, joins, indents })
+                            if was_break && l == r.label() =>
+                        {
+                            let more = indents_of(lines);
+                            if !more.is_empty() || !indents.is_empty() {
+                                indents.resize(prev.len(), 0);
+                                indents.extend(if more.is_empty() { vec![0; new.len()] } else { more });
+                            }
+                            // Prose runs on; text set out in lines (the
+                            // Creed) carries on on a new line.
+                            let sense = lines.len() > 1 || lines.first().is_some_and(|l| split_indent(l).0 > 0);
+                            if !sense {
+                                joins.push(prev.len());
+                            }
                             prev.extend(new);
                         }
                         _ => out.push(Piece::Speech {
                             label: Some(r.label().to_string()),
                             lines: new,
                             joins: Vec::new(),
+                            indents: indents_of(lines),
                         }),
                     }
                 }
@@ -580,7 +626,12 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                             }
                         }
                     } else {
-                        out.push(Piece::Speech { label: None, lines: lines_at(lines, false, i), joins: Vec::new() });
+                        out.push(Piece::Speech {
+                            label: None,
+                            lines: lines_at(lines, false, i),
+                            joins: Vec::new(),
+                            indents: indents_of(lines),
+                        });
                     }
                 }
             },
@@ -780,13 +831,18 @@ pub fn edit_line(
                 return Err(stale());
             }
             match edit {
-                LineEdit::Set { spans } => lines[j] = tidy(spans),
+                // The preview shows indents, not tabs: keep the line's.
+                LineEdit::Set { spans } => {
+                    let indent = split_indent(&lines[j]).0;
+                    lines[j] = with_indent(&tidy(spans), indent);
+                }
                 LineEdit::Split { spans, rest } => {
-                    lines[j] = tidy(spans);
-                    lines.insert(j + 1, tidy(rest));
+                    let indent = split_indent(&lines[j]).0;
+                    lines[j] = with_indent(&tidy(spans), indent);
+                    lines.insert(j + 1, with_indent(&tidy(rest), indent));
                 }
                 LineEdit::JoinPrevious if j > 0 => {
-                    let cur = lines.remove(j);
+                    let cur = split_indent(&lines.remove(j)).1;
                     let mut joined = std::mem::take(&mut lines[j - 1]);
                     joined.extend(cur);
                     lines[j - 1] = tidy(joined);
@@ -833,6 +889,28 @@ fn html_runs(rs: &[Run]) -> String {
         i = j;
     }
     out
+}
+
+/// Lines each on its own (indented, hanging) line; `joins` run on.
+fn html_lines(lines: &[Vec<Run>], joins: &[usize], indents: &[usize]) -> String {
+    let mut body = String::new();
+    for (k, l) in lines.iter().enumerate() {
+        if k > 0 && joins.contains(&k) {
+            body.push(' ');
+            body.push_str(&html_runs(l));
+            continue;
+        }
+        if k > 0 {
+            body.push_str("</span>");
+        }
+        let n = indents.get(k).copied().unwrap_or(0);
+        body.push_str(&format!("<span class=\"ln\" style=\"--in:{n}\">"));
+        body.push_str(&html_runs(l));
+    }
+    if !lines.is_empty() {
+        body.push_str("</span>");
+    }
+    body
 }
 
 fn src_attr(s: Src) -> String {
@@ -913,24 +991,28 @@ pub fn to_html(doc: &Doc) -> String {
                     )),
                     None => h.push_str(&format!("<p class=\"rubric\">{}</p>", escape(text))),
                 },
-                Piece::Speech { label, lines, joins } => {
+                Piece::Speech { label, lines, joins, indents } => {
                     h.push_str("<div class=\"speech\">");
                     h.push_str(&format!("<span class=\"who\">{}</span>", escape(label.as_deref().unwrap_or(""))));
-                    let mut body = String::new();
-                    for (k, l) in lines.iter().enumerate() {
-                        if k > 0 {
-                            body.push_str(if joins.contains(&k) { " " } else { "<br>" });
+                    let body = if indents.is_empty() {
+                        let mut body = String::new();
+                        for (k, l) in lines.iter().enumerate() {
+                            if k > 0 {
+                                body.push_str(if joins.contains(&k) { " " } else { "<br>" });
+                            }
+                            body.push_str(&html_runs(l));
                         }
-                        body.push_str(&html_runs(l));
-                    }
+                        body
+                    } else {
+                        html_lines(lines, joins, indents)
+                    };
                     h.push_str(&format!("<span class=\"said\">{body}</span></div>"));
                 }
-                Piece::Verse { number, lines } => {
-                    let body: Vec<String> = lines.iter().map(|l| html_runs(l)).collect();
+                Piece::Verse { number, lines, indents } => {
                     h.push_str(&format!(
                         "<div class=\"verse\"><span class=\"num\">{}</span><span class=\"said\">{}</span></div>",
                         escape(number),
-                        body.join("<br>")
+                        html_lines(lines, &[], indents)
                     ));
                 }
                 Piece::Prose { runs } => h.push_str(&format!("<p class=\"prose\">{}</p>", html_runs(runs))),
@@ -1150,7 +1232,7 @@ mod tests {
                 .pieces
                 .iter()
                 .filter_map(|p| match p {
-                    Piece::Speech { label, lines, joins } => Some((label.clone(), lines.len(), joins.clone())),
+                    Piece::Speech { label, lines, joins, .. } => Some((label.clone(), lines.len(), joins.clone())),
                     _ => None,
                 })
                 .collect();
@@ -1231,6 +1313,49 @@ mod tests {
         s.rebuild_all();
         assert_eq!(labels(&script(&s, &ParishInfo::default())), ["Celebrant", "People", "Priest", ""]);
         // the same speaker carries on
+    }
+
+    #[test]
+    fn psalms_and_sense_lines_are_indented() {
+        let mut s = Service::default();
+        s.insert_cue(0, cue("---\ntitle: Psalm 123\ntype: psalm\nbulletin: full\n---\n[1] To you I lift up my eyes, *\nto you enthroned in the heavens.\n\n[2] As the eyes of servants *\nlook to the hand of their masters,\n"));
+        s.insert_cue(1, cue("---\ntitle: Creed\nbulletin: full\n---\n[All] **We believe in one God,**\n\t**the Father, the Almighty,**\n\n---\n\n[All]\n\t**Through him all things were made.**\n\t\t**he came down from heaven:**\n"));
+        s.rebuild_all();
+        for doc in [bulletin(&s, &ParishInfo::default()), script(&s, &ParishInfo::default())] {
+            let verses: Vec<Vec<usize>> = doc.entries[0]
+                .pieces
+                .iter()
+                .filter_map(|p| match p {
+                    Piece::Verse { indents, .. } => Some(indents.clone()),
+                    _ => None,
+                })
+                .collect();
+            // The second half-verse a step in; every other verse a step more.
+            assert_eq!(verses, [vec![0, 1], vec![1, 2]]);
+            let Some(Piece::Speech { lines, joins, indents, .. }) =
+                doc.entries[1].pieces.iter().find(|p| matches!(p, Piece::Speech { .. }))
+            else {
+                panic!()
+            };
+            // One speech (one label), the lines as written, the tabs gone.
+            assert_eq!(lines.len(), 4);
+            assert_eq!(indents, &[0, 1, 1, 2]);
+            assert!(joins.is_empty(), "lines carry on on new lines");
+            assert_eq!(lines[1][0].text, "the Father, the Almighty,");
+            let html = to_html(&doc);
+            assert!(html.contains("<span class=\"ln\" style=\"--in:2\">"), "{html}");
+            let docx = crate::docx::to_docx(&doc).unwrap();
+            assert!(!docx.is_empty());
+            if let Ok(p) = std::env::var("DOCX_OUT") {
+                std::fs::write(p, &docx).unwrap();
+            }
+        }
+        // An edit in the preview keeps the line's indent.
+        let d = s.cues[1].document().unwrap();
+        let edited =
+            edit_line(d, 0, Some(1), LineEdit::Set { spans: vec![Span::bold("the Father Almighty,")] }).unwrap();
+        let Block::Paragraph { lines, .. } = &edited.blocks[0] else { panic!() };
+        assert_eq!(split_indent(&lines[1]).0, 1);
     }
 
     #[test]

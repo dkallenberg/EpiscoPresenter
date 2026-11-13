@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::category::ElementCategory;
+use crate::look::Output;
 use crate::role::Role;
 use crate::season::{LiturgicalColor, Season};
 
@@ -91,6 +92,8 @@ pub enum Block {
     Image { alt: String, src: String },
     /// A lone `---` in the body — an explicit slide break.
     SlideBreak,
+    /// `--- stream` or `--- sanctuary`: a slide break on one screen only.
+    OutputBreak { output: Output },
 }
 
 impl Block {
@@ -116,9 +119,43 @@ impl Block {
             Block::Paragraph { lines, .. } => lines.iter().map(|l| line_plain_text(l)).collect::<Vec<_>>().join("\n"),
             Block::Heading { text, .. } => text.clone(),
             Block::Image { alt, .. } => alt.clone(),
-            Block::SlideBreak => String::new(),
+            Block::SlideBreak | Block::OutputBreak { .. } => String::new(),
         }
     }
+}
+
+/// Indent marker: a line's leading tabs are its indent level (`.ewm` files
+/// write them as tabs too). Renderers strip them and indent the line.
+pub const INDENT: char = '\t';
+
+/// A line's indent level and the line without its leading tabs.
+pub fn split_indent(line: &[Span]) -> (usize, Line) {
+    let mut level = 0;
+    let mut out = Vec::with_capacity(line.len());
+    let mut leading = true;
+    for span in line {
+        if leading {
+            let rest = span.text.trim_start_matches(INDENT);
+            level += span.text.len() - rest.len();
+            if rest.is_empty() {
+                continue;
+            }
+            leading = false;
+            out.push(Span { text: rest.to_string(), ..span.clone() });
+        } else {
+            out.push(span.clone());
+        }
+    }
+    (level, out)
+}
+
+/// A line indented `level` steps (replacing any indent it had).
+pub fn with_indent(line: &[Span], level: usize) -> Line {
+    let (_, mut bare) = split_indent(line);
+    if level > 0 {
+        bare.insert(0, Span::plain(INDENT.to_string().repeat(level)));
+    }
+    bare
 }
 
 /// A single line of formatted text.
@@ -202,6 +239,8 @@ impl LiturgyDocument {
         for block in &self.blocks {
             match block {
                 Block::SlideBreak => flush(&mut slides, &mut current, &heading, &mut fresh),
+                // One screen's breaks: see `crate::fit`.
+                Block::OutputBreak { .. } => {}
                 Block::Heading { text, .. } => {
                     if !current.is_empty() {
                         flush(&mut slides, &mut current, &heading, &mut fresh);

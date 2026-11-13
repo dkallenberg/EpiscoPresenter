@@ -4,7 +4,7 @@
 // Changes apply to every service and save as soon as they are made.
 
 import { backgroundCss, mountStage, renderTemplated } from "/js/render.js";
-import { FONTS, SLIDE_TYPES, resolveTemplate, slideType, slideTypeFor } from "/js/templates.js";
+import { FONTS, SLIDE_TYPES, resolveTemplate, slideType, slideTypeFor, typeOptions } from "/js/templates.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
 
 const STAGE_W = 1920;
@@ -124,7 +124,8 @@ function samples(type) {
   for (const cue of app.service?.cues ?? []) {
     const look = cue[type.output];
     if (!look || cue.content.kind !== "liturgy") continue;
-    const slides = cue.content.slides ?? [];
+    const own = type.output === "stream" ? cue.content.stream_slides : null;
+    const slides = own?.length ? own : cue.content.slides ?? [];
     for (let i = 0; i < slides.length && out.length < 40; i++) {
       if (slideTypeFor(cue, slides[i], type.output, look) === type.key) {
         out.push({ label: `${cue.title} · slide ${i + 1}`, cue, slide: slides[i], look });
@@ -521,6 +522,7 @@ function drawInspector(T) {
           el("input", { type: "checkbox", checked: !spec.hidden, disabled: app.readonly, onchange: (e) => setProp(name, "hidden", !e.target.checked) }),
           "Show this element",
         ),
+    textOptions(type, T),
     el(
       "div.lyt-actions",
       {},
@@ -533,6 +535,65 @@ function drawInspector(T) {
       "Positions are on the 1920 × 1080 screen. Text shrinks below its size when it would not fit its box. The text box grows upward into a title’s space on slides without a title.",
     ),
   ].filter(Boolean));
+}
+
+/** A slide type's own settings: how many lines a slide holds and how lines
+ *  are laid out (the slides are re-made to fit). */
+function setTypeOption(prop, value) {
+  const t = (lt.templates[lt.key] ??= { elements: {} });
+  if (value == null || value === "") delete t[prop];
+  else t[prop] = value;
+  save();
+  draw();
+}
+
+function textOptions(type, T) {
+  if (!T.text) return null;
+  const t = lt.templates[lt.key] ?? {};
+  const o = typeOptions(lt.templates, lt.key);
+  const stream = type.output === "stream";
+  // What the text box holds at its size (line height 1.25), as in fit.rs.
+  const holds = Math.max(1, Math.round(T.text.h / (T.text.size * 1.25)));
+  const lines = el("input", {
+    type: "number",
+    min: 1,
+    max: 30,
+    step: 1,
+    value: t.max_lines ?? "",
+    placeholder: stream ? `${holds} (fills the box)` : "As written",
+    disabled: app.readonly,
+    onchange: (e) => setTypeOption("max_lines", Number(e.target.value) > 0 ? Math.round(Number(e.target.value)) : null),
+  });
+  const breaks = el(
+    "select",
+    { disabled: app.readonly, onchange: (e) => setTypeOption("line_breaks", e.target.value || null) },
+    [["", `Default (${o.join && !t.line_breaks ? "run together" : "each line"})`], ["keep", "Each line on its own line"], ["join", "Run a paragraph's lines together"]].map(([v, l]) =>
+      el("option", { value: v, selected: v === (t.line_breaks ?? "") }, l),
+    ),
+  );
+  const check = (prop, value, label, title) =>
+    el(
+      "label.toggle",
+      { title },
+      el("input", { type: "checkbox", checked: value, disabled: app.readonly, onchange: (e) => setTypeOption(prop, e.target.checked) }),
+      label,
+    );
+  return el(
+    "div.lyt-type-opts",
+    {},
+    el("h4", {}, `Text on ${type.label} slides`),
+    el("label.field", {}, el("span", {}, "Lines per slide"), lines),
+    el(
+      "p.muted.small",
+      {},
+      stream
+        ? "The live stream runs written slides together while they fit and splits longer ones, at the end of a line or the nearest punctuation, keeping a response with the words it answers."
+        : "Empty: the slides stay as written. A number splits longer slides the same way the live stream does.",
+    ),
+    el("label.field", {}, el("span", {}, "Line breaks"), breaks),
+    check("hanging", o.hanging, "Hanging indent for long lines", "A line too long for the box carries on indented under itself, as in the Prayer Book (the Creed, the Lord's Prayer, psalm verses)"),
+    type.sample === "psalm" ? check("alternate_verses", o.alternate, "Indent every other psalm verse", "Even-numbered verses are indented a step") : null,
+  );
 }
 
 function resetElement(name) {

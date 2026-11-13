@@ -9,8 +9,10 @@
 export function linesToDom(editable, lines) {
   editable.replaceChildren();
   const list = lines.length ? lines : [[]];
-  for (const line of list) {
+  for (const raw of list) {
     const div = document.createElement("div");
+    const [level, line] = splitTabs(raw);
+    setIndent(div, level);
     for (const span of line) {
       let node = document.createTextNode(span.text);
       if (span.italic) node = wrap("i", node);
@@ -19,6 +21,31 @@ export function linesToDom(editable, lines) {
     }
     if (!div.childNodes.length) div.append(document.createElement("br"));
     editable.append(div);
+  }
+}
+
+/** A line's leading tabs (its indent) and the line without them. */
+function splitTabs(spans) {
+  let level = 0;
+  const out = [];
+  for (const s of spans) {
+    if (!out.length) {
+      const rest = s.text.replace(/^\t+/, "");
+      level += s.text.length - rest.length;
+      if (rest) out.push({ ...s, text: rest });
+    } else out.push(s);
+  }
+  return [level, out];
+}
+
+/** Shows a line div indented `level` steps (kept in data-indent). */
+export function setIndent(div, level) {
+  if (level > 0) {
+    div.dataset.indent = String(level);
+    div.style.paddingLeft = `${level * 1.5}em`;
+  } else {
+    delete div.dataset.indent;
+    div.style.paddingLeft = "";
   }
 }
 
@@ -44,8 +71,12 @@ function isItalic(node) {
  *  line would end the block in .ewm) and each line is trimmed. */
 export function domToLines(editable) {
   const lines = [[]];
+  const indents = [0];
   const newLine = () => {
-    if (lines[lines.length - 1].length) lines.push([]);
+    if (lines[lines.length - 1].length) {
+      lines.push([]);
+      indents.push(0);
+    }
   };
   const push = (text, bold, italic) => {
     text = text.replace(/ /g, " ").replace(/[\r\n]+/g, " ");
@@ -61,6 +92,7 @@ export function domToLines(editable) {
     if (node.nodeName === "BR") return newLine();
     const block = BLOCK_TAGS.has(node.nodeName);
     if (block) newLine();
+    if (block && node.dataset?.indent) indents[lines.length - 1] = Number(node.dataset.indent) || 0;
     const b = bold || isBold(node);
     const i = italic || isItalic(node);
     node.childNodes.forEach((c) => walk(c, b, i));
@@ -69,9 +101,13 @@ export function domToLines(editable) {
   editable.childNodes.forEach((c) => walk(c, false, false));
 
   return lines
-    .map((line) => trimLine(line))
-    .filter((line) => line.length)
-    .map((line) => line.map(({ text, bold, italic }) => compact({ text, bold, italic })));
+    .map((line, i) => [indents[i] ?? 0, trimLine(line)])
+    .filter(([, line]) => line.length)
+    .map(([level, line]) => {
+      const out = line.map(({ text, bold, italic }) => compact({ text, bold, italic }));
+      if (level > 0) out.unshift({ text: "\t".repeat(level) });
+      return out;
+    });
 }
 
 function trimLine(line) {

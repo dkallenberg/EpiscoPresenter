@@ -23,11 +23,29 @@ pub struct SlideTemplate {
     /// Element name (`text`, `title`, `tag`, …) → changed properties.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub elements: BTreeMap<String, ElementStyle>,
+    /// Lines of text a slide holds (default: what the text box holds at its
+    /// type size). Longer slides are split; see [`crate::fit`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_lines: Option<u32>,
+    /// `keep`: each line of the text on its own line (the Prayer Book's
+    /// sense lines); `join`: a paragraph's lines run together.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub line_breaks: Option<String>,
+    /// Lines too long for the box carry on indented under themselves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hanging: Option<bool>,
+    /// Psalms: every other verse is indented.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alternate_verses: Option<bool>,
 }
 
 impl SlideTemplate {
     pub fn is_empty(&self) -> bool {
         self.elements.values().all(ElementStyle::is_empty)
+            && self.max_lines.is_none()
+            && self.line_breaks.is_none()
+            && self.hanging.is_none()
+            && self.alternate_verses.is_none()
     }
 }
 

@@ -38,6 +38,39 @@ slides that have no title.
 
 The sanctuary hymn lyrics and the welcome bar keep their fixed layouts.
 
+## How much text a slide holds
+
+Under the element settings, **Text on … slides** sets, for each slide type
+with a text box:
+
+| Setting | What it does |
+| --- | --- |
+| Lines per slide | How many lines of text a slide holds. Empty on the live stream: what the text box holds at its type size (Left side 14, Bottom Bar 6, Lower Third 2, Hymn 13); moving or resizing the text box, or changing its size, changes it. Empty on the sanctuary: the slides stay as written. |
+| Line breaks | *Each line on its own line* (the Prayer Book's sense lines) or *Run a paragraph's lines together* (the default for the stream's hymn verses). |
+| Hanging indent for long lines | A line too long for the box carries on indented under itself, as the Prayer Book prints the Creed, the Lord's Prayer and the psalms. Text written as one long paragraph wraps as usual. |
+| Indent every other psalm verse | Even-numbered verses are indented a step (on for the stream, off for the sanctuary; always on in the bulletin and script). The second half of each verse is always on its own line, a step in. |
+
+The slides of each item are made to fit:
+
+* **The sanctuary** keeps the slides as written (the `---` breaks in the
+  item). With **Lines per slide** set, a longer slide is split.
+* **The live stream** runs the written slides together while they fit, two
+  verses of a hymn or more of a prayer to a slide, and splits a slide that is
+  clearly too long (one only a little long shrinks to fit, as before). A new
+  section (a heading), a picture or a title slide always starts a new slide.
+* A split falls at the end of a line where it can, otherwise at the
+  punctuation nearest the end of the room (a full stop, semicolon or colon
+  before a comma, a comma before a space). A short response stays on the
+  slide of the words it answers, and a rubric with what follows it.
+
+**Next** steps through both screens together: a step starts wherever either
+screen starts a slide, and the other screen holds its slide. In the
+**Slides** tab, a step where the screen being shown holds is dimmed and
+marked *holds*.
+
+To break a slide on one screen only, change a slide break in the Editor from
+**Both screens** to **Sanctuary only** or **Live stream only**.
+
 ## The “People” label
 
 Choose **People (bold) lines** as the element on any slide type and untick

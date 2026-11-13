@@ -36,6 +36,7 @@
 .doc .speech, .doc .verse { display: grid; grid-template-columns: 0.75in 1fr; margin: 0 0 0.3em; }
 .doc.script .speech { grid-template-columns: 1.25in 1fr; }
 .doc .verse { grid-template-columns: 0.375in 1fr; }
+.doc .said .ln { display: block; padding-left: calc((var(--in, 0) + 1) * 0.25in); text-indent: -0.25in; }
 .doc .who { font-style: italic; }
 .doc .prose { text-align: justify; margin: 0 0 0.4em; }
 .doc .music { text-align: center; margin: 0.3em 0; }

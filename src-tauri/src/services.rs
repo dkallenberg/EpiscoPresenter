@@ -1009,8 +1009,14 @@ mod tests {
         template.insert_cue(5, Cue::liturgy("", reading, Some("/old/reading.ewm".into()), CueOverrides::default()));
         template.insert_cue(5, Cue::liturgy("", collect, Some("/old/collect.ewm".into()), CueOverrides::default()));
         template.cues[2].content = match template.cues[2].content.clone() {
-            episco_core::CueContent::Liturgy { document, slides, .. } => {
-                episco_core::CueContent::Liturgy { source: Some("/old/x.ewm".into()), document, slides }
+            episco_core::CueContent::Liturgy { document, slides, stream_slides, stream_at, .. } => {
+                episco_core::CueContent::Liturgy {
+                    source: Some("/old/x.ewm".into()),
+                    document,
+                    slides,
+                    stream_slides,
+                    stream_at,
+                }
             }
             other => other,
         };

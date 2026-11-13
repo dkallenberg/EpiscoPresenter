@@ -150,6 +150,54 @@ fn lines_joined_xml(lines: &[Vec<Run>], joins: &[usize], extra: &str) -> String 
 }
 
 impl Writer<'_> {
+    /// Lines each a paragraph, indented `indents` steps from the text column
+    /// at `col`, too-long lines hanging under themselves; the first line
+    /// starts with `lead` (the speaker or verse number) in the margin.
+    fn indented_lines(
+        &mut self,
+        style: &str,
+        lead: &str,
+        lines: &[Vec<Run>],
+        joins: &[usize],
+        indents: &[usize],
+        col: u32,
+    ) {
+        const STEP: u32 = 360;
+        const TURN: u32 = 360;
+        let mut k = 0;
+        let n = lines.len();
+        while k < n {
+            // Lines that run on join this paragraph.
+            let mut end = k + 1;
+            while end < n && joins.contains(&end) {
+                end += 1;
+            }
+            let at = col + STEP * indents.get(k).copied().unwrap_or(0) as u32;
+            let mut x = String::new();
+            if k == 0 {
+                x.push_str(lead);
+                x.push_str("<w:r><w:tab/></w:r>");
+            }
+            for (i, l) in lines[k..end].iter().enumerate() {
+                if i > 0 {
+                    x.push_str("<w:r><w:t xml:space=\"preserve\"> </w:t></w:r>");
+                }
+                for r in l {
+                    x.push_str(&run_xml(r, ""));
+                }
+            }
+            let hanging = if k == 0 { at + TURN } else { TURN };
+            let before = if k == 0 { "" } else { " w:before=\"0\"" };
+            let after = if end == n { "" } else { " w:after=\"0\"" };
+            let ppr = format!(
+                "<w:tabs><w:tab w:val=\"left\" w:pos=\"{at}\"/></w:tabs><w:spacing{before}{after}/><w:ind w:left=\"{}\" w:hanging=\"{hanging}\"/>",
+                at + TURN
+            );
+            self.para(style, &ppr, &x);
+            k = end;
+        }
+    }
+
     fn para(&mut self, style: &str, ppr: &str, content: &str) {
         self.body.push_str(&format!("<w:p><w:pPr><w:pStyle w:val=\"{style}\"/>{ppr}</w:pPr>{content}</w:p>"));
     }
@@ -220,7 +268,15 @@ impl Writer<'_> {
                 let props = self.rubric_props();
                 self.para("Rubric", "", &text_run(text, &props));
             }
-            Piece::Speech { label, lines, joins } => {
+            Piece::Speech { label, lines, joins, indents } if !indents.is_empty() => {
+                let first =
+                    label.as_deref().filter(|l| !l.is_empty()).map(|l| text_run(l, "<w:i/>")).unwrap_or_default();
+                self.indented_lines("Speech", &first, lines, joins, indents, page.hang);
+            }
+            Piece::Verse { number, lines, indents } if !indents.is_empty() => {
+                self.indented_lines("Verse", &text_run(number, ""), lines, &[], indents, page.hang / 2);
+            }
+            Piece::Speech { label, lines, joins, .. } => {
                 let mut x = String::new();
                 if let Some(l) = label.as_deref().filter(|l| !l.is_empty()) {
                     x.push_str(&text_run(l, "<w:i/>"));
@@ -233,7 +289,7 @@ impl Writer<'_> {
                 );
                 self.para("Speech", &ind, &x);
             }
-            Piece::Verse { number, lines } => {
+            Piece::Verse { number, lines, .. } => {
                 let x = format!("{}<w:r><w:tab/></w:r>{}", text_run(number, ""), lines_xml(lines, ""));
                 let h = page.hang / 2;
                 let ind = format!(

@@ -159,6 +159,8 @@ pub struct BuildContext<'a> {
     pub bishop: bool,
     /// No deacon: Deacon parts are shown as Priest.
     pub no_deacon: bool,
+    /// The slide layouts (how much text each slide type holds).
+    pub templates: Option<&'a crate::template::Templates>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -170,7 +172,14 @@ pub enum CueContent {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         source: Option<PathBuf>,
         document: Box<LiturgyDocument>,
+        /// The steps through the item, each with the sanctuary's slide.
         slides: Vec<Slide>,
+        /// The live stream's slides, when they differ (see [`crate::fit`]).
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stream_slides: Vec<Slide>,
+        /// The stream's slide at each step.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        stream_at: Vec<usize>,
     },
     /// The Google Slides announcements deck.
     Announcements {
@@ -210,7 +219,13 @@ impl Cue {
         Cue::assemble(
             id.into(),
             overrides,
-            CueContent::Liturgy { source, document: Box::new(document), slides: Vec::new() },
+            CueContent::Liturgy {
+                source,
+                document: Box::new(document),
+                slides: Vec::new(),
+                stream_slides: Vec::new(),
+                stream_at: Vec::new(),
+            },
         )
     }
 
@@ -243,33 +258,7 @@ impl Cue {
         let o = &self.overrides;
         let mut file_background = None;
         match &mut self.content {
-            CueContent::Liturgy { document, slides, .. } => {
-                *slides = document.slides();
-                // A reading's slides show its title and responses; the
-                // scripture itself only when the item asks (`slide_text: true`).
-                // The bulletin and script print it in full either way.
-                let category = o.category.unwrap_or_else(|| document.meta.effective_category());
-                if matches!(category, ElementCategory::Reading | ElementCategory::Gospel)
-                    && document.meta.extra(SLIDE_TEXT) != Some("true")
-                {
-                    // Title slides (a heading alone) stay; slides left empty go.
-                    slides.retain_mut(|slide| {
-                        if slide.blocks.is_empty() {
-                            return true;
-                        }
-                        slide.blocks.retain(|b| !matches!(b, Block::Paragraph { role: None, .. }));
-                        !slide.blocks.is_empty()
-                    });
-                }
-                if ctx.bishop || ctx.no_deacon {
-                    for slide in slides.iter_mut() {
-                        for block in &mut slide.blocks {
-                            if let Block::Paragraph { role: Some(r), .. } = block {
-                                *r = r.at_service(ctx.bishop, ctx.no_deacon);
-                            }
-                        }
-                    }
-                }
+            CueContent::Liturgy { document, .. } => {
                 let meta = &document.meta;
                 self.category = o.category.unwrap_or_else(|| meta.effective_category());
                 self.color = meta.effective_color().or(ctx.color);
@@ -317,6 +306,40 @@ impl Cue {
             match output {
                 Output::Sanctuary => self.sanctuary = resolved,
                 Output::Stream => self.stream = resolved,
+            }
+        }
+        self.fit_slides(ctx);
+    }
+
+    /// The slides of both screens, fitted to their slide types.
+    fn fit_slides(&mut self, ctx: &BuildContext) {
+        let category = self.category;
+        let sanctuary_key = crate::fit::slide_type(Output::Sanctuary, self.sanctuary.layout, category);
+        let stream_key = crate::fit::slide_type(Output::Stream, self.stream.layout, category);
+        let CueContent::Liturgy { document, slides, stream_slides, stream_at, .. } = &mut self.content else {
+            return;
+        };
+        // A reading's slides show its title and responses; the scripture
+        // itself only when the item asks (`slide_text: true`). The bulletin
+        // and script print it in full either way.
+        let reading = matches!(category, ElementCategory::Reading | ElementCategory::Gospel)
+            && document.meta.extra(SLIDE_TEXT) != Some("true");
+        let keep = |b: &Block| !(reading && matches!(b, Block::Paragraph { role: None, .. }));
+        let none = crate::template::Templates::new();
+        let templates = ctx.templates.unwrap_or(&none);
+        let sanctuary = crate::fit::capacity(sanctuary_key, templates);
+        let stream = crate::fit::capacity(stream_key, templates);
+        let fitted = crate::fit::fit(document, sanctuary, stream, &keep);
+        *slides = fitted.steps;
+        *stream_slides = fitted.stream;
+        *stream_at = fitted.stream_at;
+        if ctx.bishop || ctx.no_deacon {
+            for slide in slides.iter_mut().chain(stream_slides.iter_mut()) {
+                for block in &mut slide.blocks {
+                    if let Block::Paragraph { role: Some(r), .. } = block {
+                        *r = r.at_service(ctx.bishop, ctx.no_deacon);
+                    }
+                }
             }
         }
     }
@@ -374,6 +397,7 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            templates: Some(&self.templates),
         }
     }
 
@@ -385,6 +409,7 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            templates: Some(&self.templates),
         };
         for cue in &mut self.cues {
             cue.rebuild(&ctx);
@@ -450,8 +475,9 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            templates: None,
         };
-        let Service { cues, looks, .. } = self;
+        let Service { cues, looks, templates, .. } = self;
         let cue = &mut cues[i];
         match &mut cue.content {
             CueContent::Liturgy { document: d, .. } => **d = document,
@@ -460,7 +486,7 @@ impl Service {
             }
         }
         cue.modified = true;
-        cue.rebuild(&BuildContext { looks: Some(looks), ..ctx });
+        cue.rebuild(&BuildContext { looks: Some(looks), templates: Some(templates), ..ctx });
         Ok(())
     }
 
@@ -473,10 +499,11 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            templates: None,
         };
-        let Service { cues, looks, .. } = self;
+        let Service { cues, looks, templates, .. } = self;
         cues[i].overrides = overrides;
-        cues[i].rebuild(&BuildContext { looks: Some(looks), ..ctx });
+        cues[i].rebuild(&BuildContext { looks: Some(looks), templates: Some(templates), ..ctx });
         self.modified = true;
         Ok(())
     }

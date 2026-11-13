@@ -128,11 +128,35 @@ Text with no tag forms a block with no speaker.
 | --- | --- |
 | `# Heading` … `###### Heading` | Section title. Starts a new slide and is shown as that slide's heading. |
 | `---` (three or more dashes, alone on a line) | Explicit slide break. |
+| `--- stream` / `--- sanctuary` | A slide break on that screen only. |
+| Leading tabs (or every three spaces) on a line | Indent: one step each, as the Prayer Book sets the Creed and the Lord's Prayer. |
 | `![alt text](path/to/image.png)` alone on a line | Sheet-music snippet or other image, shown full-width. |
 | `<!-- comment -->` | Ignored. May span several lines. |
 
 A line that would otherwise be read as syntax can be escaped with a leading
 backslash: `\[Not a role]`, `\# not a heading`.
+
+### Indents
+
+A line's leading tabs indent it, one step a tab (three spaces count as a
+tab). Write a paragraph whose first line is indented with its tag on a line
+of its own:
+
+```markdown
+[All] **We believe in one God,**
+	**the Father, the Almighty,**
+	**maker of heaven and earth,**
+
+---
+
+[All]
+	**Through him all things were made.**
+		**he came down from heaven:**
+```
+
+Psalm verses need no tabs: the second half-verse is indented on every
+screen and in the bulletin. In the Editor, **Tab** and **⇧Tab** indent and
+outdent the line the cursor is on.
 
 ### Slides
 
@@ -152,6 +176,11 @@ citation large beneath it; on the stream it shows as a lower-third title.
 ```
 
 Other empty slides are dropped.
+
+These are the sanctuary's slides. The live stream runs them together where
+they fit and splits ones too long for its boxes (see
+[layouts.md](layouts.md#how-much-text-a-slide-holds)). `--- stream` and
+`--- sanctuary` break one screen only.
 
 How slides look (background, layout and text colours) is set per cue and per
 output, not in the `.ewm` file. See [backgrounds.md](backgrounds.md).

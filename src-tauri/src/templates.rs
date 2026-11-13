@@ -52,6 +52,8 @@ fn store(app: &AppHandle, engine: &Engine, mut templates: Templates) -> CmdResul
         let t = templates.clone();
         engine.edit_service(move |s| {
             s.templates = t;
+            // How much text a slide holds can change the slides.
+            s.rebuild_all();
             Ok(())
         })?;
     }

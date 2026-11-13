@@ -160,6 +160,23 @@ export const SLIDE_TYPES = [
 
 export const slideType = (key) => SLIDE_TYPES.find((t) => t.key === key);
 
+/** How a slide type lays out lines, with the operator's changes:
+ *  `join` runs a paragraph's lines together (the stream's hymn verses);
+ *  `hanging` carries a too-long line on indented under itself; `alternate`
+ *  indents every other psalm verse (the stream's psalms). `lines` is the
+ *  number of lines a slide holds (null: as the text box holds, or on the
+ *  sanctuary as written). */
+export function typeOptions(templates, key) {
+  const t = templates?.[key] ?? {};
+  const stream = key?.startsWith("stream.");
+  return {
+    join: t.line_breaks ? t.line_breaks === "join" : key === "stream.hymn",
+    hanging: t.hanging ?? true,
+    alternate: t.alternate_verses ?? stream,
+    lines: t.max_lines ?? null,
+  };
+}
+
 /** The slide type's elements with the operator's changes applied. */
 export function resolveTemplate(templates, key) {
   const type = slideType(key);

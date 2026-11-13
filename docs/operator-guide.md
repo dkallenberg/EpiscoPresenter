@@ -72,7 +72,10 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
   dialogue (after Priest comes People, after People the previous speaker). The
   small buttons beside it add a **§ Heading** (starts a new slide with a
   title), a **⎯ Slide break**, or a **♪ Music** snippet (an image).
-* Each line in a row is one line on screen. Press Enter for a new line.
+* A slide break's menu makes it a break on **Both screens**, the
+  **Sanctuary only** or the **Live stream only**.
+* Each line in a row is one line on screen. Press Enter for a new line,
+  **Tab** / **⇧Tab** to indent or outdent it.
 * Hover a row for ↑ ↓ ✕.
 * **On-air protection:** while the item you are editing is on air, edits are
   held, and a red banner offers *Apply to screens* or *Discard*. Untick **Hold
@@ -143,7 +146,11 @@ The raw `.ewm` text of the selected item. **Apply** parses it and applies it
 * **Sanctuary** and **Live Stream** previews show exactly what each
   output shows (the stream preview's checkerboard is transparent).
 * **NOW / NEXT** name the current and following slide.
-* **Prev / Next**, then **Clear Text**, **Blackout**, **Clear Media** and
+* **Prev / Next** step both screens together. Where the live stream runs
+  the sanctuary's slides together (or splits a long one), one screen holds
+  its slide while the other moves on; see
+  [layouts.md](layouts.md#how-much-text-a-slide-holds).
+* Then **Clear Text**, **Blackout**, **Clear Media** and
   **Pre-Service**. A button stays red while its effect is active. Clear Text
   and Clear Media reset when you move to another slide; Blackout stays on until
   you press it again.

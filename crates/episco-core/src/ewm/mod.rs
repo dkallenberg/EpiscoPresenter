@@ -28,7 +28,8 @@ use std::path::Path;
 
 use serde::Serialize;
 
-use crate::document::{Block, FrontMatter, Line, LiturgyDocument};
+use crate::document::{split_indent, with_indent, Block, FrontMatter, Line, LiturgyDocument};
+use crate::look::Output;
 use crate::role::Role;
 
 pub use inline::{parse_inline, write_inline};
@@ -141,6 +142,11 @@ pub fn parse(src: &str) -> Result<Parsed, ParseError> {
             parser.blocks.push(Block::SlideBreak);
             continue;
         }
+        if let Some(output) = output_break(line) {
+            parser.close();
+            parser.blocks.push(Block::OutputBreak { output });
+            continue;
+        }
         if let Some((level, text)) = parse_heading(line) {
             parser.close();
             parser.blocks.push(Block::Heading { level, text: text.to_string() });
@@ -160,10 +166,19 @@ pub fn parse(src: &str) -> Result<Parsed, ParseError> {
             parser.open = Some(Open { role: Some(role), lines, line_no });
             continue;
         }
+        let indent = indent_of(raw);
+        let parsed = |w: &mut Vec<Warning>| {
+            let l = parse_line(line, line_no, w);
+            if indent > 0 {
+                with_indent(&l, indent)
+            } else {
+                l
+            }
+        };
         match &mut parser.open {
-            Some(open) => open.lines.push(parse_line(line, line_no, parser.warnings)),
+            Some(open) => open.lines.push(parsed(parser.warnings)),
             None => {
-                let first = parse_line(line, line_no, parser.warnings);
+                let first = parsed(parser.warnings);
                 parser.open = Some(Open { role: None, lines: vec![first], line_no })
             }
         }
@@ -217,6 +232,42 @@ impl BodyParser<'_> {
 
 fn is_slide_break(line: &str) -> bool {
     line.len() >= 3 && line.bytes().all(|b| b == b'-')
+}
+
+/// `--- stream` / `--- sanctuary`: a slide break on one screen only.
+fn output_break(line: &str) -> Option<Output> {
+    let dashes = line.bytes().take_while(|&b| b == b'-').count();
+    if dashes < 3 {
+        return None;
+    }
+    match line[dashes..].trim().to_ascii_lowercase().as_str() {
+        "stream" | "live stream" => Some(Output::Stream),
+        "sanctuary" => Some(Output::Sanctuary),
+        _ => None,
+    }
+}
+
+/// A line's indent: leading tabs, or every three spaces.
+fn indent_of(raw: &str) -> usize {
+    let mut level = 0;
+    let mut spaces = 0;
+    for c in raw.chars() {
+        match c {
+            '\t' => {
+                level += 1;
+                spaces = 0;
+            }
+            ' ' => {
+                spaces += 1;
+                if spaces == 3 {
+                    level += 1;
+                    spaces = 0;
+                }
+            }
+            _ => break,
+        }
+    }
+    level
 }
 
 fn parse_heading(line: &str) -> Option<(u8, &str)> {
@@ -276,17 +327,24 @@ pub fn to_string(doc: &LiturgyDocument) -> String {
         match block {
             Block::Paragraph { role, lines } => {
                 for (i, line) in lines.iter().enumerate() {
-                    let text = write_inline(line);
+                    let (indent, bare) = split_indent(line);
+                    let text = write_inline(&bare);
                     if i == 0 {
                         if let Some(role) = role {
                             out.push('[');
                             out.push_str(role.label());
-                            out.push_str("] ");
-                            out.push_str(&text);
+                            out.push(']');
+                            if indent == 0 {
+                                out.push(' ');
+                                out.push_str(&text);
+                                out.push('\n');
+                                continue;
+                            }
+                            // An indented first line goes under the tag.
                             out.push('\n');
-                            continue;
                         }
                     }
+                    out.push_str(&"\t".repeat(indent));
                     out.push_str(&escape_line_start(&text));
                     out.push('\n');
                 }
@@ -304,6 +362,8 @@ pub fn to_string(doc: &LiturgyDocument) -> String {
             }
             Block::Image { alt, src } => out.push_str(&format!("![{alt}]({src})\n")),
             Block::SlideBreak => out.push_str("---\n"),
+            Block::OutputBreak { output: Output::Stream } => out.push_str("--- stream\n"),
+            Block::OutputBreak { output: Output::Sanctuary } => out.push_str("--- sanctuary\n"),
         }
         prev = Some(block);
     }

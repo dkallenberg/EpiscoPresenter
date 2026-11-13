@@ -4,7 +4,7 @@
 
 import { send } from "/js/bridge.js";
 import { load as loadDeck, loopSlide, onDeckChange, pageCount } from "/js/deckpdf.js";
-import { mountStage, renderOutput } from "/js/render.js";
+import { mountStage, renderOutput, slideFor } from "/js/render.js";
 import { app, el, slideSummary } from "/js/control/util.js";
 
 let grid;
@@ -120,13 +120,21 @@ function build() {
       cue.content.kind === "liturgy" && cue.content.slides.length
         ? cue.content.slides
         : Array.from({ length: cue.content.kind === "announcements" ? Math.max(1, cue.content.slides ?? 1) : 1 }, () => null);
+    const at = cue.content.stream_at ?? [];
+    // A step where this screen keeps the slide before while the other one
+    // moves on (the stream runs text together or splits it differently).
+    const held = (si) =>
+      si > 0 && at.length > 0 && (output === "stream" ? at[si] === at[si - 1] : JSON.stringify(slides[si]) === JSON.stringify(slides[si - 1]));
     const cards = slides.map((slide, si) => {
       const thumb = el("div.thumb");
+      const holds = held(si);
       const card = el(
-        "button.slide-card",
+        `button.slide-card${holds ? ".held" : ""}`,
         {
           dataset: { cue: ci, slide: si },
-          title: slideSummary(slide),
+          title: holds
+            ? `This screen keeps the slide before; the ${output === "stream" ? "sanctuary" : "live stream"} moves on.`
+            : slideSummary(slideFor(cue, si, output) ?? slide),
           onclick: () => {
             app.select(cue.id);
             send({ type: "go_to", cue: ci, slide: si });

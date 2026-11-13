@@ -8,7 +8,7 @@
 // never reach the sanctuary screen.
 
 import { assetUrl } from "/js/bridge.js";
-import { domToLines, linesToDom } from "/js/control/richtext.js";
+import { domToLines, linesToDom, setIndent } from "/js/control/richtext.js";
 import { saveCueToLibrary } from "/js/control/library.js";
 import { lookCards, lookPanel } from "/js/control/looks.js";
 import { pickMedia } from "/js/control/media.js";
@@ -740,7 +740,7 @@ function insertAntiphon(index) {
   let group;
   if (start >= 0) {
     let end = start + 1;
-    while (end < blocks.length && blocks[end].kind !== "heading" && blocks[end].kind !== "slide_break") end++;
+    while (end < blocks.length && blocks[end].kind !== "heading" && blocks[end].kind !== "slide_break" && blocks[end].kind !== "output_break") end++;
     group = clone(blocks.slice(start, end));
   } else {
     group = [
@@ -989,7 +989,27 @@ function blockRow(b, i, paraIndex) {
       rowTools(i),
     );
   } else {
-    row.append(el("div.brow-side", {}, el("span.kind-label", {}, "Slide")), el("div.break-line", {}, "new slide"), rowTools(i));
+    // A slide break on both screens, or on one only (`--- stream`).
+    const on = b.kind === "output_break" ? b.output : "";
+    const which = select(
+      [["", "Both screens"], ["sanctuary", "Sanctuary only"], ["stream", "Live stream only"]],
+      on,
+      (val) => {
+        const next = val ? { kind: "output_break", output: val } : { kind: "slide_break" };
+        for (const k of Object.keys(b)) delete b[k];
+        Object.assign(b, next);
+        changed();
+        renderBlocks(undefined, i);
+      },
+    );
+    which.className = "break-on";
+    which.title = "The live stream runs the sanctuary's slides together where they fit; a break for the live stream only is always kept there.";
+    row.append(
+      el("div.brow-side", {}, el("span.kind-label", {}, "Slide")),
+      el("div.break-line", {}, on ? `new slide on the ${on === "stream" ? "live stream" : "sanctuary"} only` : "new slide"),
+      which,
+      rowTools(i),
+    );
   }
   return row;
 }
@@ -1003,6 +1023,18 @@ function blockKeys(e, b, i, text) {
     // New speaker block after this one.
     e.preventDefault();
     insertBlock(i + 1, { kind: "paragraph", role: suggestRole(i + 1), lines: [] });
+  } else if (e.key === "Tab" && !mod && !e.altKey) {
+    // Indent (Shift: outdent) the line the cursor is on, as the Prayer Book
+    // sets the Creed and the Lord's Prayer.
+    const sel = getSelection();
+    let node = sel?.anchorNode;
+    while (node && node.parentNode !== text) node = node.parentNode;
+    if (!node || node.nodeName !== "DIV") return;
+    e.preventDefault();
+    const level = Math.max(0, Math.min(6, (Number(node.dataset.indent) || 0) + (e.shiftKey ? -1 : 1)));
+    setIndent(node, level);
+    b.lines = domToLines(text);
+    changed();
   } else if (e.key === "Backspace" && !text.textContent.trim() && b.lines.length === 0) {
     // Backspace in an empty block removes it.
     e.preventDefault();

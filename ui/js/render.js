@@ -11,7 +11,7 @@ import { assetUrl, backgroundUrl } from "/js/bridge.js";
 import { builtinUrl } from "/js/backgrounds.js";
 import { deckEmbedUrl } from "/js/deck.js";
 import { load as loadDeck, loopSlide, slideImage } from "/js/deckpdf.js";
-import { isAntiphonSlide, resolveTemplate, slideTypeFor } from "/js/templates.js";
+import { isAntiphonSlide, resolveTemplate, slideTypeFor, typeOptions } from "/js/templates.js";
 
 const STAGE_W = 1920;
 const STAGE_H = 1080;
@@ -124,16 +124,49 @@ function renderLine(spans, forceBold) {
   return line;
 }
 
-/** Text of a paragraph block, one element per line (or reflowed). */
-function paragraphText(b, { reflow, bold }) {
+/** A line's indent (its leading tabs) and the line without them. */
+export function splitIndent(spans) {
+  let level = 0;
+  const out = [];
+  for (const s of spans) {
+    if (!out.length) {
+      const rest = s.text.replace(/^\t+/, "");
+      level += s.text.length - rest.length;
+      if (!rest) continue;
+      out.push({ ...s, text: rest });
+    } else out.push(s);
+  }
+  return [level, out];
+}
+
+/** Text of a paragraph block: one line each (the Prayer Book's sense
+ *  lines, indented as written, too-long lines hanging under themselves),
+ *  or run together. `extra(i)` adds indent steps to line i (psalms). */
+function paragraphText(b, { reflow, bold, hanging, extra }) {
   const text = el("div", "text");
   b.lines.forEach((l, i) => {
-    if (reflow && i > 0) text.append(" ");
-    text.append(renderLine(l, bold));
-    if (!reflow) text.append(el("br"));
+    const [indent, spans] = splitIndent(l);
+    if (reflow) {
+      if (i > 0) text.append(" ");
+      text.append(renderLine(spans, bold));
+      return;
+    }
+    // Sense lines (a paragraph written line by line) hang; prose wraps.
+    const line = el("div", hanging && b.lines.length > 1 ? "ln hang" : "ln");
+    const level = indent + (extra?.(i) ?? 0);
+    if (level) line.style.setProperty("--in", level);
+    line.append(renderLine(spans, bold));
+    text.append(line);
   });
-  if (!reflow) text.lastChild?.remove();
   return text;
+}
+
+/** Psalm verses: the second half-verse (and any line after it) indented;
+ *  with `alternate`, every other verse indented a step more. */
+function verseIndent(role, alternate) {
+  const n = parseInt(role, 10);
+  const step = alternate && n % 2 === 0 ? 1 : 0;
+  return (i) => step + (i > 0 ? 1 : 0);
 }
 
 /**
@@ -175,7 +208,8 @@ function renderBlocks(blocks, cue, opts) {
     } else {
       row.classList.add("span");
     }
-    row.append(paragraphText(b, opts));
+    const extra = isVerseNumber(b.role) && opts.psalm ? verseIndent(b.role, opts.alternate) : null;
+    row.append(paragraphText(b, { ...opts, extra }));
     rows.append(row);
   }
   return rows;
@@ -495,7 +529,9 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     const hymn = key === "stream.hymn";
     const stream = key.startsWith("stream.");
     const blocks = p.text;
-    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, reflow: hymn, bold: hymn, peopleLabel: !T.people?.hidden }), "", limits);
+    const o = typeOptions(templates, key);
+    const lines = { reflow: o.join, hanging: o.hanging, psalm: cue.category === "psalm", alternate: o.alternate };
+    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
   }
 }
@@ -570,6 +606,15 @@ function paintDeck(stage, service, opts, { slide = null, of = null, loop = false
 
 // ---------- outputs ----------
 
+/** The slide a screen shows at step `i` of a cue: the stream has its own
+ *  slides when it runs the text together or splits it differently. */
+export function slideFor(cue, i, output) {
+  const c = cue?.content;
+  if (c?.kind !== "liturgy") return null;
+  if (output === "stream" && c.stream_slides?.length) return c.stream_slides[c.stream_at?.[i] ?? 0] ?? null;
+  return c.slides?.[i] ?? null;
+}
+
 /**
  * Renders `output` ("sanctuary" | "stream") for the active slide.
  * `active` is { cue, slide, pos } or null (pre-service).
@@ -606,7 +651,7 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   else if (look.layout === "lower_third" || output === "stream") stage.style.background = keyColor(service);
   if (st.text_cleared) return;
 
-  const slide = active.slide;
+  const slide = output === "stream" ? slideFor(cue, active.pos?.slide ?? 0, "stream") ?? active.slide : active.slide;
   // A media item (an image or video from the library) is just its background.
   if (!slide && cue.content.kind === "liturgy" && extra(cue, "media")) return;
 
