@@ -18,6 +18,7 @@ over the LAN, and builds everything from one plain-text liturgy format
 | 6. Tablet remote | The protocol is ready (`remote` client role); web app not started |
 | Services & autosave | Services screen at start-up, scheduling about a month of Sundays ahead with church-year names and the day's propers, Rite I or Rite II, autosave ([services](docs/services.md)) |
 | Library & propers | Built-in Rite I and Rite II texts, your saved items, a media library (images, videos); the lectionary (Years A–C, Tracks 1 & 2, holy days) with BCP collects (both rites), Psalter and canticles; NRSV/NRSVue reading texts pasted from a licensed source ([library](docs/library.md)) |
+| Events, slides and video | Events that are not services; a slide maker (title and information slides, text or pictures); presentations from PowerPoint, Keynote (as PDF) or Google Slides; YouTube, Facebook and Instagram videos ([slides and video](docs/slides-and-video.md)) |
 | Slide layouts | Layout tool: place every piece of each slide type and set its font, size and colour ([layouts](docs/layouts.md)) |
 
 ## Layout

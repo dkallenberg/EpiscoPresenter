@@ -73,7 +73,24 @@ impl FrontMatter {
     pub fn extra(&self, key: &str) -> Option<&str> {
         self.extra.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
     }
+
+    /// Slides made in the app (the slide maker, imported pages): shown as
+    /// written, each in its own layout.
+    pub fn is_made_slides(&self) -> bool {
+        self.extra(SLIDE_MAKER) == Some("true")
+    }
+
+    /// Something only for the screens (a picture or video, a planned blank,
+    /// made slides, a web video), not printed in the bulletin.
+    pub fn screen_only(&self) -> bool {
+        ["media", "blank", WEB_VIDEO].iter().any(|k| self.extra(k).is_some()) || self.is_made_slides()
+    }
 }
+
+/// Front matter: slides made in the app (`slide_maker: true`).
+pub const SLIDE_MAKER: &str = "slide_maker";
+/// Front matter: a YouTube, Facebook or Instagram video shown full screen.
+pub const WEB_VIDEO: &str = "web_video";
 
 /// One structural element of a liturgy body.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -88,8 +105,16 @@ pub enum Block {
     },
     /// `## Heading` — a section title; also begins a new slide.
     Heading { level: u8, text: String },
-    /// `![alt](src)` — a sheet-music snippet or other image.
-    Image { alt: String, src: String },
+    /// `![alt](src)` — a sheet-music snippet or other image. `fit` (written
+    /// `![alt](src){width}`) sizes a picture on a made slide: `center`
+    /// (as it is, at most the box), `width` / `height` (the box's width or
+    /// height) or `full` (the whole screen).
+    Image {
+        alt: String,
+        src: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        fit: Option<String>,
+    },
     /// A lone `---` in the body — an explicit slide break.
     SlideBreak,
     /// `--- stream` or `--- sanctuary`: a slide break on one screen only.
@@ -202,6 +227,9 @@ pub struct Slide {
     /// True for the first slide after a heading (where a header is shown).
     #[serde(default, skip_serializing_if = "is_false")]
     pub section_start: bool,
+    /// The level of the heading that starts this slide (`#` 1, `##` 2…).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub level: Option<u8>,
     /// Empty for a *title slide*: a heading followed directly by a slide
     /// break, shown as a title card (e.g. "First Reading" + citation).
     pub blocks: Vec<Block>,
@@ -225,36 +253,47 @@ impl LiturgyDocument {
     pub fn slides(&self) -> Vec<Slide> {
         let mut slides = Vec::new();
         let mut heading: Option<String> = None;
+        let mut level: Option<u8> = None;
         let mut current: Vec<Block> = Vec::new();
         // A heading was seen and nothing has been emitted for it yet.
         let mut fresh = false;
 
-        let flush = |slides: &mut Vec<Slide>, current: &mut Vec<Block>, heading: &Option<String>, fresh: &mut bool| {
+        let flush = |slides: &mut Vec<Slide>,
+                     current: &mut Vec<Block>,
+                     heading: &Option<String>,
+                     level: Option<u8>,
+                     fresh: &mut bool| {
             if !current.is_empty() || (*fresh && heading.is_some()) {
-                slides.push(Slide { heading: heading.clone(), section_start: *fresh, blocks: std::mem::take(current) });
+                slides.push(Slide {
+                    heading: heading.clone(),
+                    section_start: *fresh,
+                    level: level.filter(|_| *fresh),
+                    blocks: std::mem::take(current),
+                });
                 *fresh = false;
             }
         };
 
         for block in &self.blocks {
             match block {
-                Block::SlideBreak => flush(&mut slides, &mut current, &heading, &mut fresh),
+                Block::SlideBreak => flush(&mut slides, &mut current, &heading, level, &mut fresh),
                 // One screen's breaks: see `crate::fit`.
                 Block::OutputBreak { .. } => {}
-                Block::Heading { text, .. } => {
+                Block::Heading { text, level: l } => {
                     if !current.is_empty() {
-                        flush(&mut slides, &mut current, &heading, &mut fresh);
+                        flush(&mut slides, &mut current, &heading, level, &mut fresh);
                     } else if fresh {
                         // Two headings in a row: the first becomes a title slide.
-                        flush(&mut slides, &mut current, &heading, &mut fresh);
+                        flush(&mut slides, &mut current, &heading, level, &mut fresh);
                     }
                     heading = Some(text.clone());
+                    level = Some(*l);
                     fresh = true;
                 }
                 other => current.push(other.clone()),
             }
         }
-        flush(&mut slides, &mut current, &heading, &mut fresh);
+        flush(&mut slides, &mut current, &heading, level, &mut fresh);
         slides
     }
 }

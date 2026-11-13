@@ -314,16 +314,19 @@ function occasionOptions(onKind) {
   const changed = () => {
     const k = kind.value || "eucharist";
     const ordination = k.startsWith("ordination");
+    const event = k === "event";
     if (ordination) bishop.checked = true;
-    bishop.disabled = ordination;
-    const noBaptism = ["ash_wednesday", "good_friday", "holy_saturday", "palm_sunday", "maundy_thursday"].includes(k) || ordination;
+    bishop.disabled = ordination || event;
+    deacon.disabled = event;
+    const noBaptism = ["ash_wednesday", "good_friday", "holy_saturday", "palm_sunday", "maundy_thursday"].includes(k) || ordination || event;
     baptismal.disabled = confirmation.disabled = noBaptism;
     if (noBaptism) {
       baptismal.value = "";
       confirmation.checked = false;
     }
-    note.textContent =
-      k === "easter_vigil"
+    note.textContent = event
+      ? "Not a service: it starts with one blank item of slides. Make slides in the Editor, or add pictures, a PDF, Google Slides or a web video with + Add."
+      : k === "easter_vigil"
         ? "The Vigil renews the baptismal vows unless there is a baptism."
         : ordination
           ? "The bishop presides: the ordination's own texts, the Litany for Ordinations and the Prayer Book's readings."
@@ -332,7 +335,7 @@ function occasionOptions(onKind) {
             : bishop.checked
               ? "The Celebrant's parts are labelled Bishop, and the Bishop's Blessing is added before the dismissal."
               : "";
-    if (!deacon.checked) note.textContent = `${note.textContent} The Deacon's parts are labelled Priest.`.trim();
+    if (!deacon.checked && !event) note.textContent = `${note.textContent} The Deacon's parts are labelled Priest.`.trim();
     onKind?.(k, labels.get(k));
   };
   const load = async (date) => {
@@ -389,12 +392,15 @@ function render() {
     if (!title.value || title.value === autoTitle) title.value = autoTitle = want;
   };
   const newTemplate = templateSelect();
+  const newOpts = serviceOptions();
   const occasion = occasionOptions((k, label) => {
     // Holy Week and ordinations use their own order, not a template.
     const own = !["eucharist", "maundy_thursday"].includes(k);
     newTemplate.disabled = own;
     newTemplate.title = own ? "This service uses its own Prayer Book order" : "";
-    kindTitle = ["eucharist", "palm_sunday"].includes(k) ? null : label;
+    kindTitle = ["eucharist", "palm_sunday"].includes(k) ? null : k === "event" ? "Event" : label;
+    // An event has no rite, readings or prayers to choose.
+    newOpts.row.hidden = k === "event";
     setTitle();
   });
   const updateDay = async () => {
@@ -406,7 +412,6 @@ function render() {
   };
   date.addEventListener("change", updateDay);
   updateDay();
-  const newOpts = serviceOptions();
   // The time: one of the parish's service times, another, or none.
   const time = el(
     "select",

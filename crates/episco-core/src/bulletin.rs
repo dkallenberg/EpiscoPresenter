@@ -439,7 +439,7 @@ pub fn default_style(cue: &Cue) -> BulletinStyle {
         return BulletinStyle::Title; // announcements
     };
     let meta = &doc.meta;
-    if meta.extra("media").is_some() || meta.extra("blank").is_some() {
+    if meta.screen_only() {
         return BulletinStyle::Hidden;
     }
     // An item can say how it is usually printed (`bulletin: full`), e.g.
@@ -552,7 +552,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
         match b {
             Block::SlideBreak | Block::OutputBreak { .. } => after_break = true,
             Block::Heading { .. } => {}
-            Block::Image { src, alt } => {
+            Block::Image { src, alt, .. } => {
                 if let Some(path) = resolve(src, cue, root) {
                     out.push(Piece::Image { path, alt: alt.clone() });
                 }
@@ -753,7 +753,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
     let mut entries = Vec::new();
     for cue in &service.cues {
         let doc = cue.document();
-        let media = doc.is_some_and(|d| d.meta.extra("media").is_some() || d.meta.extra("blank").is_some());
+        let media = doc.is_some_and(|d| d.meta.screen_only());
         let style = match &cue.content {
             CueContent::Announcements { .. } => BulletinStyle::Title,
             _ if media => BulletinStyle::Title,

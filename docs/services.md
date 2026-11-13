@@ -47,7 +47,8 @@ made before this have no Prayers of the People: add a form from the Library.
 **Service** chooses the order. *Holy Eucharist* is the Sunday or holy-day
 order. Ash Wednesday, Palm Sunday, Maundy Thursday, Good Friday and Holy
 Saturday are suggested from the date. The Great Vigil of Easter and the
-Ordinations of a Deacon, Priest or Bishop are chosen by hand. These use the
+**Event (not a service)** starts with one blank item of slides instead of
+an order (see [slides-and-video.md](slides-and-video.md)). Ordinations of a Deacon, Priest or Bishop are chosen by hand. These use the
 Prayer Book's own order instead of a template:
 
 | Service | Order (BCP) |

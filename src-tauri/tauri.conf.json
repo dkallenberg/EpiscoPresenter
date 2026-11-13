@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob: https:; media-src 'self' asset: http://asset.localhost; style-src 'self' 'unsafe-inline'; frame-src https://docs.google.com https://www.youtube.com https://www.youtube-nocookie.com https://www.facebook.com https://www.instagram.com; worker-src 'self' blob:; connect-src 'self' ipc: http://ipc.localhost asset: http://asset.localhost",
       "assetProtocol": {
         "enable": true,
         "scope": {

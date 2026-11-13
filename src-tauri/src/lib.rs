@@ -15,6 +15,7 @@ mod deck;
 mod engine;
 mod handoff;
 mod library;
+mod made;
 mod media;
 mod occasions;
 mod scripture;
@@ -208,6 +209,9 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::library_save_cue,
         library::library_delete,
         library::library_copy,
+        made::slides_add,
+        made::slides_pick_pdf,
+        made::web_video_add,
         library::library_set_default,
         library::library_folder,
         library::parse_propers,

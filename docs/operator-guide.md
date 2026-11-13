@@ -114,6 +114,12 @@ a PDF, from Google) and shows its slides as pictures:
   "Publish to web" link, or no internet), the screens fall back to Google's
   own player, which plays the deck by itself.
 
+## Slides, presentations and web video
+
+**+ Add** also offers **New slides (slide maker)**, **Slides from a PDF**
+(PowerPoint, Keynote), **Google Slides presentation…** and **Web video**
+(YouTube, Facebook, Instagram). See [slides-and-video.md](slides-and-video.md).
+
 ## Sanctuary-only blanks, pictures and video
 
 * **+ Add → Blank (sanctuary only)** adds a planned blank: the sanctuary

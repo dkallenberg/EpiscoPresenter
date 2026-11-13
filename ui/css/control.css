@@ -524,3 +524,17 @@ body.planner .hint.planner-hint { display: block; }
 .time-pick select, .time-pick input { min-width: 0; flex: 1; }
 .svc-time { font-size: 12px; font-weight: 600; color: var(--accent); }
 .sched-times { align-items: center; margin-top: 4px; }
+
+/* The slide maker (Editor) */
+.maker { display: flex; flex-direction: column; gap: 10px; }
+.maker-list { display: flex; flex-direction: column; gap: 10px; }
+.maker-card { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 14px; padding: 10px 12px; background: var(--panel, #202228); border: 1px solid var(--line); border-radius: 8px; }
+.maker-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.maker-head { display: flex; align-items: center; gap: 10px; }
+.maker-title, .maker-text { width: 100%; box-sizing: border-box; }
+.maker-text { resize: vertical; font: inherit; }
+.maker-body, .maker-picture { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.maker-body .maker-text { flex-basis: 100%; }
+.maker-tools { display: flex; gap: 4px; }
+.maker-thumb { width: 300px; align-self: start; }
+.maker-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }

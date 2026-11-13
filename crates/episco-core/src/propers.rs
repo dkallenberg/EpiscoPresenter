@@ -739,8 +739,9 @@ pub fn arrange_gospel(doc: &LiturgyDocument, music: Option<Option<(String, Strin
     };
     let mut music_slide = slides.iter().find(|s| is_music(s)).cloned();
     if let Some(m) = music {
-        music_slide =
-            m.map(|(src, alt)| vec![Block::Heading { level: 1, text: GOSPEL_MUSIC.into() }, Block::Image { src, alt }]);
+        music_slide = m.map(|(src, alt)| {
+            vec![Block::Heading { level: 1, text: GOSPEL_MUSIC.into() }, Block::Image { src, alt, fit: None }]
+        });
     }
     let announcement = slides.iter().position(|s| !is_music(s) && is_announcement(s));
     let title = slides.iter().position(|s| !is_music(s) && is_title(s));
@@ -1253,7 +1254,7 @@ Matthew 25:1–13
         let verses: Vec<PsalmVerse> = (1..=6)
             .map(|n| PsalmVerse::new(n.to_string(), vec![format!("Verse {n} *"), "second half".into()]))
             .collect();
-        let image = Block::Image { alt: "Antiphon".into(), src: "/media/antiphon.png".into() };
+        let image = Block::Image { alt: "Antiphon".into(), src: "/media/antiphon.png".into(), fit: None };
         let opts = PsalmOptions { antiphon: Some("Sing to the Lord".into()), ..PsalmOptions::default() };
         let mut doc = psalm_document("Psalm 96", Some("Psalm 96"), &verses, &opts, std::slice::from_ref(&image));
         // The operator marks verse 3 as the people's and adds an antiphon

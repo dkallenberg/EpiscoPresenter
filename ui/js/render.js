@@ -605,6 +605,143 @@ function paintDeck(stage, service, opts, { slide = null, of = null, loop = false
   });
 }
 
+// ---------- made slides ----------
+
+/** Slides made in the app (the slide maker, imported PDF and Google Slides
+ *  pages): each a title slide, information with a title, or information
+ *  alone, as text or a picture. */
+export const isMadeSlides = (cue) => extra(cue, "slide_maker") === "true";
+
+/** Which of the three layouts a made slide has. */
+export function madeLayout(slide) {
+  if (slide?.section_start && slide.level === 1) return "title";
+  if (slide?.section_start && slide.heading) return "titled";
+  return "plain";
+}
+
+/** A picture on a made slide: a library image, or a page of a PDF
+ *  (`….pdf#page=3`) or of a Google Slides deck (`deck:<link>#page=3`). */
+function madeImage(cue, b) {
+  const img = el("img", `made-img fit-${b.fit ?? "center"}`);
+  img.alt = b.alt ?? "";
+  const page = /^(.*?)#page=(\d+)$/.exec(b.src ?? "");
+  if (page) {
+    const deck = page[1].startsWith("deck:");
+    const url = deck ? page[1].slice(5) : assetUrl(cue, page[1]);
+    // A Google Slides deck is downloaded the first time a computer shows it.
+    (deck ? loadDeck(url, true) : Promise.resolve())
+      .then(() => slideImage(url, Number(page[2])))
+      .then((u) => {
+        if (u) img.src = u;
+        else img.replaceWith(el("div", "score-missing", `▭ ${b.alt || "slide"} ${page[2]}`));
+      });
+  } else {
+    img.src = assetUrl(cue, b.src);
+    img.onerror = () => img.replaceWith(el("div", "score-missing", `▭ ${b.alt || b.src}`));
+  }
+  return img;
+}
+
+function madeSlide(stage, cue, slide) {
+  if (!slide) return;
+  const image = slide.blocks.find((b) => b.kind === "image" && b.src);
+  const text = slide.blocks.filter((b) => b.kind === "paragraph");
+  if (image?.fit === "full") {
+    stage.append(madeImage(cue, image));
+    return;
+  }
+  const layout = madeLayout(slide);
+  const body = (cls) => {
+    const box = el("div", `box made-body ${cls}`);
+    if (image) box.append(madeImage(cue, image));
+    else if (text.length) box.append(renderBlocks(text, cue, { labels: false, numbers: false, rubrics: false }));
+    return box;
+  };
+  if (layout === "title") {
+    const box = el("div", "box made-title");
+    box.append(el("div", "made-title-text", slide.heading ?? ""));
+    const sub = text.map((b) => b.lines.map((l) => splitIndent(l)[1].map((x) => x.text).join("")).join("\n")).join("\n");
+    if (sub) box.append(el("div", "made-subtitle", sub));
+    stage.append(box);
+    autoFit(box, 0.4);
+    return;
+  }
+  if (layout === "titled") {
+    const head = el("div", "box made-head", slide.heading);
+    stage.append(head);
+    autoFit(head, 0.5);
+  }
+  const box = body(layout === "titled" ? "under-title" : "alone");
+  stage.append(box);
+  if (!image) autoFit(box, 0.4);
+}
+
+// ---------- web video ----------
+
+/** The embeddable player for a YouTube, Facebook or Instagram link. */
+export function embedUrl(url, { sound = true } = {}) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const host = u.hostname.replace(/^(www|m|web)\./, "");
+  if (/(^|\.)youtube(-nocookie)?\.com$|^youtu\.be$/.test(host)) {
+    const id =
+      host === "youtu.be"
+        ? u.pathname.slice(1).split("/")[0]
+        : u.searchParams.get("v") ?? /\/(?:embed|shorts|live)\/([^/?#]+)/.exec(u.pathname)?.[1];
+    if (!id) return null;
+    const start = parseInt(u.searchParams.get("t") ?? u.searchParams.get("start") ?? "0", 10) || 0;
+    return `https://www.youtube.com/embed/${id}?autoplay=1&mute=${sound ? 0 : 1}&controls=0&rel=0&playsinline=1${start ? `&start=${start}` : ""}`;
+  }
+  if (host === "facebook.com" || host === "fb.watch") {
+    return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}&autoplay=true&mute=${sound ? "false" : "true"}&show_text=false&width=1920`;
+  }
+  if (host === "instagram.com") {
+    const m = /\/(p|reel|tv)\/([^/?#]+)/.exec(u.pathname);
+    return m ? `https://www.instagram.com/${m[1]}/${m[2]}/embed/` : null;
+  }
+  return null;
+}
+
+/** A still for a web video's previews (YouTube's own thumbnail). */
+function videoStill(url) {
+  const id = /(?:v=|youtu\.be\/|\/(?:embed|shorts|live)\/)([\w-]{6,})/.exec(url)?.[1];
+  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : null;
+}
+
+function webVideo(stage, url, output, opts) {
+  stage.style.background = "#000";
+  // Sound from the sanctuary screen only; the stream plays it muted.
+  const src = embedUrl(url, { sound: output === "sanctuary" });
+  if (!opts.live || !src) {
+    const card = el("div", "web-video-card");
+    const still = videoStill(url);
+    if (still) {
+      const img = el("img", "web-video-still");
+      img.src = still;
+      card.append(img);
+    }
+    const site = /youtu/.test(url) ? "YouTube" : /facebook|fb\.watch/.test(url) ? "Facebook" : /instagram/.test(url) ? "Instagram" : "Web";
+    card.append(el("div", "web-video-label", src ? `▶ ${site} video` : "This link cannot be played"));
+    stage.append(card);
+    return;
+  }
+  const keep = opts.keepWeb;
+  if (keep && keep.dataset.src === src) {
+    stage.append(keep);
+    return;
+  }
+  const frame = el("iframe", "web-video");
+  frame.dataset.src = src;
+  frame.src = src;
+  frame.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
+  frame.referrerPolicy = "strict-origin-when-cross-origin";
+  stage.append(frame);
+}
+
 // ---------- outputs ----------
 
 /** The slide a screen shows at step `i` of a cue: the stream has its own
@@ -627,6 +764,7 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   const st = snap.state ?? {};
   const keepVideo = stage.querySelector("video.bg-video");
   const keepDeck = stage.querySelector("iframe.deck-frame");
+  const keepWeb = stage.querySelector("iframe.web-video");
   stage.replaceChildren();
   stage.className = `stage out-${output}`;
   stage.style.background = output === "stream" ? keyColor(service) : "#000";
@@ -648,6 +786,13 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
     return paintDeck(stage, service, { ...opts, keepDeck }, single && steps > 1 ? { slide: (active.pos?.slide ?? 0) + 1, of: steps } : { loop: !single });
   }
 
+  // A YouTube, Facebook or Instagram video, full screen.
+  const web = cue.content.kind === "liturgy" ? extra(cue, "web_video") : null;
+  if (web) {
+    if (st.media_cleared) return;
+    return webVideo(stage, web, output, { ...opts, keepWeb });
+  }
+
   if (!st.media_cleared) paintBackground(stage, service, cue, look, { ...opts, keepVideo, sound: output === "sanctuary" });
   else if (look.layout === "lower_third" || output === "stream") stage.style.background = keyColor(service);
   if (st.text_cleared) return;
@@ -655,6 +800,9 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   const slide = output === "stream" ? slideFor(cue, active.pos?.slide ?? 0, "stream") ?? active.slide : active.slide;
   // A media item (an image or video from the library) is just its background.
   if (!slide && cue.content.kind === "liturgy" && extra(cue, "media")) return;
+
+  // Slides made in the app, and imported pages.
+  if (isMadeSlides(cue)) return madeSlide(stage, cue, slide);
 
   const key = slideTypeFor(cue, slide, output, look);
   if (key) {

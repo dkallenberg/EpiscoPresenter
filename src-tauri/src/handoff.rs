@@ -212,7 +212,8 @@ fn library_paths(dir: &Path) -> BTreeSet<String> {
             let mut rest = text.as_str();
             while let Some(i) = rest.find(episco_core::portable::PREFIX) {
                 let tail = &rest[i + episco_core::portable::PREFIX.len()..];
-                let end = tail.find(['"', '\'', ')', '\n', '\r']).unwrap_or(tail.len());
+                // A page of a PDF (`….pdf#page=3`) is the PDF itself.
+                let end = tail.find(['"', '\'', ')', '\n', '\r', '#']).unwrap_or(tail.len());
                 let rel = tail[..end].trim();
                 if !rel.is_empty() && !rel.contains("..") {
                     out.insert(rel.to_string());
@@ -350,12 +351,12 @@ mod tests {
         .unwrap();
         std::fs::write(
             dir.join("liturgies/a.ewm"),
-            "---\ntitle: A\nmedia: library:media/Psalm 23.mp4\n---\n![Antiphon](library:media/antiphon.png)\n",
+            "---\ntitle: A\nmedia: library:media/Psalm 23.mp4\n---\n![Antiphon](library:media/antiphon.png)\n\n---\n\n![Slide 2](library:media/talk.pdf#page=2){full}\n",
         )
         .unwrap();
         std::fs::write(dir.join(READY_FILE), "{\"at\": 1}").unwrap();
         let paths: Vec<String> = library_paths(&dir).into_iter().collect();
-        assert_eq!(paths, ["backgrounds/glass.jpg", "media/Psalm 23.mp4", "media/antiphon.png"]);
+        assert_eq!(paths, ["backgrounds/glass.jpg", "media/Psalm 23.mp4", "media/antiphon.png", "media/talk.pdf"]);
         assert!(newest(&dir) > 0);
         let _ = std::fs::remove_dir_all(&dir);
     }

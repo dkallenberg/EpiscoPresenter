@@ -1,4 +1,4 @@
-// The announcements deck as slide images. The app downloads the Google
+// The announcements deck (and imported presentations) as slide images. The app downloads the Google
 // Slides deck as a PDF (src-tauri/src/deck.rs); here pdf.js turns its pages
 // into images, cached per size, for the timeline, the slide grid, the
 // previews and the output screens.
@@ -35,12 +35,21 @@ listen("episco://deck", () => {
   urls.forEach((u) => load(u).then(() => changed(u)));
 });
 
+/** A PDF that is already a file the page can read (one in the media
+ *  library), rather than a Google Slides link to download. */
+const isFileUrl = (url) => /^(asset:|https?:\/\/asset\.localhost|blob:|\/)/.test(url);
+
 async function open(url, fetchIfMissing) {
-  if (!T) return null;
-  let file = await invoke("deck_local", { url }).catch(() => null);
-  if (!file && fetchIfMissing) file = await invoke("deck_fetch", { url, refresh: false }).catch(() => null);
-  if (!file) return null;
-  const bytes = await fetch(T.core.convertFileSrc(file.path)).then((r) => (r.ok ? r.arrayBuffer() : null));
+  let src;
+  if (isFileUrl(url)) src = url;
+  else {
+    if (!T) return null;
+    let file = await invoke("deck_local", { url }).catch(() => null);
+    if (!file && fetchIfMissing) file = await invoke("deck_fetch", { url, refresh: false }).catch(() => null);
+    if (!file) return null;
+    src = T.core.convertFileSrc(file.path);
+  }
+  const bytes = await fetch(src).then((r) => (r.ok ? r.arrayBuffer() : null));
   if (!bytes) return null;
   const pdf = await lib();
   return pdf.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise;

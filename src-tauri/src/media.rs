@@ -77,6 +77,20 @@ fn unique(dir: &Path, name: &str) -> PathBuf {
     candidate
 }
 
+/// Copies a file into the media folder (under a free name), unless it is
+/// there already. Returns where it is.
+pub fn copy_into_library(app: &AppHandle, src: &Path) -> CmdResult<PathBuf> {
+    let dir = media_dir(app)?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    if src.parent() == Some(dir.as_path()) {
+        return Ok(src.to_path_buf());
+    }
+    let name = src.file_name().ok_or("bad file name")?.to_string_lossy().into_owned();
+    let dest = unique(&dir, &name);
+    std::fs::copy(src, &dest).map_err(|e| format!("could not copy {}: {e}", src.display()))?;
+    Ok(dest)
+}
+
 /// Copies images and videos chosen in a file dialog into the media folder.
 #[tauri::command]
 pub async fn media_import(app: AppHandle) -> CmdResult<Vec<MediaEntry>> {

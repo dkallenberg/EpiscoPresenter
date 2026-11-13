@@ -35,10 +35,13 @@ pub enum Occasion {
     OrdinationDeacon,
     OrdinationPriest,
     OrdinationBishop,
+    /// Not a service (a meeting, a concert, a parish dinner): one blank
+    /// item of slides to make.
+    Event,
 }
 
 impl Occasion {
-    pub const ALL: [Occasion; 10] = [
+    pub const ALL: [Occasion; 11] = [
         Occasion::Eucharist,
         Occasion::AshWednesday,
         Occasion::PalmSunday,
@@ -49,6 +52,7 @@ impl Occasion {
         Occasion::OrdinationDeacon,
         Occasion::OrdinationPriest,
         Occasion::OrdinationBishop,
+        Occasion::Event,
     ];
 
     pub fn label(self) -> &'static str {
@@ -63,6 +67,7 @@ impl Occasion {
             Occasion::OrdinationDeacon => "The Ordination of a Deacon",
             Occasion::OrdinationPriest => "The Ordination of a Priest",
             Occasion::OrdinationBishop => "The Ordination of a Bishop",
+            Occasion::Event => "Event (not a service)",
         }
     }
 
@@ -72,7 +77,11 @@ impl Occasion {
 
     /// The title for a new service (None: the day's name).
     pub fn title(self) -> Option<&'static str> {
-        (self != Occasion::Eucharist && self != Occasion::PalmSunday).then(|| self.label())
+        match self {
+            Occasion::Event => Some("Event"),
+            Occasion::Eucharist | Occasion::PalmSunday => None,
+            _ => Some(self.label()),
+        }
     }
 }
 
@@ -153,6 +162,12 @@ pub fn order(o: Options, rite: Rite, prayers: Option<crate::services::PrayersFor
     let sermon = Some(sermon_cue());
     let mut v: Vec<Option<Cue>> = match o.occasion {
         Occasion::Eucharist | Occasion::MaundyThursday => return None,
+        // A blank item of slides to make (nothing to show yet).
+        Occasion::Event => {
+            let mut doc = crate::made::slides_document(Some("Slides".into()), Some(Default::default()));
+            doc.blocks.clear();
+            return Some(vec![crate::made::slides_cue(doc)]);
+        }
         Occasion::AshWednesday => {
             let mut v = vec![
                 hymn_cue("Entrance Hymn"),
@@ -289,6 +304,9 @@ pub fn fixed_propers(o: Occasion, date: Date, rite: Rite) -> Option<Vec<Cue>> {
         })
     };
     let year = liturgical_day(date).year;
+    if o == Occasion::Event {
+        return Some(Vec::new());
+    }
     let items: Vec<ProperItem> = match o {
         Occasion::OrdinationDeacon => vec![
             reading(FirstReading, "Jeremiah 1:4-9"),
@@ -380,6 +398,9 @@ const DISMISSALS: [&str; 4] =
 /// Applies the bishop, baptism, renewal and confirmation options to a
 /// service's order (after its propers are in place).
 pub fn apply(s: &mut Service, o: Options) {
+    if o.occasion == Occasion::Event {
+        return;
+    }
     let bishop = o.bishop || o.confirmation || o.occasion.is_ordination();
     s.bishop = bishop;
     s.no_deacon = o.no_deacon;

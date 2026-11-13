@@ -327,8 +327,12 @@ impl Cue {
         let keep = |b: &Block| !(reading && matches!(b, Block::Paragraph { role: None, .. }));
         let none = crate::template::Templates::new();
         let templates = ctx.templates.unwrap_or(&none);
-        let sanctuary = crate::fit::capacity(sanctuary_key, templates);
-        let stream = crate::fit::capacity(stream_key, templates);
+        // Made slides (and imported pages) stay as made on both screens.
+        let made = document.meta.is_made_slides();
+        let fitted_for =
+            |key| if made { crate::fit::Capacity::AS_WRITTEN } else { crate::fit::capacity(key, templates) };
+        let sanctuary = fitted_for(sanctuary_key);
+        let stream = fitted_for(stream_key);
         let fitted = crate::fit::fit(document, sanctuary, stream, &keep);
         *slides = fitted.steps;
         *stream_slides = fitted.stream;

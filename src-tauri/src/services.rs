@@ -369,6 +369,8 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
         None => {
             let mut s = Service::default();
             let cues = match special {
+                // An event has just its blank slides; services end with the loop.
+                Some(cues) if opts.occasion.occasion == crate::occasions::Occasion::Event => cues,
                 Some(cues) => crate::occasions::with_loop(cues),
                 None => standard_cues(&day, rite, opts.prayers),
             };
@@ -843,6 +845,29 @@ mod tests {
         let again = Service::load_plan(dir.join("service.toml")).unwrap().service;
         assert!(again.bishop);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn an_event_starts_with_blank_slides() {
+        use crate::occasions::{Occasion, Options};
+        let s = build(
+            "2026-11-20".parse().unwrap(),
+            Some("Parish Dinner".into()),
+            None,
+            with(Options { occasion: Occasion::Event, ..Default::default() }),
+        );
+        assert_eq!(s.title, "Parish Dinner");
+        assert_eq!(s.cues.len(), 1, "{:?}", titles(&s));
+        let doc = s.cues[0].document().unwrap();
+        assert!(doc.meta.is_made_slides() && doc.blocks.is_empty());
+        assert!(s.liturgy.is_none());
+        let untitled = build(
+            "2026-11-20".parse().unwrap(),
+            None,
+            None,
+            with(Options { occasion: Occasion::Event, ..Default::default() }),
+        );
+        assert_eq!(untitled.title, "Event");
     }
 
     #[test]

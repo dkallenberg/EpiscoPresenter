@@ -182,6 +182,7 @@ enum Begins {
 struct Draft {
     heading: Option<String>,
     section_start: bool,
+    level: Option<u8>,
     parts: Vec<Part>,
     begins: Begins,
     start: Pos,
@@ -212,6 +213,7 @@ fn layout(doc: &LiturgyDocument, output: Output, cap: Capacity, keep: &dyn Fn(&B
             let slide = Slide {
                 heading: d.heading.clone(),
                 section_start: d.section_start && i == 0,
+                level: d.level.filter(|_| d.section_start && i == 0),
                 blocks: parts.into_iter().map(|p| p.block).collect(),
             };
             out.push((slide, start));
@@ -233,6 +235,7 @@ struct Gather<'a> {
     saw: bool,
     fresh: bool,
     fresh_at: Pos,
+    level: Option<u8>,
     begins: Begins,
     keep: &'a dyn Fn(&Block) -> bool,
 }
@@ -244,6 +247,7 @@ impl Gather<'_> {
             self.out.push(Draft {
                 heading: self.heading.clone(),
                 section_start: self.fresh,
+                level: self.level.filter(|_| self.fresh),
                 parts: std::mem::take(&mut self.parts),
                 begins: if self.fresh { Begins::Heading } else { self.begins },
                 start,
@@ -254,6 +258,7 @@ impl Gather<'_> {
             self.out.push(Draft {
                 heading: self.heading.clone(),
                 section_start: true,
+                level: self.level,
                 parts: Vec::new(),
                 begins: Begins::Heading,
                 start: self.fresh_at,
@@ -279,6 +284,7 @@ fn gather(doc: &LiturgyDocument, output: Output, keep: &dyn Fn(&Block) -> bool) 
         saw: false,
         fresh: false,
         fresh_at: (0, 0, 0),
+        level: None,
         begins: Begins::Start,
         keep,
     };
@@ -293,11 +299,12 @@ fn gather(doc: &LiturgyDocument, output: Output, keep: &dyn Fn(&Block) -> bool) 
                 g.begins = Begins::Own;
             }
             Block::OutputBreak { .. } => {}
-            Block::Heading { text, .. } => {
+            Block::Heading { text, level } => {
                 if !g.parts.is_empty() || g.fresh || g.saw {
                     g.flush();
                 }
                 g.heading = Some(text.clone());
+                g.level = Some(*level);
                 g.fresh = true;
                 g.fresh_at = (i, 0, 0);
             }

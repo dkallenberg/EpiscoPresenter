@@ -2,6 +2,7 @@
 
 import { send } from "/js/bridge.js";
 import { openPropers } from "/js/control/library.js";
+import { addGoogleSlides, addPdfSlides, addSlides, addWebVideo } from "/js/control/made.js";
 import { backgroundName } from "/js/control/looks.js";
 import { load as loadDeck, loopSlide, onDeckChange, pageCount, slideImage } from "/js/deckpdf.js";
 import { backgroundCss } from "/js/render.js";
@@ -42,6 +43,11 @@ export function initTimeline() {
     el("button", { onclick: () => openPropers() }, "Propers (Collect, readings, psalm)…"),
     el("button", { onclick: () => addFiles() }, "Add .ewm files…"),
     el("button", { onclick: () => addBlank(), title: "The sanctuary screen goes black; the stream shows the camera" }, "Blank (sanctuary only)"),
+    el("hr"),
+    el("button", { onclick: () => addSlides(insertionPoint()), title: "Title and information slides, with text or pictures" }, "New slides (slide maker)"),
+    el("button", { onclick: () => addPdfSlides(insertionPoint()), title: "A PowerPoint, Keynote or Google Slides presentation saved as PDF" }, "Slides from a PDF (PowerPoint, Keynote)…"),
+    el("button", { onclick: () => addGoogleSlides(insertionPoint()), title: "A Google Slides presentation, by its link" }, "Google Slides presentation…"),
+    el("button", { onclick: () => addWebVideo(insertionPoint()), title: "Plays full screen from YouTube, Facebook or Instagram" }, "Web video (YouTube, Facebook, Instagram)…"),
     el("hr"),
     ...NEW_ITEMS.map(([key, label]) => el("button", { onclick: () => newItem(key) }, `New ${label}`)),
   );

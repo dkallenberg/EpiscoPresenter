@@ -152,9 +152,9 @@ pub fn parse(src: &str) -> Result<Parsed, ParseError> {
             parser.blocks.push(Block::Heading { level, text: text.to_string() });
             continue;
         }
-        if let Some((alt, src)) = parse_image(line) {
+        if let Some((alt, src, fit)) = parse_image(line) {
             parser.close();
-            parser.blocks.push(Block::Image { alt: alt.to_string(), src: src.to_string() });
+            parser.blocks.push(Block::Image { alt: alt.to_string(), src: src.to_string(), fit });
             continue;
         }
         if let Some((role, rest)) = parse_role_tag(line) {
@@ -283,11 +283,20 @@ fn parse_heading(line: &str) -> Option<(u8, &str)> {
     (!text.is_empty()).then_some((hashes as u8, text))
 }
 
-fn parse_image(line: &str) -> Option<(&str, &str)> {
+fn parse_image(line: &str) -> Option<(&str, &str, Option<String>)> {
+    // An optional `{fit}` after the picture: `![alt](src){width}`.
+    let (line, fit) = match line.strip_suffix('}').and_then(|l| l.rsplit_once("){")) {
+        Some((head, f)) => {
+            let f = f.trim().to_ascii_lowercase();
+            let known = matches!(f.as_str(), "center" | "width" | "height" | "full");
+            (&line[..head.len() + 1], known.then_some(f))
+        }
+        None => (line, None),
+    };
     let inner = line.strip_prefix("![")?.strip_suffix(')')?;
     let (alt, src) = inner.split_once("](")?;
     let src = src.trim();
-    (!src.is_empty() && !alt.contains(']')).then_some((alt.trim(), src))
+    (!src.is_empty() && !alt.contains(']')).then_some((alt.trim(), src, fit))
 }
 
 /// Recognises a leading `[Role]` tag. Returns the role and the remaining text.
@@ -360,7 +369,10 @@ pub fn to_string(doc: &LiturgyDocument) -> String {
                 out.push_str(text);
                 out.push('\n');
             }
-            Block::Image { alt, src } => out.push_str(&format!("![{alt}]({src})\n")),
+            Block::Image { alt, src, fit } => match fit {
+                Some(f) => out.push_str(&format!("![{alt}]({src}){{{f}}}\n")),
+                None => out.push_str(&format!("![{alt}]({src})\n")),
+            },
             Block::SlideBreak => out.push_str("---\n"),
             Block::OutputBreak { output: Output::Stream } => out.push_str("--- stream\n"),
             Block::OutputBreak { output: Output::Sanctuary } => out.push_str("--- sanctuary\n"),
@@ -470,7 +482,7 @@ Text
         assert_eq!(doc.blocks[2], Block::SlideBreak);
         assert_eq!(
             doc.blocks[3],
-            Block::Image { alt: "Hymn 436 refrain".into(), src: "scores/h436-refrain.png".into() }
+            Block::Image { alt: "Hymn 436 refrain".into(), src: "scores/h436-refrain.png".into(), fit: None }
         );
         assert!(matches!(&doc.blocks[4], Block::Heading { level: 2, .. }));
         assert_eq!(doc.slides().len(), 3);
@@ -557,7 +569,7 @@ Text
                 Block::speech(Role::Reader, ["line one", "---", "*star*"]),
                 Block::Heading { level: 2, text: "Section".into() },
                 Block::SlideBreak,
-                Block::Image { alt: "score".into(), src: "a b.png".into() },
+                Block::Image { alt: "score".into(), src: "a b.png".into(), fit: None },
             ],
         };
         let reparsed = parse(&to_string(&doc)).unwrap().document;

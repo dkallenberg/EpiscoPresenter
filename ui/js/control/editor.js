@@ -9,6 +9,7 @@
 
 import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom, setIndent } from "/js/control/richtext.js";
+import { refreshGoogleSlides, slideMakerPanel, webVideoPanel } from "/js/control/made.js";
 import { saveCueToLibrary } from "/js/control/library.js";
 import { lookCards, lookPanel } from "/js/control/looks.js";
 import { pickMedia } from "/js/control/media.js";
@@ -178,12 +179,33 @@ function render(c) {
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
       c.category === "hymn" ? hymnPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
-        blockList(),
+        ...madePanels(c),
       ].filter(Boolean),
     );
   }
   refreshLooks(c);
   renderStatus();
+}
+
+/** Made slides get the slide maker, a web video its link; everything else
+ *  the block list. */
+function madePanels(c) {
+  const deck = extraOf(ed.doc, "deck");
+  if (extraOf(ed.doc, "web_video") != null) {
+    return [webVideoPanel(extraOf(ed.doc, "web_video"), (url) => { setExtra("web_video", url); changed(); })];
+  }
+  if (extraOf(ed.doc, "slide_maker") !== "true") return [blockList()];
+  return [
+    deck
+      ? el(
+          "div.reading-row",
+          {},
+          el("span.muted.small", {}, "From Google Slides. "),
+          el("button.small", { disabled: app.readonly, onclick: () => refreshGoogleSlides(ed.doc, deck, () => { changed(); render(c); }) }, "↻ Download again"),
+        )
+      : null,
+    slideMakerPanel(c, ed.doc, () => changed()),
+  ].filter(Boolean);
 }
 
 /** Re-renders the backgrounds & layout panel (cheap; keeps the editor intact). */

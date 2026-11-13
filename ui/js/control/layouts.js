@@ -3,7 +3,7 @@
 // reference and other pieces into place and set their font, size and colour.
 // Changes apply to every service and save as soon as they are made.
 
-import { backgroundCss, mountStage, renderTemplated } from "/js/render.js";
+import { backgroundCss, isMadeSlides, mountStage, renderTemplated } from "/js/render.js";
 import { FONTS, SLIDE_TYPES, resolveTemplate, slideType, slideTypeFor, typeOptions } from "/js/templates.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
 
@@ -124,6 +124,8 @@ function samples(type) {
   for (const cue of app.service?.cues ?? []) {
     const look = cue[type.output];
     if (!look || cue.content.kind !== "liturgy") continue;
+    // Made slides and web videos have their own layouts.
+    if (isMadeSlides(cue) || cue.content.document?.meta.extra?.some(([k]) => k === "web_video")) continue;
     const own = type.output === "stream" ? cue.content.stream_slides : null;
     const slides = own?.length ? own : cue.content.slides ?? [];
     for (let i = 0; i < slides.length && out.length < 40; i++) {
