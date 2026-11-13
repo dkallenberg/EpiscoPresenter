@@ -84,14 +84,74 @@ fn window_for(app: &AppHandle, output: OutputKind) -> tauri::Result<WebviewWindo
     Ok(window)
 }
 
+/// A monitor's rectangle in the coordinates windows are placed in: macOS
+/// places windows in points (logical), Windows and Linux in pixels.
+///
+/// Tauri reports a monitor's position as its point position times *that
+/// monitor's* scale, but on macOS turns a window position back into points
+/// with *the window's* scale. With a Retina built-in display (2×) and an
+/// external monitor (1×), "the external monitor's left edge" in pixels thus
+/// lands half-way across the built-in display, and full screen happens
+/// there. Placing windows in points avoids the mix-up.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Area {
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    /// `x`… are points (macOS) rather than pixels.
+    logical: bool,
+}
+
+impl Area {
+    fn of(m: &Monitor) -> Area {
+        Area::from_pixels(
+            m.position().x,
+            m.position().y,
+            m.size().width,
+            m.size().height,
+            m.scale_factor(),
+            cfg!(target_os = "macos"),
+        )
+    }
+
+    fn from_pixels(x: i32, y: i32, w: u32, h: u32, scale: f64, logical: bool) -> Area {
+        let k = if logical && scale > 0.0 { scale } else { 1.0 };
+        Area { x: f64::from(x) / k, y: f64::from(y) / k, w: f64::from(w) / k, h: f64::from(h) / k, logical }
+    }
+
+    /// A window `frac` of the area's size, centred in it.
+    fn centred(self, frac: f64) -> Area {
+        let (w, h) = (self.w * frac, self.h * frac);
+        Area { x: self.x + (self.w - w) / 2.0, y: self.y + (self.h - h) / 2.0, w, h, logical: self.logical }
+    }
+
+    fn apply(self, window: &WebviewWindow) {
+        if self.logical {
+            let _ = window.set_size(tauri::LogicalSize::new(self.w, self.h));
+            let _ = window.set_position(tauri::LogicalPosition::new(self.x, self.y));
+        } else {
+            let _ = window.set_size(PhysicalSize::new(self.w.round() as u32, self.h.round() as u32));
+            let _ = window.set_position(PhysicalPosition::new(self.x.round() as i32, self.y.round() as i32));
+        }
+    }
+}
+
+/// Whether `window` is on the monitor `target` (by the system's own account).
+fn on_monitor(window: &WebviewWindow, target: &Monitor) -> bool {
+    window.current_monitor().ok().flatten().is_some_and(|m| same_monitor(&m, target))
+}
+
 /// Shows an output: full screen on `monitor` (default: its default monitor),
 /// or as an ordinary window on that monitor.
 ///
 /// Full screen happens on whichever screen the window is on, and a hidden
 /// window cannot be moved reliably (macOS keeps it on the main screen). So
-/// the window is shown and moved first, and made full screen only once it
-/// is on the chosen monitor; leaving full screen to change monitors waits
-/// for the animation to finish.
+/// the window is shown, moved onto the chosen monitor (in points on macOS,
+/// see [`Area`]), checked to be there, and only then made full screen. If
+/// the system still will not move it, it is made to fill the chosen
+/// monitor without a title bar instead, so it is never full screen on the
+/// wrong one.
 pub fn show_output(
     app: &AppHandle,
     config: &NodeConfig,
@@ -103,7 +163,7 @@ pub fn show_output(
     let index =
         monitor.filter(|i| *i < monitors.len()).unwrap_or_else(|| default_monitor(app, config, output, &monitors));
     let window = window_for(app, output)?;
-    let target = monitors.get(index).map(|m| (*m.position(), *m.size()));
+    let target = monitors.get(index).cloned();
     let was_fullscreen = window.is_fullscreen().unwrap_or(false);
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
@@ -113,30 +173,41 @@ pub fn show_output(
             // macOS animates out of full screen; moving during it is ignored.
             pause(900).await;
         }
+        // Back to an ordinary window (after a "fill the monitor" fallback).
+        let _ = window.set_decorations(true);
+        let _ = window.set_always_on_top(false);
         let _ = window.show();
-        if let Some((pos, size)) = target {
-            // A half-size window in the middle of the chosen screen; full
-            // screen then fills that screen.
-            let (w, h) = (size.width / 2, size.height / 2);
-            let _ = window.set_size(PhysicalSize::new(w, h));
-            let _ = window.set_position(PhysicalPosition::new(
-                pos.x + (size.width - w) as i32 / 2,
-                pos.y + (size.height - h) as i32 / 2,
-            ));
+        let mut placed = true;
+        if let Some(m) = &target {
+            let area = Area::of(m);
+            area.centred(0.5).apply(&window);
+            pause(250).await;
+            // Not there yet (the system was slow): once more, near the corner.
+            for attempt in 0..2 {
+                if on_monitor(&window, m) {
+                    break;
+                }
+                let near = Area { x: area.x + 60.0, y: area.y + 60.0, w: area.w / 2.0, h: area.h / 2.0, ..area };
+                near.apply(&window);
+                pause(300 + 200 * attempt).await;
+            }
+            placed = on_monitor(&window, m);
+            if !placed {
+                tracing::warn!("{} output: could not move it onto monitor {index}", output.window_label());
+            }
         }
         if fullscreen {
-            pause(250).await;
-            // Not there yet (the system was slow to move it): try once more.
-            if let Some((pos, size)) = target {
-                let on_target = window.outer_position().is_ok_and(|p| {
-                    p.x >= pos.x && p.x < pos.x + size.width as i32 && p.y >= pos.y && p.y < pos.y + size.height as i32
-                });
-                if !on_target {
-                    let _ = window.set_position(PhysicalPosition::new(pos.x + 40, pos.y + 40));
-                    pause(250).await;
+            match (&target, placed) {
+                (Some(m), false) => {
+                    // Never full screen on the wrong monitor: fill the chosen one.
+                    let _ = window.set_decorations(false);
+                    Area::of(m).apply(&window);
+                    let _ = window.set_always_on_top(true);
+                }
+                _ => {
+                    let _ = window.set_fullscreen(true);
                 }
             }
-            let _ = window.set_fullscreen(true);
             let _ = window.set_focus();
         }
         tracing::info!(
@@ -286,4 +357,26 @@ pub fn output_set_fullscreen(
     let current =
         window.current_monitor().ok().flatten().and_then(|m| monitors.iter().position(|x| same_monitor(x, &m)));
     show_output(&app, &config, output, want, current).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_retina_laptop_with_an_external_monitor() {
+        // macOS: built-in 1512×982 points at 2× (3024×1964 pixels) at the
+        // origin; external 1920×1080 points at 1× to its right, at x = 1512
+        // points. Tauri reports the external monitor at x = 1512 "pixels".
+        let external = Area::from_pixels(1512, 0, 1920, 1080, 1.0, true);
+        let window = external.centred(0.5);
+        assert_eq!((window.x, window.y, window.w, window.h), (1992.0, 270.0, 960.0, 540.0));
+        assert!(window.logical, "placed in points, which macOS uses as they are");
+        // A 2× external monitor: pixels are halved back to points.
+        let retina_external = Area::from_pixels(3024, 0, 5120, 2880, 2.0, true);
+        assert_eq!((retina_external.x, retina_external.w), (1512.0, 2560.0));
+        // Windows and Linux place windows in pixels, as reported.
+        let pixels = Area::from_pixels(1920, 0, 1920, 1080, 1.5, false);
+        assert_eq!((pixels.x, pixels.w, pixels.logical), (1920.0, 1920.0, false));
+    }
 }
