@@ -207,6 +207,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::library_add,
         library::library_save_cue,
         library::library_delete,
+        library::library_copy,
+        library::library_set_default,
         library::library_folder,
         library::parse_propers,
         library::add_propers,

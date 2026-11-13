@@ -6,7 +6,7 @@ The **Library** tab lists reusable items, which you can filter by type
 (Acclamation, Collect, Prayer, Hymn, …) or search by title and text. Selecting
 an item previews every slide on both outputs.
 
-* **Built-in** items are texts of the Holy Eucharist from the 1979 Book of
+* **Built-in** (**BCP**) items are texts of the Holy Eucharist from the 1979 Book of
   Common Prayer (public domain), in **Rite Two** and **Rite One** (filter with
   the **Rite I** / **Rite II** chips): the opening acclamations (ordinary,
   Easter, Lent), Collect for Purity, Summary of the Law (Rite I), Gloria,
@@ -30,6 +30,35 @@ Service**.
 
 Please proofread the built-in texts against your prayer book before relying
 on them in worship.
+
+### Versions: BCP, the parish's copies, the default
+
+Each built-in item is marked **BCP**: the Prayer Book's text, which never
+changes. The parish can keep its own versions of it:
+
+1. Select the item. Under **Versions**, **BCP** is the Prayer Book's text;
+   each copy is labelled with the day it was made (*13 Nov 2026*), and the
+   one services use is labelled **Default** and starred.
+2. **Make a copy** copies the version shown. **Add & edit** puts a copy in
+   the open service and opens it in the **Editor**; when you have changed
+   it, **Save to Library** asks whether to **update** that copy or **save a
+   new** one. Save to Library on any item that came from the Prayer Book
+   (added from the Library, or by a new service) saves a new dated copy;
+   it never changes the BCP text.
+3. **Set as default** makes the version shown the one **new services** use
+   (the standard order, Schedule, Holy Week and ordination services), and
+   the one added when you double-click the item. Set **BCP** as the default
+   to go back to the Prayer Book's text.
+
+In the list, an item whose default is a parish copy shows **Parish
+default** and how many copies it has; the copies themselves are listed under
+**★ Mine**. Deleting the default copy goes back to the BCP. Services already
+made keep the text they were made with, as do service order templates.
+
+The copies are `.ewm` files in the parish library folder (with `based_on`
+and `created` in their front matter), and the defaults are in
+`defaults.json` there, so every computer using the parish library uses the
+same defaults.
 
 ## Hymns
 

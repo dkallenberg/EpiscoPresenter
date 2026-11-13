@@ -11,8 +11,17 @@
 //! Adding an item to a service copies its document into a new cue; the cue
 //! is saved beside the service plan on the next Save Service, so editing it
 //! for one Sunday never changes the library.
+//!
+//! **Versions.** A built-in item is the Prayer Book's text ("BCP"). The
+//! parish can make copies of it (each labelled with the day it was made),
+//! edit them, and set one as the **default**: new services, and adding the
+//! item from the Library, then use the parish's text. A copy is a My Library
+//! file whose front matter says what it is a copy of (`based_on`) and when it
+//! was made (`created`); the defaults are in `defaults.json` in the library
+//! folder.
 
-use std::path::PathBuf;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 use episco_core::ewm;
 use episco_core::propers::{self, ProperItem, Propers};
@@ -156,6 +165,15 @@ pub struct LibraryEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     rite: Option<String>,
     builtin: bool,
+    /// For a parish copy: the built-in item it is a version of.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    base: Option<String>,
+    /// For a parish copy: the day it was made (YYYY-MM-DD).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    created: Option<String>,
+    /// This version is what services use (for a built-in item: no parish
+    /// copy is the default).
+    default: bool,
     /// First words of the text, for the list.
     summary: String,
     slides: usize,
@@ -167,6 +185,8 @@ fn user_dir(app: &AppHandle) -> CmdResult<PathBuf> {
 }
 
 fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
+    let base = if builtin { None } else { doc.meta.extra(BASED_ON).map(String::from) };
+    let created = base.as_ref().and(doc.meta.extra(CREATED)).map(String::from);
     let mut summary: String = doc
         .blocks
         .iter()
@@ -186,9 +206,121 @@ fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
         season: doc.meta.season.map(|s| s.label().to_string()),
         rite: doc.meta.extra("rite").map(String::from),
         builtin,
+        base,
+        created,
+        default: false,
         summary,
         slides: doc.slides().len(),
     }
+}
+
+// ---- versions -----------------------------------------------------------
+
+/// Front matter: the built-in item a parish copy is a version of.
+pub const BASED_ON: &str = "based_on";
+/// Front matter: the day a parish copy was made.
+pub const CREATED: &str = "created";
+const DEFAULTS: &str = "defaults.json";
+
+/// Built-in name → the My Library file that is its default version.
+fn read_defaults(dir: &Path) -> BTreeMap<String, String> {
+    std::fs::read_to_string(dir.join(DEFAULTS)).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+fn write_defaults(dir: &Path, map: &BTreeMap<String, String>) -> CmdResult<()> {
+    let path = dir.join(DEFAULTS);
+    let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| format!("could not save {}: {e}", path.display()))
+}
+
+/// The Prayer Book's text of a built-in item, marked with what it is.
+fn bcp_doc(name: &str) -> Option<LiturgyDocument> {
+    let (_, src) = BUILTIN.iter().find(|(n, _)| *n == name)?;
+    let mut doc = ewm::parse(src).ok()?.document;
+    doc.meta.extra.push((BASED_ON.into(), name.into()));
+    Some(doc)
+}
+
+/// The parish's default version of a built-in item, if it set one.
+fn default_doc(dir: &Path, name: &str) -> Option<LiturgyDocument> {
+    let file = read_defaults(dir).remove(name)?;
+    match ewm::load_file(dir.join(&file)) {
+        Ok(p) => Some(p.document),
+        Err(e) => {
+            tracing::warn!("default version of {name} ({file}) could not be read: {e}");
+            None
+        }
+    }
+}
+
+fn today() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    episco_core::calendar::Date::from_days((secs / 86_400) as i64).to_string()
+}
+
+/// A file name for a new copy of `name` made on `date`.
+fn version_file(dir: &Path, name: &str, date: &str) -> String {
+    let stem = format!("{}--{date}", name.replace('/', "_"));
+    (1..)
+        .map(|n| if n == 1 { format!("{stem}.{}", ewm::EXTENSION) } else { format!("{stem}-{n}.{}", ewm::EXTENSION) })
+        .find(|f| !dir.join(f).exists())
+        .expect("unbounded")
+}
+
+/// Saves `doc` as a new parish copy of built-in item `name`.
+fn save_version(dir: &Path, name: &str, mut doc: LiturgyDocument) -> CmdResult<String> {
+    std::fs::create_dir_all(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let date = today();
+    doc.meta.extra.retain(|(k, _)| k != BASED_ON && k != CREATED);
+    doc.meta.extra.push((BASED_ON.into(), name.into()));
+    doc.meta.extra.push((CREATED.into(), date.clone()));
+    let file = version_file(dir, name, &date);
+    let path = dir.join(&file);
+    std::fs::write(&path, ewm::to_string(&doc)).map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    Ok(format!("user:{file}"))
+}
+
+fn user_file(id: &str) -> CmdResult<&str> {
+    let file = id.strip_prefix("user:").ok_or("bad library id")?;
+    if file.contains(['/', '\\']) || file.starts_with('.') {
+        return Err("bad library id".into());
+    }
+    Ok(file)
+}
+
+/// Makes a copy of a built-in item (or of one of its copies) for the
+/// parish to edit. Returns the copy's id.
+#[tauri::command]
+pub fn library_copy(app: AppHandle, id: String) -> CmdResult<String> {
+    let doc = load(&app, &id)?;
+    let name = doc.meta.extra(BASED_ON).map(String::from).ok_or("only Prayer Book items have versions")?;
+    save_version(&user_dir(&app)?, &name, doc)
+}
+
+/// Makes a version the default for its built-in item; `None` (or the
+/// built-in item itself) goes back to the Prayer Book's text.
+#[tauri::command]
+pub fn library_set_default(app: AppHandle, base: String, id: Option<String>) -> CmdResult<()> {
+    if !BUILTIN.iter().any(|(n, _)| *n == base) {
+        return Err("no such built-in item".into());
+    }
+    let dir = user_dir(&app)?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let mut map = read_defaults(&dir);
+    match id.as_deref().filter(|i| i.starts_with("user:")) {
+        Some(id) => {
+            let file = user_file(id)?;
+            let doc = ewm::load_file(dir.join(file)).map_err(|e| e.to_string())?.document;
+            if doc.meta.extra(BASED_ON) != Some(base.as_str()) {
+                return Err("that item is not a version of this one".into());
+            }
+            map.insert(base, file.to_string());
+        }
+        None => {
+            map.remove(&base);
+        }
+    }
+    write_defaults(&dir, &map)
 }
 
 fn user_files(app: &AppHandle) -> Vec<PathBuf> {
@@ -202,23 +334,23 @@ fn user_files(app: &AppHandle) -> Vec<PathBuf> {
     files
 }
 
-/// A built-in item's document by name (e.g. `"collect-for-purity"`).
+/// A built-in item's document by name (e.g. `"collect-for-purity"`): the
+/// parish's default version if it set one, else the Prayer Book's text.
 pub fn builtin_doc(name: &str) -> Option<LiturgyDocument> {
-    let (_, src) = BUILTIN.iter().find(|(n, _)| *n == name)?;
-    ewm::parse(src).ok().map(|p| p.document)
+    if let Some(dir) = crate::storage::root().map(|r| r.join("library")) {
+        if let Some(doc) = default_doc(&dir, name) {
+            return Some(doc);
+        }
+    }
+    bcp_doc(name)
 }
 
 /// Loads a library item's document by id.
 fn load(app: &AppHandle, id: &str) -> CmdResult<LiturgyDocument> {
     if let Some(name) = id.strip_prefix("builtin:") {
-        let (_, src) = BUILTIN.iter().find(|(n, _)| *n == name).ok_or("no such built-in item")?;
-        return ewm::parse(src).map(|p| p.document).map_err(|e| e.to_string());
+        return bcp_doc(name).ok_or_else(|| "no such built-in item".into());
     }
-    let file = id.strip_prefix("user:").ok_or("bad library id")?;
-    if file.contains(['/', '\\']) || file.starts_with('.') {
-        return Err("bad library id".into());
-    }
-    let path = user_dir(app)?.join(file);
+    let path = user_dir(app)?.join(user_file(id)?);
     ewm::load_file(&path).map(|p| p.document).map_err(|e| e.to_string())
 }
 
@@ -235,6 +367,20 @@ pub fn library_list(app: AppHandle) -> Vec<LibraryEntry> {
             Ok(p) => out.push(entry(format!("user:{name}"), &p.document, false)),
             Err(e) => tracing::warn!("skipping library file: {e}"),
         }
+    }
+    // Which version of each built-in item services use.
+    let defaults = user_dir(&app).map(|d| read_defaults(&d)).unwrap_or_default();
+    let ids: Vec<(String, bool)> = out.iter().map(|e| (e.id.clone(), e.builtin)).collect();
+    for e in &mut out {
+        e.default = match (&e.base, e.builtin) {
+            (Some(base), false) => defaults.get(base).is_some_and(|f| e.id == format!("user:{f}")),
+            (None, true) => {
+                let name = e.id.trim_start_matches("builtin:");
+                // A default whose file is gone falls back to the BCP.
+                defaults.get(name).is_none_or(|f| !ids.iter().any(|(i, _)| *i == format!("user:{f}")))
+            }
+            _ => false,
+        };
     }
     out
 }
@@ -278,11 +424,33 @@ pub fn library_add(
 /// Saves a cue's current text to My Library. With `replace` false, refuses
 /// to overwrite an existing item of the same name (the UI then asks).
 #[tauri::command]
-pub fn library_save_cue(app: AppHandle, engine: State<'_, Engine>, id: String, replace: bool) -> CmdResult<String> {
+pub fn library_save_cue(
+    app: AppHandle,
+    engine: State<'_, Engine>,
+    id: String,
+    replace: bool,
+    version: Option<VersionSave>,
+) -> CmdResult<String> {
     let service = engine.service().ok_or("no service is loaded")?;
     let cue = service.cue(&id).ok_or("no such cue")?;
     let doc = cue.document().ok_or("announcements cues cannot be saved to the library")?;
     let dir = user_dir(&app)?;
+    // A Prayer Book item (or a copy of one): saved as a version of it.
+    if let Some(name) = doc.meta.extra(BASED_ON).filter(|n| BUILTIN.iter().any(|(b, _)| b == n)) {
+        let existing = doc.meta.extra(CREATED).and_then(|_| find_version(&dir, doc));
+        return match (version, existing) {
+            (None, Some(file)) => {
+                Err(format!("version:{}", doc.meta.extra(CREATED).unwrap_or_default().to_owned() + "|" + &file))
+            }
+            (Some(VersionSave::Update), Some(file)) => {
+                let path = dir.join(&file);
+                std::fs::write(&path, ewm::to_string(doc))
+                    .map_err(|e| format!("could not save {}: {e}", path.display()))?;
+                Ok(format!("user:{file}"))
+            }
+            _ => save_version(&dir, name, doc.clone()),
+        };
+    }
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     let name = slug_file_name(&doc.meta.title, ewm::EXTENSION);
     let path = dir.join(&name);
@@ -291,6 +459,33 @@ pub fn library_save_cue(app: AppHandle, engine: State<'_, Engine>, id: String, r
     }
     std::fs::write(&path, ewm::to_string(doc)).map_err(|e| format!("could not save {}: {e}", path.display()))?;
     Ok(format!("user:{name}"))
+}
+
+/// How "Save to Library" saves a copy of a Prayer Book item that came
+/// from one of the parish's versions.
+#[derive(Debug, Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VersionSave {
+    /// Overwrite the version it came from.
+    Update,
+    /// Save another, dated version.
+    New,
+}
+
+/// The version file a document came from (same item, same day made).
+fn find_version(dir: &Path, doc: &LiturgyDocument) -> Option<String> {
+    let (base, created) = (doc.meta.extra(BASED_ON)?, doc.meta.extra(CREATED)?);
+    let entries = std::fs::read_dir(dir).ok()?;
+    let mut files: Vec<PathBuf> = entries.filter_map(|e| e.ok().map(|e| e.path())).collect();
+    files.sort();
+    files.into_iter().find_map(|p| {
+        let d = ewm::load_file(&p).ok()?.document;
+        (d.meta.extra(BASED_ON) == Some(base)
+            && d.meta.extra(CREATED) == Some(created)
+            && d.meta.title == doc.meta.title)
+            .then(|| p.file_name()?.to_str().map(String::from))
+            .flatten()
+    })
 }
 
 /// Makes a library item from pasted text (e.g. a prayer from the parish's
@@ -326,12 +521,21 @@ pub fn library_create_from_text(
 /// Deletes an item from My Library (built-in items cannot be deleted).
 #[tauri::command]
 pub fn library_delete(app: AppHandle, id: String) -> CmdResult<()> {
-    let file = id.strip_prefix("user:").ok_or("built-in items cannot be deleted")?;
-    if file.contains(['/', '\\']) || file.starts_with('.') {
-        return Err("bad library id".into());
+    if id.starts_with("builtin:") {
+        return Err("built-in items cannot be deleted".into());
     }
-    let path = user_dir(&app)?.join(file);
-    std::fs::remove_file(&path).map_err(|e| format!("could not delete {}: {e}", path.display()))
+    let file = user_file(&id)?;
+    let dir = user_dir(&app)?;
+    let path = dir.join(file);
+    std::fs::remove_file(&path).map_err(|e| format!("could not delete {}: {e}", path.display()))?;
+    // A deleted default: back to the Prayer Book's text.
+    let mut map = read_defaults(&dir);
+    let before = map.len();
+    map.retain(|_, f| f != file);
+    if map.len() != before {
+        write_defaults(&dir, &map)?;
+    }
+    Ok(())
 }
 
 /// The My Library folder, so the operator can open it in Finder.
@@ -537,6 +741,36 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parish_versions_of_prayer_book_items() {
+        let dir = std::env::temp_dir().join(format!("episco-versions-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let bcp = bcp_doc("nicene-creed").unwrap();
+        assert_eq!(bcp.meta.extra(BASED_ON), Some("nicene-creed"));
+        assert!(default_doc(&dir, "nicene-creed").is_none(), "no default: the BCP");
+        // Two copies made today: dated, numbered apart.
+        let a = save_version(&dir, "nicene-creed", bcp.clone()).unwrap();
+        let b = save_version(&dir, "nicene-creed", bcp.clone()).unwrap();
+        assert_ne!(a, b);
+        assert!(a.starts_with(&format!("user:nicene-creed--{}", today())), "{a}");
+        let file_a = a.trim_start_matches("user:");
+        let mut edited = ewm::load_file(dir.join(file_a)).unwrap().document;
+        assert_eq!(edited.meta.extra(CREATED), Some(today().as_str()));
+        // The copy it came from is found again for "Update".
+        assert!(find_version(&dir, &edited).is_some());
+        edited.meta.title = "The Nicene Creed (parish)".into();
+        std::fs::write(dir.join(file_a), ewm::to_string(&edited)).unwrap();
+        // Set as the default: services get it.
+        let mut map = BTreeMap::new();
+        map.insert("nicene-creed".to_string(), file_a.to_string());
+        write_defaults(&dir, &map).unwrap();
+        assert_eq!(default_doc(&dir, "nicene-creed").unwrap().meta.title, "The Nicene Creed (parish)");
+        // A missing file falls back.
+        std::fs::remove_file(dir.join(file_a)).unwrap();
+        assert!(default_doc(&dir, "nicene-creed").is_none());
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn every_builtin_item_parses_cleanly() {

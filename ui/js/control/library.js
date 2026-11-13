@@ -7,7 +7,33 @@ import { mountStage, renderOutput } from "/js/render.js";
 import { renderMedia } from "/js/control/media.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
-const lib = { entries: [], category: "all", query: "", selected: null, mine: false, view: "items", rite: "all" };
+const lib = { entries: [], category: "all", query: "", selected: null, version: null, mine: false, view: "items", rite: "all" };
+
+// ---------- versions of Prayer Book items ----------
+
+/** "13 Nov 2026" from YYYY-MM-DD. */
+export function dayLabel(iso) {
+  const [y, m, d] = (iso ?? "").split("-").map(Number);
+  if (!y) return iso ?? "";
+  return `${d} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1]} ${y}`;
+}
+
+const baseName = (e) => (e.builtin ? e.id.replace(/^builtin:/, "") : e.base);
+
+/** A built-in item and the parish's copies of it: BCP first, then by date. */
+function versionsOf(e) {
+  const name = baseName(e);
+  if (!name) return [e];
+  const bcp = lib.entries.find((x) => x.id === `builtin:${name}`);
+  const copies = lib.entries.filter((x) => x.base === name).sort((a, b) => (a.created ?? "").localeCompare(b.created ?? "") || a.id.localeCompare(b.id));
+  return [bcp, ...copies].filter(Boolean);
+}
+
+/** "BCP", "Default" or the day the copy was made. */
+function versionLabel(v) {
+  if (v.builtin) return "BCP";
+  return v.default ? "Default" : dayLabel(v.created);
+}
 
 /** Items | Media switch at the top of the Library. */
 function viewSwitch() {
@@ -39,6 +65,8 @@ export async function refresh() {
 
 function matches(e) {
   if (lib.mine && e.builtin) return false;
+  // A copy of a Prayer Book item is listed under it (and under ★ Mine).
+  if (e.base && !lib.mine) return false;
   if (lib.rite !== "all" && e.rite && e.rite !== lib.rite) return false;
   if (lib.category !== "all" && e.category !== lib.category) return false;
   const q = lib.query.trim().toLowerCase();
@@ -83,14 +111,20 @@ function render() {
           el(
             `div.lib-row${e.id === lib.selected ? ".selected" : ""}`,
             {
-              onclick: () => { lib.selected = e.id; render(); },
-              ondblclick: () => add([e.id]),
+              onclick: () => { lib.selected = e.id; lib.version = null; render(); },
+              ondblclick: () => add([e.builtin ? (versionsOf(e).find((v) => v.default) ?? e).id : e.id]),
             },
             el(
               "div.lib-title",
               {},
               e.title,
-              e.builtin ? el("span.badge", {}, "Built-in") : el("span.badge.own", {}, "Mine"),
+              e.builtin
+                ? el("span.badge", { title: "The Book of Common Prayer's text" }, "BCP")
+                : e.base
+                  ? el("span.badge.own", {}, `Copy · ${versionLabel(e)}`)
+                  : el("span.badge.own", {}, "Mine"),
+              e.builtin && !e.default ? el("span.badge.own", { title: "New services use the parish's default version" }, "Parish default") : null,
+              e.builtin && versionsOf(e).length > 1 ? el("span.muted.small", {}, ` ${versionsOf(e).length - 1} cop${versionsOf(e).length === 2 ? "y" : "ies"}`) : null,
             ),
             el("div.lib-meta", {}, [titleCase(e.category), e.rite ? `Rite ${e.rite}` : null, e.citation, e.season, `${e.slides} slide${e.slides === 1 ? "" : "s"}`].filter(Boolean).join(" · ")),
             el("div.lib-summary", {}, e.summary),
@@ -121,11 +155,16 @@ function render() {
   if (lib.selected) showPreview(lib.selected);
 }
 
-async function showPreview(id) {
+async function showPreview(rowId) {
   const host = document.getElementById("lib-preview");
-  const entry = lib.entries.find((e) => e.id === id);
+  const row = lib.entries.find((e) => e.id === rowId);
+  // A Prayer Book item: show the chosen version, else the default.
+  const versions = row ? versionsOf(row) : [];
+  const chosen = versions.find((v) => v.id === lib.version) ?? (row?.builtin ? versions.find((v) => v.default) : row) ?? row;
+  const id = chosen?.id ?? rowId;
+  const entry = chosen;
   const cue = await call("library_preview", { id });
-  if (!cue || lib.selected !== id) return;
+  if (!cue || lib.selected !== rowId) return;
   const slides = cue.content.slides.length ? cue.content.slides : [null];
   const grid = el("div.lib-slides");
   host.replaceChildren(
@@ -140,6 +179,7 @@ async function showPreview(id) {
         el("button.primary", { disabled: app.readonly || !app.service, onclick: () => add([id]) }, "Add to service"),
       ),
     ),
+    baseName(entry ?? {}) ? versionBar(versions, entry) : null,
     el("div.picker-sub", {}, "Sanctuary · Live Stream"),
     grid,
   );
@@ -152,6 +192,64 @@ async function showPreview(id) {
       renderOutput(mountStage(thumb), snap, { cue, slide, pos: { cue: -1, slide: si } }, output);
     }
   });
+}
+
+/** The versions of a Prayer Book item: pick one to preview; make a copy,
+ *  edit it, or make it the one services use. */
+function versionBar(versions, shown) {
+  const name = baseName(shown);
+  const pick = (v) => {
+    lib.version = v.id;
+    showPreview(lib.selected);
+  };
+  const copy = async () => {
+    const id = await call("library_copy", { id: shown.id });
+    if (!id) return;
+    toast("Copy made: edit it with “Add & edit”, then Save to Library");
+    lib.version = id;
+    await refresh();
+  };
+  const setDefault = async () => {
+    const ok = await call("library_set_default", { base: name, id: shown.builtin ? null : shown.id });
+    if (ok === undefined) return;
+    toast(shown.builtin ? "New services use the Prayer Book's text" : `New services use the copy of ${dayLabel(shown.created)}`);
+    lib.version = shown.id;
+    await refresh();
+  };
+  const edit = async () => {
+    if (!app.service) return toast("Open a service first (☰ Services).", "warn");
+    const added = await call("library_add", { ids: [shown.id], after: insertionPoint() });
+    if (!added?.length) return;
+    app.select(added[0]);
+    document.querySelector('.tabs button[data-tab="editor"]')?.click();
+    toast("Added to the service. Edit it, then Save to Library to keep the changes in this copy.");
+  };
+  return el(
+    "div.lib-versions",
+    {},
+    el("span.muted.small", {}, "Versions"),
+    el(
+      "div.seg",
+      {},
+      versions.map((v) =>
+        el(
+          `button${v.id === shown.id ? ".active" : ""}`,
+          { title: v.builtin ? "The Book of Common Prayer's text" : `The parish's copy, made ${dayLabel(v.created)}`, onclick: () => pick(v) },
+          versionLabel(v),
+          v.default ? " ★" : "",
+        ),
+      ),
+    ),
+    el(
+      "div.lib-version-actions",
+      {},
+      el("button.small", { disabled: app.readonly, title: "A copy of this version for the parish to edit", onclick: copy }, "Make a copy"),
+      shown.builtin ? null : el("button.small", { disabled: app.readonly, title: "Add this copy to the service and open it in the Editor", onclick: edit }, "Add & edit"),
+      shown.default
+        ? el("span.muted.small", {}, "★ New services use this version")
+        : el("button.small", { disabled: app.readonly, title: "New services, and adding this item, use this version", onclick: setDefault }, "Set as default"),
+    ),
+  );
 }
 
 async function add(ids) {
@@ -242,16 +340,30 @@ async function remove(entry) {
   const ok = await call("confirm", { title: "Delete from library", message: `Delete “${entry.title}” from your library?`, okLabel: "Delete" });
   if (!ok) return;
   await call("library_delete", { id: entry.id });
+  lib.version = null;
   await refresh();
 }
 
 /** "Save to Library" for the cue in the editor. */
 export async function saveCueToLibrary(cue) {
   let id;
+  const based = cue.content.document?.meta.extra?.find(([k]) => k === "based_on")?.[1];
   try {
     id = await window.__TAURI__.core.invoke("library_save_cue", { id: cue.id, replace: false });
   } catch (e) {
     const msg = String(e);
+    if (msg.startsWith("version:")) {
+      // It came from one of the parish's copies: update it, or keep both.
+      const [created] = msg.slice(8).split("|");
+      const how = await choose("Save to Library", `This is the parish's copy of “${cue.title}” made ${dayLabel(created)}.`, [
+        ["update", `Update the copy of ${dayLabel(created)}`],
+        ["new", "Save as a new copy"],
+      ]);
+      if (!how) return;
+      id = await call("library_save_cue", { id: cue.id, replace: false, version: how });
+      if (id) toast(how === "update" ? `Updated the copy of ${dayLabel(created)}` : "Saved as a new copy. To use it in new services, set it as the default in the Library.");
+      return;
+    }
     if (!msg.startsWith("exists:")) return toast(msg, "error");
     const ok = await call("confirm", {
       title: "Replace library item",
@@ -261,7 +373,35 @@ export async function saveCueToLibrary(cue) {
     if (!ok) return;
     id = await call("library_save_cue", { id: cue.id, replace: true });
   }
-  if (id) toast(`Saved “${cue.title}” to your library`);
+  if (id && based) toast(`Saved a parish copy of “${cue.title}”, dated today. To use it in new services, set it as the default in the Library.`);
+  else if (id) toast(`Saved “${cue.title}” to your library`);
+}
+
+/** A small dialog of choices; resolves to the chosen key, or null. */
+function choose(title, message, options) {
+  return new Promise((resolve) => {
+    const done = (v) => {
+      overlay.remove();
+      resolve(v);
+    };
+    const overlay = el(
+      "div.modal-overlay",
+      { onmousedown: (e) => e.target === overlay && done(null) },
+      el(
+        "div.modal",
+        {},
+        el("h3", {}, title),
+        el("p", {}, message),
+        el(
+          "div.modal-actions",
+          {},
+          el("button", { onclick: () => done(null) }, "Cancel"),
+          options.map(([k, l], i) => el(i === 0 ? "button.primary" : "button", { onclick: () => done(k) }, l)),
+        ),
+      ),
+    );
+    document.body.append(overlay);
+  });
 }
 
 // ---------- Propers ----------

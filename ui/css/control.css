@@ -289,6 +289,8 @@ select.overridden, .bg-button.overridden { border-color: var(--accent); }
 .lib-preview { min-width: 0; overflow: auto; }
 .lib-preview-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .lib-actions { display: flex; gap: 8px; }
+.lib-versions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; }
+.lib-version-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lib-slides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .danger-btn:hover { background: #5a2226 !important; border-color: var(--live) !important; }
 .modal.wide { width: 760px; }
