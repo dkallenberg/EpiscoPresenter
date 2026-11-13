@@ -672,6 +672,20 @@ function readingPanel(c) {
       }, citation ? `Open ${citation} ↗` : "Open passage ↗"),
       field("Slides", words),
     ),
+    el(
+      "label.toggle",
+      { title: "Off: the slides show the reading's title and the responses; the congregation follows in the bulletin. The bulletin and script print the text either way." },
+      el("input", {
+        type: "checkbox",
+        checked: extraOf(ed.doc, "slide_text") === "true",
+        disabled: app.readonly,
+        onchange: (e) => {
+          setExtra("slide_text", e.target.checked ? "true" : "");
+          changed();
+        },
+      }),
+      "Show the reading on the slides (otherwise just the title and responses)",
+    ),
     paste,
     el(
       "div.reading-row",

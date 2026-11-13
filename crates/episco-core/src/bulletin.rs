@@ -86,6 +86,8 @@ pub struct ParishInfo {
     pub liturgy_title: String,
     /// How often a speaker's label is printed in the bulletin and script.
     pub speaker_labels: SpeakerLabels,
+    /// The sheet the bulletin is printed on and folded.
+    pub paper: BulletinPaper,
     /// The parish's usual service times on a Sunday, "08:00", "10:30".
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub service_times: Vec<String>,
@@ -93,6 +95,26 @@ pub struct ParishInfo {
     pub rector: Clergy,
     pub assistant: Clergy,
     pub bishop: Clergy,
+}
+
+/// The sheet a bulletin is printed on, folded in half into a booklet.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BulletinPaper {
+    /// 11 × 17 in, folded: 8½ × 11 in pages.
+    #[default]
+    Tabloid,
+    /// 8½ × 11 in, folded: 5½ × 8½ in pages.
+    Letter,
+}
+
+impl BulletinPaper {
+    pub fn key(self) -> &'static str {
+        match self {
+            BulletinPaper::Tabloid => "tabloid",
+            BulletinPaper::Letter => "letter",
+        }
+    }
 }
 
 /// One of the parish's clergy: "The Very Rev.", "Jane Doe", "Rector".
@@ -840,7 +862,12 @@ pub fn to_html(doc: &Doc) -> String {
         DocKind::Bulletin => "bulletin",
         DocKind::Script => "script",
     };
-    h.push_str(&format!("<article class=\"doc {kind}\">"));
+    let paper = match (&doc.kind, &doc.back) {
+        (DocKind::Bulletin, Some(p)) => format!(" paper-{}", p.paper.key()),
+        (DocKind::Bulletin, None) => format!(" paper-{}", BulletinPaper::default().key()),
+        _ => String::new(),
+    };
+    h.push_str(&format!("<article class=\"doc {kind}{paper}\">"));
     // Cover
     h.push_str("<header class=\"cover\">");
     if let Some(logo) = &doc.cover.logo {

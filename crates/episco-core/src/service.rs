@@ -36,6 +36,10 @@ use crate::state::CuePosition;
 /// Conventional file extension for service plans.
 pub const PLAN_EXTENSION: &str = "toml";
 
+/// Front-matter key: show a reading's scripture text on the slides too
+/// (`slide_text: true`); by default only its title and responses.
+pub const SLIDE_TEXT: &str = "slide_text";
+
 /// A fully resolved service, ready to present.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Service {
@@ -237,6 +241,22 @@ impl Cue {
         match &mut self.content {
             CueContent::Liturgy { document, slides, .. } => {
                 *slides = document.slides();
+                // A reading's slides show its title and responses; the
+                // scripture itself only when the item asks (`slide_text: true`).
+                // The bulletin and script print it in full either way.
+                let category = o.category.unwrap_or_else(|| document.meta.effective_category());
+                if matches!(category, ElementCategory::Reading | ElementCategory::Gospel)
+                    && document.meta.extra(SLIDE_TEXT) != Some("true")
+                {
+                    // Title slides (a heading alone) stay; slides left empty go.
+                    slides.retain_mut(|slide| {
+                        if slide.blocks.is_empty() {
+                            return true;
+                        }
+                        slide.blocks.retain(|b| !matches!(b, Block::Paragraph { role: None, .. }));
+                        !slide.blocks.is_empty()
+                    });
+                }
                 if ctx.bishop {
                     for slide in slides.iter_mut() {
                         for block in &mut slide.blocks {
@@ -801,6 +821,25 @@ fn slug(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn readings_show_their_responses_unless_the_text_is_asked_for() {
+        let src = "---\ntitle: First Reading\ntype: reading\ncitation: Job 19:23-27a\n---\n# The First Reading\n\n---\n\nO that my words were written down!\n\n---\n\nFor I know that my Redeemer lives. (NRSVue)\n\n---\n\n[Reader] The word of the Lord.\n[People] **Thanks be to God.**\n";
+        let doc: LiturgyDocument = src.parse().unwrap();
+        let cue = Cue::liturgy("r", doc.clone(), None, CueOverrides::default());
+        assert_eq!(cue.slide_count(), 2, "title and responses only");
+        assert!(cue.slide(0).unwrap().blocks.is_empty(), "the title slide stays");
+        assert!(cue.slide(1).unwrap().blocks.iter().all(|b| b.role().is_some()));
+        // Asked for: the text is on the slides too.
+        let mut with = doc;
+        with.meta.extra.push((SLIDE_TEXT.into(), "true".into()));
+        let cue = Cue::liturgy("r", with, None, CueOverrides::default());
+        assert_eq!(cue.slide_count(), 4);
+        // Not a reading: untouched.
+        let prayer: LiturgyDocument =
+            "---\ntitle: P\ntype: prayer\n---\nSome words.\n\n---\n\nMore.\n".parse().unwrap();
+        assert_eq!(Cue::liturgy("p", prayer, None, CueOverrides::default()).slide_count(), 2);
+    }
     use crate::document::Block;
     use crate::look::{Layout, TextTone};
     use crate::role::Role;

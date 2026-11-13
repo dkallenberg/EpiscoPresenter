@@ -12,7 +12,7 @@ use std::path::Path;
 
 use zip::write::SimpleFileOptions;
 
-use crate::bulletin::{escape, Doc, DocKind, ParishInfo, Piece, Run};
+use crate::bulletin::{escape, BulletinPaper, Doc, DocKind, ParishInfo, Piece, Run};
 
 /// Layout numbers for one kind of document (twentieths of a point).
 struct Page {
@@ -31,8 +31,20 @@ struct Page {
 }
 
 impl Page {
-    fn for_kind(kind: DocKind) -> Page {
+    fn for_kind(kind: DocKind, paper: BulletinPaper) -> Page {
         match kind {
+            // Book fold: 11 × 17 landscape, each half a page 8.5 × 11 in.
+            DocKind::Bulletin if paper == BulletinPaper::Tabloid => Page {
+                width: 24480,
+                height: 15840,
+                landscape: true,
+                margin: 1080,
+                text: 12240 - 2 * 1080,
+                size: 24,
+                font: "Garamond",
+                rubric_color: None,
+                hang: 1440,
+            },
             // Book fold: letter landscape, each half a page 5.5 × 8.5 in.
             DocKind::Bulletin => Page {
                 width: 15840,
@@ -349,7 +361,8 @@ xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
 
 /// The document as the bytes of a `.docx` file.
 pub fn to_docx(doc: &Doc) -> Result<Vec<u8>, String> {
-    let page = Page::for_kind(doc.kind);
+    let paper = doc.back.as_ref().map(|p| p.paper).unwrap_or_default();
+    let page = Page::for_kind(doc.kind, paper);
     let mut w = Writer { page: &page, body: String::new(), media: Vec::new() };
     w.cover(doc);
     for e in &doc.entries {
@@ -441,6 +454,19 @@ w:uri=\"http://schemas.microsoft.com/office/word\" w:val=\"15\"/></w:compat></w:
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bulletins_on_11x17_or_letter() {
+        let page = |paper| Page::for_kind(DocKind::Bulletin, paper);
+        // 17 × 11 in landscape, folded to 8.5 × 11 in pages.
+        let t = page(BulletinPaper::Tabloid);
+        assert_eq!((t.width, t.height, t.landscape), (24480, 15840, true));
+        assert_eq!(t.text + 2 * t.margin, 12240, "half the sheet is one page");
+        let l = page(BulletinPaper::Letter);
+        assert_eq!((l.width, l.height), (15840, 12240));
+        assert_eq!(l.text + 2 * l.margin, 7920);
+        assert_eq!(BulletinPaper::default(), BulletinPaper::Tabloid);
+    }
 
     #[test]
     fn reads_png_and_jpeg_sizes() {

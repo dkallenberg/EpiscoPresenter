@@ -464,6 +464,14 @@ export async function openParish() {
     email: input("email", ""),
     licence: area("licence", 2, "e.g. Music reprinted under OneLicense #A-000000. All rights reserved."),
     welcome: area("welcome", 4, "A word to visitors for the back page. Leave a blank line between paragraphs."),
+    paper: el(
+      "select",
+      {},
+      [
+        ["tabloid", "11 × 17, folded (8½ × 11 pages)"],
+        ["letter", "8½ × 11, folded (5½ × 8½ pages)"],
+      ].map(([v, l]) => el("option", { value: v, selected: v === (info.paper ?? "tabloid") }, l)),
+    ),
     service_times: el("input", {
       value: (info.service_times ?? []).map((t) => t.replace(/^0/, "")).join(", "),
       placeholder: "e.g. 8:00, 10:30",
@@ -539,6 +547,7 @@ export async function openParish() {
         field("Welcome for visitors", f.welcome, true),
         field("Speaker labels (People, All, Celebrant…) in the bulletin and script", f.speaker_labels),
         field("Sunday service times (24-hour, e.g. 8:00, 10:30, 17:00)", f.service_times),
+        field("Bulletin paper", f.paper),
         el(
           "div.field.wide",
           {},

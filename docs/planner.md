@@ -47,7 +47,9 @@ folder (on macOS `~/Library/Application Support/org.episcopresenter.planner/`).
 ## Bulletin and script
 
 The planner opens on the **Bulletin** tab: a live preview of the printed
-bulletin, half-letter pages in Garamond, updated as the service changes.
+bulletin in Garamond, updated as the service changes. **Parish details →
+Bulletin paper** chooses the sheet: **11 × 17, folded** into 8½ × 11 pages
+(the default) or 8½ × 11, folded into 5½ × 8½ pages.
 
 * **Click an item** in the preview (or the timeline) and choose how it
   appears with the bar above:
@@ -65,6 +67,11 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   prayers in full, pictures and planned blanks left out. Choosing the usual
   one again clears your choice. The choice is saved in the service plan
   (`bulletin = "full"` on the cue).
+* **Readings on the slides** show just the title and the responses (*The
+  Word of the Lord. / Thanks be to God.*); the congregation reads along in
+  the bulletin, which prints the text in full. To project the text too,
+  tick **Show the reading on the slides** in the reading's panel in the
+  Editor.
 * **Reading texts…**: the app does not include scripture (the NRSV and
   NRSVue are copyright the National Council of Churches), so readings get
   their text in one of two ways:
@@ -127,9 +134,9 @@ bulletin, half-letter pages in Garamond, updated as the service changes.
   elsewhere is copied in as `parish-logo.png`).
 * **Export bulletin to Word** saves a `.docx` (suggested in the library's
   `bulletins/` folder, named like `2025-11-09 0800 Bulletin.docx`) and opens
-  it. It is set up for **book fold**: Word shows half-letter pages and, on
-  a two-sided printer, prints them in booklet order on letter paper to fold
-  in half. (LibreOffice and Google Docs ignore book fold and show the
+  it. It is set up for **book fold**: Word shows the folded pages and, on
+  a two-sided printer, prints them in booklet order on 11 × 17 (or letter)
+  paper to fold in half. (LibreOffice and Google Docs ignore book fold and show the
   pages as landscape sheets.) Edit the Word file freely for last touches.
 
 **Edit the text in place**, like a word processor, in both the Bulletin
