@@ -152,7 +152,7 @@ function paragraphText(b, { reflow, bold, hanging, extra }) {
       return;
     }
     // Sense lines (a paragraph written line by line) hang; prose wraps.
-    const line = el("div", hanging && b.lines.length > 1 ? "ln hang" : "ln");
+    const line = el("div", hanging && (b.lines.length > 1 || extra) ? "ln hang" : "ln");
     const level = indent + (extra?.(i) ?? 0);
     if (level) line.style.setProperty("--in", level);
     line.append(renderLine(spans, bold));
@@ -161,12 +161,13 @@ function paragraphText(b, { reflow, bold, hanging, extra }) {
   return text;
 }
 
-/** Psalm verses: the second half-verse (and any line after it) indented;
- *  with `alternate`, every other verse indented a step more. */
+/** Psalm verses: both halves start level (a half too long for the line
+ *  carries on indented under itself); with `alternate`, every other verse
+ *  is indented a step. */
 function verseIndent(role, alternate) {
   const n = parseInt(role, 10);
   const step = alternate && n % 2 === 0 ? 1 : 0;
-  return (i) => step + (i > 0 ? 1 : 0);
+  return () => step;
 }
 
 /**

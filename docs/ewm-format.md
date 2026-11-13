@@ -154,8 +154,10 @@ of its own:
 		**he came down from heaven:**
 ```
 
-Psalm verses need no tabs: the second half-verse is indented on every
-screen and in the bulletin. In the Editor, **Tab** and **⇧Tab** indent and
+Psalm verses need no tabs: the two halves of a verse (split at the `*`)
+each start a line at the same indent, a half too long for its line carries
+on indented under itself, and every other verse can be indented a step (see
+[layouts.md](layouts.md#how-much-text-a-slide-holds)). In the Editor, **Tab** and **⇧Tab** indent and
 outdent the line the cursor is on.
 
 ### Slides

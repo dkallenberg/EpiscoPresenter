@@ -253,12 +253,12 @@ fn indents_of(lines: &[Vec<Span>]) -> Vec<usize> {
     }
 }
 
-/// A psalm verse's indents, as the Prayer Book prints them: the second
-/// half-verse (and any line after it) a step in, and every other verse a
-/// step further.
+/// A psalm verse's indents: both halves start level (a half too long for
+/// the column carries on indented under itself), and every other verse is
+/// a step in.
 fn verse_indents(number: &str, lines: &[Vec<Span>]) -> Vec<usize> {
     let even = number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
-    lines.iter().enumerate().map(|(j, l)| split_indent(l).0 + usize::from(j > 0) + usize::from(even)).collect()
+    lines.iter().map(|l| split_indent(l).0 + usize::from(even)).collect()
 }
 
 /// One printed piece of an entry.
@@ -1330,8 +1330,8 @@ mod tests {
                     _ => None,
                 })
                 .collect();
-            // The second half-verse a step in; every other verse a step more.
-            assert_eq!(verses, [vec![0, 1], vec![1, 2]]);
+            // Both halves level; every other verse a step in.
+            assert_eq!(verses, [vec![0, 0], vec![1, 1]]);
             let Some(Piece::Speech { lines, joins, indents, .. }) =
                 doc.entries[1].pieces.iter().find(|p| matches!(p, Piece::Speech { .. }))
             else {

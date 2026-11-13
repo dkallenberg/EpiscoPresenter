@@ -48,7 +48,7 @@ with a text box:
 | Lines per slide | How many lines of text a slide holds. Empty on the live stream: what the text box holds at its type size (Left side 14, Bottom Bar 6, Lower Third 2, Hymn 13); moving or resizing the text box, or changing its size, changes it. Empty on the sanctuary: the slides stay as written. |
 | Line breaks | *Each line on its own line* (the Prayer Book's sense lines) or *Run a paragraph's lines together* (the default for the stream's hymn verses). |
 | Hanging indent for long lines | A line too long for the box carries on indented under itself, as the Prayer Book prints the Creed, the Lord's Prayer and the psalms. Text written as one long paragraph wraps as usual. |
-| Indent every other psalm verse | Even-numbered verses are indented a step (on for the stream, off for the sanctuary; always on in the bulletin and script). The second half of each verse is always on its own line, a step in. |
+| Indent every other psalm verse | Even-numbered verses are indented a step (on for the stream, off for the sanctuary; always on in the bulletin and script). Both halves of a verse start at the same indent; a half that runs onto another line carries on a step in. |
 
 The slides of each item are made to fit:
 
