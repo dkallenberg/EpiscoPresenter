@@ -142,16 +142,107 @@ fn on_monitor(window: &WebviewWindow, target: &Monitor) -> bool {
     window.current_monitor().ok().flatten().is_some_and(|m| same_monitor(&m, target))
 }
 
+/// Outputs made full screen by us. macOS's "simple" full screen (used there:
+/// it fills the window's own screen without a separate Space) is not
+/// reported by `is_fullscreen`, so it is remembered here.
+static FULL: std::sync::Mutex<Vec<&'static str>> = std::sync::Mutex::new(Vec::new());
+
+fn is_full(window: &WebviewWindow) -> bool {
+    window.is_fullscreen().unwrap_or(false) || FULL.lock().map(|f| f.contains(&window_label(window))).unwrap_or(false)
+}
+
+fn window_label(window: &WebviewWindow) -> &'static str {
+    if window.label() == OutputKind::Stream.window_label() {
+        OutputKind::Stream.window_label()
+    } else {
+        OutputKind::Sanctuary.window_label()
+    }
+}
+
+/// Full screen on the window's current screen: macOS's simple full screen
+/// (no new Space, menu bar and Dock hidden), elsewhere the usual one.
+fn set_full(window: &WebviewWindow, on: bool) {
+    let label = window_label(window);
+    if cfg!(target_os = "macos") {
+        let _ = window.set_simple_fullscreen(on);
+    } else {
+        let _ = window.set_fullscreen(on);
+    }
+    if let Ok(mut f) = FULL.lock() {
+        f.retain(|l| *l != label);
+        if on {
+            f.push(label);
+        }
+    }
+}
+
+fn describe(m: &Monitor) -> String {
+    format!(
+        "{} at ({}, {}) {}x{} px, scale {}",
+        m.name().cloned().unwrap_or_default(),
+        m.position().x,
+        m.position().y,
+        m.size().width,
+        m.size().height,
+        m.scale_factor()
+    )
+}
+
+/// Moves `window` onto `target`, trying each way of reading positions
+/// (points as macOS uses them, pixels as reported, pixels at the window's
+/// scale) until the system reports it there. Logs every step.
+async fn move_to(window: &WebviewWindow, target: &Monitor, label: &str) -> bool {
+    let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
+    let pos = target.position();
+    let size = target.size();
+    let ms = target.scale_factor();
+    let ws = window.scale_factor().unwrap_or(1.0);
+    let ideas = [
+        ("points", Area::from_pixels(pos.x, pos.y, size.width, size.height, ms, true)),
+        ("pixels", Area::from_pixels(pos.x, pos.y, size.width, size.height, 1.0, false)),
+        (
+            "pixels at the window's scale",
+            Area {
+                x: f64::from(pos.x) / ms * ws,
+                y: f64::from(pos.y) / ms * ws,
+                w: f64::from(size.width) / ms * ws,
+                h: f64::from(size.height) / ms * ws,
+                logical: false,
+            },
+        ),
+    ];
+    // The usual way for this system first.
+    let order: [usize; 3] = if cfg!(target_os = "macos") { [0, 1, 2] } else { [1, 0, 2] };
+    for i in order {
+        let (how, area) = ideas[i];
+        area.centred(0.5).apply(window);
+        pause(300).await;
+        let now = window.current_monitor().ok().flatten();
+        let ok = on_monitor(window, target);
+        tracing::info!(
+            "{label} output: placed by {how} at ({:.0}, {:.0}); window at {:?}, on {} -> {}",
+            area.centred(0.5).x,
+            area.centred(0.5).y,
+            window.outer_position().ok().map(|p| (p.x, p.y)),
+            now.as_ref().map(describe).unwrap_or_else(|| "no monitor".into()),
+            if ok { "on the chosen monitor" } else { "not there" }
+        );
+        if ok {
+            return true;
+        }
+    }
+    false
+}
+
 /// Shows an output: full screen on `monitor` (default: its default monitor),
 /// or as an ordinary window on that monitor.
 ///
 /// Full screen happens on whichever screen the window is on, and a hidden
 /// window cannot be moved reliably (macOS keeps it on the main screen). So
-/// the window is shown, moved onto the chosen monitor (in points on macOS,
-/// see [`Area`]), checked to be there, and only then made full screen. If
-/// the system still will not move it, it is made to fill the chosen
-/// monitor without a title bar instead, so it is never full screen on the
-/// wrong one.
+/// the window is shown, moved onto the chosen monitor (see [`move_to`]),
+/// and only then made full screen. If it still cannot be moved, it fills
+/// the chosen monitor without a title bar rather than going full screen on
+/// the wrong one.
 pub fn show_output(
     app: &AppHandle,
     config: &NodeConfig,
@@ -164,37 +255,29 @@ pub fn show_output(
         monitor.filter(|i| *i < monitors.len()).unwrap_or_else(|| default_monitor(app, config, output, &monitors));
     let window = window_for(app, output)?;
     let target = monitors.get(index).cloned();
-    let was_fullscreen = window.is_fullscreen().unwrap_or(false);
+    let label = output.window_label();
+    for (i, m) in monitors.iter().enumerate() {
+        tracing::info!("monitor {i}: {}{}", describe(m), if i == index { "  <- chosen" } else { "" });
+    }
+    let was_full = is_full(&window);
     let handle = app.clone();
     tauri::async_runtime::spawn(async move {
         let pause = |ms| tokio::time::sleep(std::time::Duration::from_millis(ms));
-        if was_fullscreen {
-            let _ = window.set_fullscreen(false);
-            // macOS animates out of full screen; moving during it is ignored.
-            pause(900).await;
+        if was_full {
+            set_full(&window, false);
+            // Leaving full screen (an animation for the native kind).
+            pause(if cfg!(target_os = "macos") { 400 } else { 900 }).await;
         }
         // Back to an ordinary window (after a "fill the monitor" fallback).
         let _ = window.set_decorations(true);
         let _ = window.set_always_on_top(false);
         let _ = window.show();
-        let mut placed = true;
-        if let Some(m) = &target {
-            let area = Area::of(m);
-            area.centred(0.5).apply(&window);
-            pause(250).await;
-            // Not there yet (the system was slow): once more, near the corner.
-            for attempt in 0..2 {
-                if on_monitor(&window, m) {
-                    break;
-                }
-                let near = Area { x: area.x + 60.0, y: area.y + 60.0, w: area.w / 2.0, h: area.h / 2.0, ..area };
-                near.apply(&window);
-                pause(300 + 200 * attempt).await;
-            }
-            placed = on_monitor(&window, m);
-            if !placed {
-                tracing::warn!("{} output: could not move it onto monitor {index}", output.window_label());
-            }
+        let placed = match &target {
+            Some(m) => move_to(&window, m, label).await,
+            None => true,
+        };
+        if !placed {
+            tracing::warn!("{label} output: could not move it onto monitor {index}");
         }
         if fullscreen {
             match (&target, placed) {
@@ -204,18 +287,17 @@ pub fn show_output(
                     Area::of(m).apply(&window);
                     let _ = window.set_always_on_top(true);
                 }
-                _ => {
-                    let _ = window.set_fullscreen(true);
-                }
+                _ => set_full(&window, true),
             }
             let _ = window.set_focus();
+            pause(400).await;
+            tracing::info!(
+                "{label} output: full screen, now on {}",
+                window.current_monitor().ok().flatten().as_ref().map(describe).unwrap_or_else(|| "no monitor".into())
+            );
         }
-        tracing::info!(
-            "{} output {} on monitor {index}",
-            output.window_label(),
-            if fullscreen { "full screen" } else { "in a window" }
-        );
-        pause(300).await;
+        tracing::info!("{label} output {} on monitor {index}", if fullscreen { "full screen" } else { "in a window" });
+        pause(200).await;
         emit_changed(&handle);
     });
     Ok(())
@@ -293,7 +375,7 @@ pub fn outputs_status(app: AppHandle, config: State<'_, NodeConfig>) -> OutputsS
                 output,
                 title: title(output),
                 open,
-                fullscreen: open && window.as_ref().is_some_and(|w| w.is_fullscreen().unwrap_or(false)),
+                fullscreen: open && window.as_ref().is_some_and(is_full),
                 monitor,
                 default_monitor: default_monitor(&app, &config, output, &monitors),
             }
@@ -348,7 +430,7 @@ pub fn output_set_fullscreen(
     fullscreen: Option<bool>,
 ) -> CmdResult<()> {
     let Some(window) = app.get_webview_window(output.window_label()) else { return Ok(()) };
-    let now = window.is_fullscreen().unwrap_or(false);
+    let now = is_full(&window);
     let want = fullscreen.unwrap_or(!now);
     if want == now {
         return Ok(());
