@@ -80,6 +80,39 @@ and for the planner's own installer (its own name and app identity):
 cargo tauri build --config src-tauri/planner/bundle.json
 ```
 
+### Installing on another Mac
+
+The app is not signed with an Apple Developer ID, so on a Mac it was not
+built on, macOS may say it **"is damaged and can't be opened"** (it was
+copied from a download, AirDrop, email or a cloud drive and is
+quarantined). It is not damaged. On that Mac, after dragging it into
+Applications, run once in Terminal:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/EpiscoPresenter.app
+```
+
+(and `/Applications/EpiscoPlanner.app` for the planner). Builds sign the app
+ad hoc (`signingIdentity: "-"`), so with a new build macOS may instead say it
+is from an unidentified developer: open it once with Control-click → Open,
+or System Settings → Privacy & Security → **Open Anyway**.
+
+A build runs on the kind of Mac it was made on. To make one for both Apple
+silicon and Intel Macs:
+
+```bash
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
+```
+
+```bash
+cargo tauri build --target universal-apple-darwin
+```
+
+To install without any warning, the app must be signed with an Apple
+Developer ID and notarized (an Apple Developer Program membership); Tauri
+does this when `APPLE_SIGNING_IDENTITY` and the notarization credentials
+are set when building.
+
 ## Quick check of a liturgy file
 
 ```bash
