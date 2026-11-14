@@ -232,21 +232,6 @@ function autoFit(box, min = 0.5) {
   }
 }
 
-/** Fewer lines, more space between them: opens up the line spacing (up to
- *  `max` times the type size) until the text fills its box. Only for text at
- *  full size (a long verse that had to shrink keeps its spacing). */
-function spreadLines(box, max = 2) {
-  if (Number(box.style.getPropertyValue("--fit") || 1) < 1) return;
-  const base = parseFloat(getComputedStyle(box).lineHeight) / parseFloat(getComputedStyle(box).fontSize) || 1.25;
-  let lh = base;
-  while (lh + 0.05 <= max) {
-    box.style.lineHeight = String(lh + 0.05);
-    if (box.scrollHeight > box.clientHeight + 1) break;
-    lh += 0.05;
-  }
-  box.style.lineHeight = lh === base ? "" : String(Math.round(lh * 100) / 100);
-}
-
 const extra = (cue, key) => cue.content.document?.meta.extra?.find(([k]) => k === key)?.[1];
 
 /** Reference shown at the right of a header: "Hymn 436", "BCP 355". */
@@ -564,8 +549,6 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     const lines = { reflow: o.join, hanging: o.hanging, psalm: cue.category === "psalm", alternate: o.alternate };
     const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
-    // A hymn's verse: fewer lines, more space between them.
-    if (hymn) spreadLines(box);
     if (blocks.length && blocks.every((b) => b.kind === "image")) {
       centre(box);
       box.classList.add("music-only");
