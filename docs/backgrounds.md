@@ -55,13 +55,23 @@ Before the first cue, the stream shows the **Welcome window** design with the
 service title and date in its info bar. Any cue can use it with the `info_bar`
 layout, for example for the postlude.
 
-For **green**, every built-in design (sanctuary glass light / colour /
-charcoal, stream panels, bottom bar, lower third and welcome window) is the
-parish's own artwork, bundled with the app in `ui/backgrounds/green/`. For
-other colours the app draws them in the liturgical colour with the same
-geometry. To add artwork for another colour,
-put images named like those in `green/` into `ui/backgrounds/<colour>/` and
-list them in `ARTWORK` in `ui/js/backgrounds.js`.
+Every built-in design (sanctuary glass light / colour / charcoal, stream
+panels, bottom bar, lower third and welcome window) is the parish's own
+artwork in these seasons, bundled with the app in `ui/backgrounds/`:
+
+| Colour (and season) | Artwork | Notes |
+| --- | --- | --- |
+| Green | `green/` | |
+| White (Christmas, Easter, feasts) | `white/` | The lower-third box is light, so its words are drawn dark. |
+| Blue, or Violet in Advent | `advent/` | Its *Title* glass also serves for the psalms (charcoal). |
+| Violet (Lent) | `lent/` | Its dark glass serves for title cards and psalms; the psalm bar's gold title box is the Advent set's. |
+
+The season decides which purple set a violet item uses: Advent's in Advent,
+Lent's otherwise. Red and Black (Holy Week, Pentecost, martyrs, funerals)
+have no artwork yet, so the app draws those designs in the liturgical
+colour with the same geometry. To add a set, put images named like those in
+`green/` (1920×1080) into a new folder under `ui/backgrounds/` and add it to
+`ARTWORK` and `artworkSet` in `ui/js/backgrounds.js`.
 
 ## Text areas (for making your own backgrounds)
 
@@ -85,11 +95,11 @@ the frame in the image.
 
 ## Keying the stream
 
-The lower-third box is the parish artwork: the green panel with the gold
-border (`ui/backgrounds/green/lower-third-frame.webp`, cut out of
-`lower-third.webp` onto a transparent layer). It is drawn over the flat key
-colour in every season and with any key colour, so the switcher keys
-everything but the box.
+The lower-third box is the parish artwork: the season's panel with the gold
+border (`lower-third-frame.webp` in each set, cut out of the artwork onto a
+transparent layer; the green set's for Red and Black). It is drawn over the
+flat key colour with any key colour, so the switcher keys everything but
+the box.
 
 Lower thirds are keyed by the video switcher on the stream key colour
 (`#0000FF` by default). Change it in **⚙ Settings → Service settings** (Blue, Green, Transparent

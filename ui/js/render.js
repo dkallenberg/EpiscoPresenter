@@ -8,7 +8,7 @@
 // Sanctuary sizes follow the spec: role labels 48pt italic, text 55pt.
 
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
-import { builtinUrl } from "/js/backgrounds.js";
+import { builtinUrl, lowerThirdFrame, lowerThirdText } from "/js/backgrounds.js";
 import { deckEmbedUrl } from "/js/deck.js";
 import { load as loadDeck, loopSlide, slideImage } from "/js/deckpdf.js";
 import { isAntiphonSlide, resolveTemplate, slideTypeFor, typeOptions } from "/js/templates.js";
@@ -48,19 +48,25 @@ export function backgroundCss(service, cue, value, fit = "fill") {
   if (!value) return "#000";
   if (value === "key") return keyColor(service);
   if (/^(#|rgb|hsl)/i.test(value)) return value;
-  const url = builtinUrl(value, color) ?? backgroundUrl(service, value);
+  const url = builtinUrl(value, color, seasonOf(service, cue)) ?? backgroundUrl(service, value);
   const size = { fill: "cover", fit: "contain", stretch: "100% 100%" }[fit] ?? "cover";
   return `#000 url("${url}") center / ${size} no-repeat`;
 }
 
-/** The parish's lower-third box (green with the gold border, cut out of
- *  its artwork onto a transparent layer) over the flat key colour, in every
- *  season and with any key colour. */
-const LOWER_THIRD_FRAME = "/backgrounds/green/lower-third-frame.webp";
+/** White text on a season's light lower-third box (White) is drawn dark.
+ *  Set while a slide is drawn (drawing is synchronous). */
+let lightBox = false;
+const ink = (c) => (lightBox && /^(#fff(fff)?|white)$/i.test(c) ? "#1f1f1f" : c);
 
-function paintLowerThirdFrame(stage) {
+/** The season, which picks the artwork for violet (Advent's or Lent's). */
+const seasonOf = (service, cue) => cue?.content?.document?.meta?.season ?? service?.season ?? null;
+
+/** The parish's lower-third box (cut out of the season's artwork onto a
+ *  transparent layer) over the flat key colour, with any key colour. */
+function paintLowerThirdFrame(stage, service, cue) {
+  const color = cue?.color ?? service?.color ?? "Green";
   const layer = el("div", "bg lt-frame");
-  layer.style.background = `url("${LOWER_THIRD_FRAME}") center / 100% 100% no-repeat`;
+  layer.style.background = `url("${lowerThirdFrame(color, seasonOf(service, cue))}") center / 100% 100% no-repeat`;
   stage.append(layer);
 }
 
@@ -106,7 +112,7 @@ function paintBackground(stage, service, cue, look, opts = {}) {
   layer.style.background = backgroundCss(service, cue, look.background, look.fit);
   stage.append(layer);
   if (look.background === "key" && look.layout === "lower_third") {
-    paintLowerThirdFrame(stage);
+    paintLowerThirdFrame(stage, service, cue);
   }
 }
 
@@ -285,7 +291,7 @@ function styleElement(node, spec) {
     height: `${spec.h}px`,
   });
   if (spec.font) node.style.fontFamily = spec.font;
-  if (spec.color) node.style.color = spec.color;
+  if (spec.color) node.style.color = ink(spec.color);
   if (spec.bold != null) node.style.fontWeight = spec.bold ? "700" : "400";
   if (spec.italic != null) node.style.fontStyle = spec.italic ? "italic" : "normal";
   if (spec.align) {
@@ -375,14 +381,14 @@ function textBox(stage, T, shown, content, cls = "", limits = {}) {
   const paint = (sel, spec) => {
     if (!spec) return;
     box.querySelectorAll(sel).forEach((n) => {
-      if (spec.color) n.style.color = spec.color;
+      if (spec.color) n.style.color = ink(spec.color);
       if (spec.font) n.style.fontFamily = spec.font;
       if (spec.italic != null) n.style.fontStyle = spec.italic ? "italic" : "normal";
       if (spec.bold != null) n.style.fontWeight = spec.bold ? "700" : "400";
     });
   };
   paint(".label", T.labels);
-  if (T.people?.color) box.querySelectorAll(".people .text").forEach((n) => (n.style.color = T.people.color));
+  if (T.people?.color) box.querySelectorAll(".people .text").forEach((n) => (n.style.color = ink(T.people.color)));
   autoFit(box, 0.5);
   return box;
 }
@@ -774,6 +780,7 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   const keepVideo = stage.querySelector("video.bg-video");
   const keepDeck = stage.querySelector("iframe.deck-frame");
   const keepWeb = stage.querySelector("iframe.web-video");
+  lightBox = false;
   stage.replaceChildren();
   stage.className = `stage out-${output}`;
   stage.style.background = output === "stream" ? keyColor(service) : "#000";
@@ -785,7 +792,10 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   if (!cue) return renderPreService(stage, service, output, { ...opts, keepDeck }, st);
   const look = cue[output];
   if (!look) return;
-  stage.classList.add(`layout-${look.layout}`, `tone-${look.tone}`, `cat-${cue.category}`);
+  // A season's lower-third box may be light (White): its words are dark.
+  const boxText = look.layout === "lower_third" && look.background === "key" && look.tone === "light" ? lowerThirdText(cue.color ?? service?.color, seasonOf(service, cue)) : null;
+  stage.classList.add(`layout-${look.layout}`, `tone-${boxText ?? look.tone}`, `cat-${cue.category}`);
+  lightBox = boxText === "dark";
   // Planned blank (or an item for the other screen only): black on the
   // sanctuary, just the key colour (the camera) on the stream.
   if (look.blank) return;

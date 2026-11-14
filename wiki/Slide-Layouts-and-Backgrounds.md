@@ -25,8 +25,19 @@ and how the picture **Fits**.
 * **Reset** goes back to the usual look. A **changed** badge marks an item
   with its own look.
 
-The built-in stained-glass designs change with the liturgical colour of the
-day.
+The built-in stained-glass designs are the parish's own artwork and change
+with the day:
+
+| Colour | Artwork |
+| --- | --- |
+| Green | the green set |
+| White (Christmas, Easter, feasts) | the white and gold set |
+| Blue, or Violet in Advent | the Advent set (purple and blue) |
+| Violet in Lent | the Lent set (muted purple) |
+| Red, Black | drawn by the app in the colour |
+
+The colour comes from the service (**⚙ Settings → Service settings**), or an
+item's own colour in the Editor (**More… → Colour**).
 
 ## Slide layouts
 

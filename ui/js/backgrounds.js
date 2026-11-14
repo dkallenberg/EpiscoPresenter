@@ -152,28 +152,60 @@ const cache = new Map();
 // exists (files in ui/backgrounds/<colour>/, bundled with the app). Add a
 // colour by dropping files with these names into a new folder and listing
 // it here.
+/** The parish's artwork, a set per season. The roles are the built-in
+ *  designs they replace; a role a set lacks falls back to the drawn design. */
+const set = (dir, extra = {}) => ({
+  "panel-dark": `/backgrounds/${dir}/panel-dark.webp`,
+  "panel-light": `/backgrounds/${dir}/panel-light.webp`,
+  "bar-bottom": `/backgrounds/${dir}/bar-bottom.webp`,
+  "lower-third": `/backgrounds/${dir}/lower-third.webp`,
+  "glass-light": `/backgrounds/${dir}/glass-light.webp`,
+  "glass-dark": `/backgrounds/${dir}/glass-dark.webp`,
+  "glass-charcoal": `/backgrounds/${dir}/glass-charcoal.webp`,
+  window: `/backgrounds/${dir}/window.webp`,
+  frame: `/backgrounds/${dir}/lower-third-frame.webp`,
+  ...extra,
+});
 const ARTWORK = {
-  Green: {
-    "panel-dark": "/backgrounds/green/panel-dark.webp",
-    "panel-light": "/backgrounds/green/panel-light.webp",
-    "bar-bottom": "/backgrounds/green/bar-bottom.webp",
-    "lower-third": "/backgrounds/green/lower-third.webp",
-    "glass-light": "/backgrounds/green/glass-light.webp",
-    "glass-dark": "/backgrounds/green/glass-dark.webp",
-    "glass-charcoal": "/backgrounds/green/glass-charcoal.webp",
-    window: "/backgrounds/green/window.webp",
-  },
+  green: set("green"),
+  // Christmas, Easter and the feasts.
+  white: set("white", { lowerThirdText: "dark" }),
+  // Advent (blue, or violet in Advent); the set has no charcoal glass.
+  advent: set("advent", { "glass-charcoal": "/backgrounds/advent/glass-dark.webp" }),
+  // Lent (violet); its dark glass serves for title cards and psalms alike.
+  lent: set("lent", { "glass-charcoal": "/backgrounds/lent/glass-dark.webp" }),
 };
 
-/** Parish artwork for a design in a colour, if there is any. */
-export function artworkUrl(design, color) {
-  return ARTWORK[color]?.[design] ?? null;
+/** Which set of artwork a colour uses in a season: Advent's for blue (and
+ *  for violet in Advent), Lent's for violet. Red and black have none. */
+function artworkSet(color, season) {
+  if (color === "Green") return ARTWORK.green;
+  if (color === "White") return ARTWORK.white;
+  if (color === "Blue" || (color === "Violet" && season === "Advent")) return ARTWORK.advent;
+  if (color === "Violet") return ARTWORK.lent;
+  return null;
+}
+
+/** Parish artwork for a design in a colour (and season), if there is any. */
+export function artworkUrl(design, color, season) {
+  return artworkSet(color, season)?.[design] ?? null;
+}
+
+/** The lower-third box (cut out of the artwork) for a colour and season;
+ *  the green set's where there is none. */
+export function lowerThirdFrame(color, season) {
+  return artworkSet(color, season)?.frame ?? ARTWORK.green.frame;
+}
+
+/** The text colour a set's lower-third box needs ("dark" on a light box). */
+export function lowerThirdText(color, season) {
+  return artworkSet(color, season)?.lowerThirdText ?? null;
 }
 
 /** URL for a built-in background in a liturgical colour, or null. */
-export function builtinUrl(name, color) {
+export function builtinUrl(name, color, season) {
   const id = name.replace(/^builtin:/, "");
-  const art = artworkUrl(id, color);
+  const art = artworkUrl(id, color, season);
   if (art) return art;
   const design = DESIGNS[id];
   if (!design) return null;
