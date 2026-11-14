@@ -124,6 +124,13 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
   held, and a red banner offers *Apply to screens* or *Discard*. Untick **Hold
   on-air edits** to apply them as you type.
 
+**Undo** (↶, ⌘Z) and **Redo** (↷, ⇧⌘Z; Ctrl on Windows, and Ctrl+Y)
+take back the last change to the open service and put it back again: text,
+order, looks, settings, bulletin choices. Changes coming in quick succession
+(typing) are one step; up to 100 steps are kept while the service is open.
+In a text box (a title, a search) ⌘Z is the box's own undo, as is ⌘Z while
+typing a bulletin line; Esc there undoes the line.
+
 | Key (in a text row) | Does |
 | --- | --- |
 | ⌘B / ⌘I | Bold / italic |

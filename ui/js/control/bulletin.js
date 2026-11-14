@@ -10,6 +10,7 @@
 import { assetUrl, listen } from "/js/bridge.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
 import { openServiceSettings } from "/js/control/looks.js";
+import { undoButtons } from "/js/control/undo.js";
 
 const STYLES = [
   ["reference", "Reference line", "Title, opening words and page or hymn number"],
@@ -61,6 +62,7 @@ function makeView(kind) {
       el("button", { onmousedown: (e) => e.preventDefault(), onclick: () => document.execCommand("bold"), title: "Bold (Ctrl/⌘ B)" }, el("b", {}, "B")),
       el("button", { onmousedown: (e) => e.preventDefault(), onclick: () => document.execCommand("italic"), title: "Italic (Ctrl/⌘ I)" }, el("i", {}, "I")),
     ),
+    ...undoButtons(),
     el("span.spacer"),
     el("button.reading-texts", { onclick: () => openReadings(), title: "Paste the scripture text of each reading (NRSV or NRSVue)" }, "Reading texts…"),
     el("button", { onclick: openParish, title: "Name, logo, address, welcome and licence notice for the cover and back page" }, "Parish details…"),

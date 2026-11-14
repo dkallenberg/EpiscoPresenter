@@ -25,6 +25,7 @@ mod services;
 mod storage;
 mod sync;
 mod templates;
+mod undo;
 mod windows;
 
 use std::path::{Path, PathBuf};
@@ -85,6 +86,7 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
             // Commands that read the node config get a plain one (no outputs are opened).
             app.manage(NodeConfig::default());
             sync::spawn(app.handle().clone());
+            undo::init(app.handle());
             inuse::spawn(app.handle().clone());
             Ok(())
         })
@@ -148,6 +150,7 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             app.manage(config);
             // Copy services marked Ready in the parish library to this computer.
             sync::spawn(app.handle().clone());
+            undo::init(app.handle());
             handoff::spawn(app.handle().clone());
             Ok(())
         })
@@ -229,6 +232,9 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         sync::library_sync,
         inuse::in_use_status,
         inuse::in_use_take_over,
+        undo::undo,
+        undo::redo,
+        undo::undo_status,
         library::library_delete,
         library::library_copy,
         library::cue_make_version,

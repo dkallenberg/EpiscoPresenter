@@ -257,6 +257,8 @@ impl Engine {
                 });
                 let plan = service.as_ref().and_then(|s| s.plan_path.clone());
                 hub.load_service(service);
+                // Another service: nothing to undo yet.
+                crate::undo::clear();
                 // Mark it open here (EpiscoPlanner, shared folder).
                 crate::inuse::opened(plan.as_deref());
                 Ok(())
@@ -276,11 +278,34 @@ impl Engine {
                     who.map(|n| format!("{n}'s computer")).unwrap_or_else(|| "another computer".into())
                 ))
             }
-            // The welcome slide follows the service's title, date and time.
-            Engine::Host { hub, .. } => hub.edit_service(|s| {
-                let out = edit(s)?;
-                s.welcome = Some(crate::bulletin::welcome_for(s));
+            Engine::Host { hub, .. } => {
+                let (_, before) = hub.snapshot();
+                // The welcome slide follows the service's title, date and time.
+                let out = hub.edit_service(|s| -> Result<T, String> {
+                    let out = edit(s)?;
+                    s.welcome = Some(crate::bulletin::welcome_for(s));
+                    Ok(out)
+                })?;
+                // Remembered for Undo (undo.rs).
+                if let Some(before) = before {
+                    let (_, after) = hub.snapshot();
+                    crate::undo::record(before, after.as_deref());
+                }
                 Ok(out)
+            }
+            Engine::Follower { .. } => Err(FOLLOWER_EDIT.into()),
+        }
+    }
+
+    /// Puts back a whole service (Undo, Redo): not itself remembered.
+    pub fn replace_service(&self, put: impl FnOnce(&mut Service)) -> Result<(), String> {
+        match self {
+            Engine::Host { .. } if crate::inuse::is_view_only() => {
+                Err("This service is open on another computer. Take it over to change it.".into())
+            }
+            Engine::Host { hub, .. } => hub.edit_service(|s| {
+                put(s);
+                Ok::<(), String>(())
             }),
             Engine::Follower { .. } => Err(FOLLOWER_EDIT.into()),
         }

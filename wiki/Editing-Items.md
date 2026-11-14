@@ -39,6 +39,14 @@ From top to bottom:
 
 **Save to Library** keeps a copy of the item for later services.
 
+### Undo
+
+Made a mistake? **↶ Undo** at the top of the Editor (or ⌘Z, Ctrl+Z on
+Windows) takes back the last change, and **↷ Redo** (⇧⌘Z) puts it back.
+Typing comes back a burst at a time. It works for anything you change in
+the service: words, the order, looks, settings. The bulletin's toolbar has
+the same two buttons.
+
 ### Editing the item that's on the screen
 
 While the item you're editing is on air, your edits are held back and a red

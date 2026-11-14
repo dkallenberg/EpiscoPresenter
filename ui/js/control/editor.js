@@ -11,6 +11,7 @@ import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom, setIndent } from "/js/control/richtext.js";
 import { refreshGoogleSlides, slideMakerPanel, webVideoPanel } from "/js/control/made.js";
 import { saveCueToLibrary } from "/js/control/library.js";
+import { undoButtons } from "/js/control/undo.js";
 import { lookCards, lookPanel, openServiceSettings } from "/js/control/looks.js";
 import { pickMedia } from "/js/control/media.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
@@ -76,6 +77,19 @@ async function flush(force) {
   ed.held = false;
   renderStatus();
   await call("update_cue_document", { id: ed.id, document: ed.doc });
+}
+
+/** Sends what is still being typed (Undo counts it as the last change). */
+export async function flushEdits() {
+  await flush(true);
+}
+
+/** Shows the selected item again as the service has it now (after Undo),
+ *  even while a text row has the focus. */
+export function reloadEditor() {
+  ed.dirty = ed.held = ed.behind = false;
+  if (typing()) document.activeElement.blur();
+  load(app.selectedCue(), true);
 }
 
 function discardHeld() {
@@ -271,6 +285,7 @@ function header(c) {
       : el(
           "div.ed-actions",
           {},
+          ...undoButtons(),
           el(
             "label.toggle",
             { title: "Hold edits to the on-air item until you apply them" },
