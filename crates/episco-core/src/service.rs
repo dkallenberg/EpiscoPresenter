@@ -494,7 +494,18 @@ impl Service {
                     cue.title
                 )));
             }
-            CueContent::Liturgy { document: d, .. } => **d = document,
+            CueContent::Liturgy { document: d, .. } => {
+                // A hymn slot keeps its place ("Entrance Hymn") when the
+                // hymn itself is named.
+                if cue.category == ElementCategory::Hymn
+                    && cue.overrides.title.is_none()
+                    && crate::hymn::is_slot_title(&cue.title)
+                    && document.meta.title != cue.title
+                {
+                    cue.overrides.title = Some(cue.title.clone());
+                }
+                **d = document
+            }
             CueContent::Announcements { .. } => {
                 return Err(ServiceError::Edit(format!("`{}` is an announcements cue and has no text", cue.title)))
             }
@@ -926,6 +937,19 @@ mod tests {
         changed.meta.title = "Collect (parish)".into();
         assert!(s.set_document(&id, changed).is_ok());
         assert_eq!(s.cues[0].document().unwrap().meta.title, "Collect (parish)");
+    }
+
+    #[test]
+    fn a_hymn_slot_keeps_its_place_when_the_hymn_is_named() {
+        let mut s = Service::default();
+        let slot: LiturgyDocument = "---\ntitle: Entrance Hymn\ntype: hymn\n---\n_Choose this hymn_\n".parse().unwrap();
+        let id = s.insert_cue(0, Cue::liturgy("h", slot.clone(), None, CueOverrides::default()));
+        let mut hymn = slot.clone();
+        hymn.meta.title = "Lift Up Your Heads".into();
+        hymn.meta.hymn_number = Some("436".into());
+        s.set_document(&id, hymn).unwrap();
+        assert_eq!(s.cues[0].title, "Entrance Hymn");
+        assert_eq!(s.cues[0].document().unwrap().meta.title, "Lift Up Your Heads");
     }
 
     #[test]

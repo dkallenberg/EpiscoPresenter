@@ -470,13 +470,49 @@ pub fn library_save_cue(
         };
     }
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
-    let name = slug_file_name(&doc.meta.title, ewm::EXTENSION);
+    let (doc, name) = library_copy_of(doc)?;
     let path = dir.join(&name);
     if path.exists() && !replace {
         return Err(format!("exists:{}", doc.meta.title));
     }
-    std::fs::write(&path, ewm::to_string(doc)).map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    std::fs::write(&path, ewm::to_string(&doc)).map_err(|e| format!("could not save {}: {e}", path.display()))?;
     Ok(format!("user:{name}"))
+}
+
+/// The library's copy of an item and its file name. A hymn is kept under
+/// its own number and title ("hymn-436-lift-up-your-heads"), never under its
+/// place in the service: this week's entrance hymn may close the service
+/// next time.
+fn library_copy_of(doc: &LiturgyDocument) -> CmdResult<(LiturgyDocument, String)> {
+    if doc.meta.effective_category() != episco_core::ElementCategory::Hymn {
+        return Ok((doc.clone(), slug_file_name(&doc.meta.title, ewm::EXTENSION)));
+    }
+    let title = episco_core::hymn::library_title(doc).ok_or_else(|| {
+        format!(
+            "“{}” is the hymn's place in the service, not the hymn. Give it the hymn's number or title in the Editor, then save it to the library.",
+            doc.meta.title
+        )
+    })?;
+    let mut doc = doc.clone();
+    doc.meta.title = title.clone();
+    let number = doc.meta.hymn_number.clone().unwrap_or_default();
+    let stem = if title == format!("Hymn {number}") { title } else { format!("hymn {number} {title}") };
+    Ok((doc, slug_file_name(&stem, ewm::EXTENSION)))
+}
+
+/// Puts a library item into an existing cue in place of its text, keeping
+/// the cue's name: a hymn from the library fills the "Entrance Hymn" slot
+/// and stays the Entrance Hymn.
+#[tauri::command]
+pub fn library_fill_cue(app: AppHandle, engine: State<'_, Engine>, id: String, cue: String) -> CmdResult<()> {
+    let doc = load(&app, &id)?;
+    engine.edit_service(|s| {
+        let c = s.cue(&cue).ok_or("no such cue")?;
+        let mut overrides = c.overrides.clone();
+        overrides.title = Some(c.title.clone());
+        s.set_document(&cue, doc).map_err(|e| e.to_string())?;
+        s.set_overrides(&cue, overrides).map_err(|e| e.to_string())
+    })
 }
 
 /// How "Save to Library" saves a copy of a Prayer Book item that came
@@ -782,7 +818,10 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
             skipped.push(format!("{name} (no words)"));
             continue;
         }
-        let file_name = slug_file_name(&format!("hymn {} {title}", number.as_deref().unwrap_or("")), ewm::EXTENSION);
+        let Ok((doc, file_name)) = library_copy_of(&doc) else {
+            skipped.push(format!("{name} (no hymn number or title)"));
+            continue;
+        };
         std::fs::write(dir.join(&file_name), ewm::to_string(&doc))
             .map_err(|e| format!("could not save {file_name}: {e}"))?;
         added += 1;
@@ -793,6 +832,21 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hymns_are_saved_by_their_own_name() {
+        let slot: LiturgyDocument = "---\ntitle: Entrance Hymn\ntype: hymn\n---\n1 Words\n".parse().unwrap();
+        assert!(library_copy_of(&slot).is_err(), "only the slot's name");
+        let mut hymn = slot.clone();
+        hymn.meta.hymn_number = Some("436".into());
+        let (doc, file) = library_copy_of(&hymn).unwrap();
+        assert_eq!((doc.meta.title.as_str(), file.as_str()), ("Hymn 436", "hymn-436.ewm"));
+        hymn.meta.title = "Lift Up Your Heads".into();
+        let (doc, file) = library_copy_of(&hymn).unwrap();
+        assert_eq!((doc.meta.title.as_str(), file.as_str()), ("Lift Up Your Heads", "hymn-436-lift-up-your-heads.ewm"));
+        let prayer: LiturgyDocument = "---\ntitle: A Prayer\n---\nWords\n".parse().unwrap();
+        assert_eq!(library_copy_of(&prayer).unwrap().1, "a-prayer.ewm");
+    }
 
     #[test]
     fn parish_versions_of_prayer_book_items() {

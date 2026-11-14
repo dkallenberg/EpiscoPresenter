@@ -209,6 +209,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::library_preview,
         library::library_add,
         library::library_save_cue,
+        library::library_fill_cue,
         library::library_delete,
         library::library_copy,
         library::cue_make_version,

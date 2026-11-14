@@ -82,7 +82,18 @@ edition, a OneLicense or CCLI reprint licence, …):
 * **Many at once.** **Library → Import hymns…** takes text files, one per
   hymn, named with the number and title (`436 Lift Up Your Heads.txt`,
   `S 280 Gloria.txt`), and saves each as a hymn in **Mine**. Search the
-  Library by number ("Hymn 436") or title, then **Add to service**.
+  Library by number ("Hymn 436") or title, then select the
+  hymn slot in the service and click **Use for Entrance Hymn** (or whichever
+  slot it is).
+
+**A hymn and its place are kept apart.** The item in the service is named
+for its place (*Entrance Hymn*, *Closing Hymn*); the hymn's own name goes in
+**Hymn title** and **Hymn #** in the Editor. Naming the hymn, or filling the
+slot from the Library, leaves the slot's name as it was. **Save to Library**
+keeps a hymn under its number and title ("hymn-436-lift-up-your-heads"),
+never under its place, so the same hymn can open the service one week and
+close it the next. A hymn with neither a number nor its own title cannot be
+saved to the library until it is given one.
 
 ## Media
 

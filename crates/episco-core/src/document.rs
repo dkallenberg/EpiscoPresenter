@@ -60,7 +60,9 @@ impl FrontMatter {
     /// or `First Reading: Joshua 24:1-3a`.
     pub fn lower_third_caption(&self) -> String {
         match (self.effective_category(), &self.hymn_number, &self.citation) {
-            (ElementCategory::Hymn, Some(n), _) if self.title.is_empty() => format!("Hymn {n}"),
+            (ElementCategory::Hymn, Some(n), _) if self.title.is_empty() || self.title == format!("Hymn {n}") => {
+                format!("Hymn {n}")
+            }
             (ElementCategory::Hymn, Some(n), _) => format!("Hymn {n}: {}", self.title),
             (_, _, Some(c)) if self.title.is_empty() => c.clone(),
             (_, _, Some(c)) if self.title.contains(c.as_str()) => self.title.clone(),

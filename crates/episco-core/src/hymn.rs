@@ -203,6 +203,35 @@ pub fn set_hymn_text(doc: &LiturgyDocument, text: &str, opts: &HymnOptions) -> L
     LiturgyDocument { meta, blocks }
 }
 
+/// A hymn's place in the service rather than the hymn itself: "Entrance
+/// Hymn", "Hymn at the Offertory", "Hymn". The same hymn can be the
+/// entrance hymn one week and the closing hymn the next, so the library
+/// never keeps a hymn under such a name.
+pub fn is_slot_title(title: &str) -> bool {
+    let t = title.trim().to_lowercase();
+    let t = t.strip_prefix("the ").unwrap_or(&t);
+    if t.is_empty() || t == "hymn" {
+        return true;
+    }
+    let words: Vec<&str> = t.split_whitespace().collect();
+    // "Entrance Hymn", "Sequence Hymn", "Hymn of Praise" are slots; "Hymn
+    // 436" is the hymn itself.
+    (words.len() <= 3 && words.last() == Some(&"hymn"))
+        || (words.first() == Some(&"hymn")
+            && words.get(1).is_some_and(|w| ["at", "after", "before", "during", "of", "for"].contains(w)))
+}
+
+/// What the library calls a hymn: its own title, else "Hymn 436". `None`
+/// when the document names only its place in the service.
+pub fn library_title(doc: &LiturgyDocument) -> Option<String> {
+    let number = doc.meta.hymn_number.as_deref().map(str::trim).filter(|n| !n.is_empty());
+    match (is_slot_title(&doc.meta.title), number) {
+        (false, _) => Some(doc.meta.title.trim().to_string()),
+        (true, Some(n)) => Some(format!("Hymn {n}")),
+        (true, None) => None,
+    }
+}
+
 /// "436 Lift Up Your Heads.txt" → (Some("436"), "Lift Up Your Heads");
 /// "S 125 Gloria.txt" → (Some("S 125"), "Gloria"); "Amazing grace.txt" → (None, …).
 pub fn split_file_name(stem: &str) -> (Option<String>, String) {
@@ -222,6 +251,35 @@ pub fn split_file_name(stem: &str) -> (Option<String>, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_hymn_is_known_by_its_own_name_not_its_place() {
+        for slot in [
+            "Entrance Hymn",
+            "Closing Hymn",
+            "Procession Hymn",
+            "Hymn",
+            "The Sequence Hymn",
+            "Hymn at the Offertory",
+            "",
+        ] {
+            assert!(is_slot_title(slot), "{slot}");
+        }
+        for hymn in [
+            "Lift Up Your Heads, Ye Mighty Gates",
+            "Hymn 436",
+            "O God, our help in ages past",
+            "Morning Hymn of Praise to God",
+        ] {
+            assert!(!is_slot_title(hymn), "{hymn}");
+        }
+        let mut doc = hymn_document("Entrance Hymn", None, "1 Words", &Default::default());
+        assert_eq!(library_title(&doc), None);
+        doc.meta.hymn_number = Some("436".into());
+        assert_eq!(library_title(&doc).as_deref(), Some("Hymn 436"));
+        doc.meta.title = "Lift Up Your Heads".into();
+        assert_eq!(library_title(&doc).as_deref(), Some("Lift Up Your Heads"));
+    }
 
     // Placeholder words (not a real hymn) in the shapes hymnal copies take.
     const PASTED: &str = "1 First line of stanza one,

@@ -176,7 +176,8 @@ async function showPreview(rowId) {
         "div.lib-actions",
         {},
         entry && !entry.builtin ? el("button.small.danger-btn", { onclick: () => remove(entry) }, "Delete") : null,
-        el("button.primary", { disabled: app.readonly || !app.service, onclick: () => add([id]) }, "Add to service"),
+        slotFor(cue) ? el("button", { disabled: app.readonly, title: `Put this hymn in the service as the ${slotFor(cue).title}`, onclick: () => fill(id, slotFor(cue)) }, `Use for ${slotFor(cue).title}`) : null,
+        el(`button${slotFor(cue) ? "" : ".primary"}`, { disabled: app.readonly || !app.service, onclick: () => add([id]) }, "Add to service"),
       ),
     ),
     baseName(entry ?? {}) ? versionBar(versions, entry) : null,
@@ -250,6 +251,21 @@ function versionBar(versions, shown) {
         : el("button.small", { disabled: app.readonly, title: "New services, and adding this item, use this version", onclick: setDefault }, "Set as default"),
     ),
   );
+}
+
+/** The selected hymn slot ("Entrance Hymn") a library hymn can go into. */
+function slotFor(item) {
+  if (item?.category !== "hymn" || !app.service) return null;
+  const c = app.service.cues[app.selectedIndex()];
+  return c?.category === "hymn" ? c : null;
+}
+
+/** Puts a library hymn into a slot; the slot keeps its name. */
+async function fill(id, slot) {
+  const ok = await call("library_fill_cue", { id, cue: slot.id });
+  if (ok === undefined) return;
+  app.select(slot.id);
+  toast(`The ${slot.title} is now “${lib.entries.find((e) => e.id === lib.selected)?.title ?? "this hymn"}”`);
 }
 
 async function add(ids) {
@@ -374,7 +390,15 @@ export async function saveCueToLibrary(cue) {
     id = await call("library_save_cue", { id: cue.id, replace: true });
   }
   if (id && based) toast(`Saved a parish copy of “${cue.title}”, dated today. To use it in new services, set it as the default in the Library.`);
-  else if (id) toast(`Saved “${cue.title}” to your library`);
+  else if (id) toast(`Saved “${libraryName(cue)}” to your library`);
+}
+
+/** What the library calls an item: a hymn by its own name or number, not
+ *  its place in the service. */
+function libraryName(cue) {
+  const m = cue.content.document?.meta ?? {};
+  if (cue.category !== "hymn") return cue.title;
+  return m.title && m.title !== cue.title ? m.title : `Hymn ${m.hymn_number ?? ""}`.trim();
 }
 
 /** A small dialog of choices; resolves to the chosen key, or null. */

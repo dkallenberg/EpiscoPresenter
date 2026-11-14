@@ -350,7 +350,11 @@ function metaForm(c) {
   const m = ed.doc.meta;
   const v = app.vocab;
   const type = m.type ?? "prayer";
-  const fields = [field("Title", textInput("title", "Title"), ".wide")];
+  // A hymn's title is the hymn's own ("Lift Up Your Heads"); the cue keeps
+  // its place in the service ("Entrance Hymn").
+  const fields = type === "hymn"
+    ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, textInput("title", "e.g. Lift Up Your Heads"), ".wide")]
+    : [field("Title", textInput("title", "Title"), ".wide")];
   if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
   if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
   // Less used: the kind of item, its season and colour, the file itself.
@@ -613,9 +617,9 @@ function hymnPanel(c) {
       ? el(
           "p.empty-hint",
           {},
-          "No hymn chosen yet. Paste its words below, or add one from your library (",
+          "No hymn chosen yet. Paste its words below, or choose one in the ",
           el("button.link", { onclick: () => document.querySelector('.tabs button[data-tab="library"]')?.click() }, "Library"),
-          " → Hymn) and remove this placeholder.",
+          ` and click “Use for ${c.title}”.`,
         )
       : null,
     paste,
