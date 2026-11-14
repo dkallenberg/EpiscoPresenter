@@ -186,6 +186,12 @@ export function openLayouts() {
       draw();
     }
   });
+  // The parish's own defaults: what Reset goes back to.
+  lt.defaults = {};
+  call("layouts_defaults").then((d) => {
+    lt.defaults = d ?? {};
+    if (lt.root) build();
+  });
   lt.root = el("div.layout-tool", { tabIndex: -1, onkeydown: keys });
   document.body.append(lt.root);
   build();
@@ -529,7 +535,23 @@ function drawInspector(T) {
       "div.lyt-actions",
       {},
       el("button.small", { disabled: app.readonly || !Object.keys(custom).length, onclick: () => resetElement(name) }, "Reset element"),
-      el("button.small", { disabled: app.readonly || !lt.templates[lt.key], onclick: resetType }, `Reset ${type.label}`),
+      el(
+        "button.small",
+        { disabled: app.readonly || isDefault(), onclick: resetType, title: hasDefault() ? "Back to the layout made the default" : "Back to the built-in layout" },
+        hasDefault() ? `Reset ${type.label} to the default` : `Reset ${type.label}`,
+      ),
+      el(
+        "button.small",
+        {
+          disabled: app.readonly || isDefault(),
+          onclick: makeDefault,
+          title: "Keep this layout as the parish's default: Reset comes back to it. Shared with every computer using the parish library.",
+        },
+        "Make this the default",
+      ),
+      hasDefault()
+        ? el("button.small", { disabled: app.readonly, onclick: builtinType, title: "Forget the parish's default and go back to the layout the app comes with" }, "Built-in layout")
+        : null,
     ),
     el(
       "p.muted.small",
@@ -598,18 +620,49 @@ function textOptions(type, T) {
   );
 }
 
+/** The parish has its own default for this slide type. */
+const hasDefault = () => Boolean(lt.defaults?.[lt.key]);
+/** This slide type is as its default (the parish's, else the built-in). */
+const isDefault = () => JSON.stringify(lt.templates[lt.key] ?? null) === JSON.stringify(lt.defaults?.[lt.key] ?? null);
+
 function resetElement(name) {
-  const t = lt.templates[lt.key];
-  if (t?.elements) delete t.elements[name];
+  const t = (lt.templates[lt.key] ??= {});
+  const d = lt.defaults?.[lt.key]?.elements?.[name];
+  t.elements ??= {};
+  if (d) t.elements[name] = structuredClone(d);
+  else delete t.elements[name];
   save();
   draw();
 }
 
 async function resetType() {
-  const ok = await call("confirm", { title: "Reset layout", message: `Put every piece of “${slideType(lt.key).label}” back where it started?`, okLabel: "Reset" });
+  const to = hasDefault() ? "the layout made the default" : "where it started";
+  const ok = await call("confirm", { title: "Reset layout", message: `Put every piece of “${slideType(lt.key).label}” back to ${to}?`, okLabel: "Reset" });
   if (!ok) return;
   const saved = await call("layouts_reset", { key: lt.key });
   if (saved) lt.templates = saved;
   toast("Layout reset");
+  build();
+}
+
+async function makeDefault() {
+  const d = await call("layouts_make_default", { key: lt.key });
+  if (!d) return;
+  lt.defaults = d;
+  toast(`“${slideType(lt.key).label}” as it is now is the default: Reset comes back to it.`);
+  build();
+}
+
+async function builtinType() {
+  const ok = await call("confirm", {
+    title: "Built-in layout",
+    message: `Put “${slideType(lt.key).label}” back to the layout the app comes with, and make that the default again?`,
+    okLabel: "Built-in layout",
+  });
+  if (!ok) return;
+  const saved = await call("layouts_reset", { key: lt.key, builtin: true });
+  if (saved) lt.templates = saved;
+  lt.defaults = (await call("layouts_make_default", { key: lt.key })) ?? lt.defaults;
+  toast("Back to the built-in layout");
   build();
 }

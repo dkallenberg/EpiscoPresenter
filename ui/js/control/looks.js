@@ -371,6 +371,13 @@ export function openServiceSettings(focus) {
     rite: el("select", {}, [["II", "Rite II (contemporary)"], ["I", "Rite I (traditional)"]].map(([v, l]) => el("option", { value: v, selected: (s.rite ?? "II") === v }, l))),
     track: el("select", {}, [[1, "Track 1"], [2, "Track 2"]].map(([v, l]) => el("option", { value: v, selected: (s.track ?? 1) === v }, l))),
     bible: el("select", {}, [["NRSVue", "NRSVue (Updated Edition)"], ["NRSV", "NRSV"]].map(([v, l]) => el("option", { value: v, selected: (s.bible ?? "NRSVue") === v }, l))),
+    preface: el(
+      "select",
+      { title: "Said in Eucharistic Prayers A and B (Rite I: Prayers I and II) where the rubric calls for it" },
+      el("option", { value: "", selected: !s.preface }, `As appointed for the day${!s.preface ? (s.preface_used ? ` (${s.preface_used})` : " (none)") : ""}`),
+      (v.prefaces ?? []).map((name) => el("option", { value: name, selected: s.preface === name }, name)),
+      el("option", { value: "none", selected: s.preface === "none" }, "None"),
+    ),
     bishop: el("input", { type: "checkbox", checked: Boolean(s.bishop) }),
     deacon: el("input", { type: "checkbox", checked: !s.no_deacon }),
     baptismal: el(
@@ -429,6 +436,7 @@ export function openServiceSettings(focus) {
         track: Number(f.track.value),
         bible: f.bible.value,
         prelude: { title: f.preludeTitle.value, composer: f.preludeComposer.value },
+        preface: f.preface.value || null,
       },
     });
     if (ok === undefined) return;
@@ -451,6 +459,7 @@ export function openServiceSettings(focus) {
       el("div.look-row", {}, row("Date", f.date), row("Season", f.season), row("Colour", f.color)),
       el("div.look-row", {}, row("Rite", f.rite), row("Readings (after Pentecost)", f.track), row("Bible for reading texts", f.bible)),
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
+      row("Proper Preface (Eucharistic Prayers A, B, I and II)", f.preface),
       el("div.look-row", {}, row("Prelude", f.preludeTitle), row("Composer (and arranger)", f.preludeComposer)),
       el("p.muted.small", {}, "Shown on the live stream's welcome before the service, and at the top of the bulletin."),
       el(

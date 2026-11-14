@@ -505,10 +505,9 @@ fn is_psalm_like(citation: &str) -> bool {
     bcp::parse_psalm_ref(citation).is_some() || bcp::canticle_number(citation).is_some()
 }
 
-/// The Collect of the Day and the readings of an entry as importable items.
-pub fn items(entry: &Entry, year: char) -> Vec<ProperItem> {
-    let mut out = Vec::new();
-    let collect_name = entry
+/// The name of an entry's collect, as the Prayer Book titles it.
+fn collect_name(entry: &Entry) -> Option<String> {
+    entry
         .collect
         .as_deref()
         .and_then(|c| {
@@ -519,8 +518,51 @@ pub fn items(entry: &Entry, year: char) -> Vec<ProperItem> {
         .or_else(|| common_collect(&entry.name))
         .or_else(|| {
             (entry.section == Section::Common).then(|| entry.name.split(" (").next().unwrap_or(&entry.name).to_string())
-        });
-    if let Some(found) = collect_name.as_deref().and_then(bcp::find_collect) {
+        })
+}
+
+/// The Proper Preface for a date (BCP: the note under the day's collect),
+/// e.g. "Easter" or "The Lord's Day: Of God the Father"; `None` where none
+/// is used. Where the book gives a choice the first is taken. The Lord's Day
+/// prefaces are for Sundays only, and "of the Season" is the season's own.
+pub fn preface_for(date: Date, observance: Option<&str>) -> Option<String> {
+    let (day, list) = observances(date);
+    let entry = match observance {
+        Some(name) => list.iter().copied().find(|e| e.name == name).or_else(|| find_entry(name, day.year)),
+        None => list.first().copied().filter(|e| e.section != Section::Common),
+    };
+    // Easter Week comes before any lesser feast that falls in it.
+    let easter_week = (1..=6).contains(&easter(date.year).days_until(date));
+    let entry = entry.filter(|e| !(easter_week && e.section == Section::Minor));
+    let collect = entry.and_then(collect_name).and_then(|n| bcp::find_collect(&n));
+    let sunday = date.is_sunday();
+    let season = || match day.season {
+        Season::Advent => Some("Advent"),
+        Season::Christmas => Some("Incarnation"),
+        Season::Lent => Some("Lent"),
+        Season::HolyWeek => Some("Holy Week"),
+        Season::Easter => Some("Easter"),
+        Season::Epiphany | Season::Pentecost => sunday.then_some("The Lord's Day"),
+    };
+    let first = match collect {
+        // Its collect's note (none: no Eucharistic Prayer that day).
+        Some(c) => bcp::preface_names_for(&c.title)?.first().cloned()?,
+        // A weekday with no proper of its own: the season's.
+        None => season()?.to_string(),
+    };
+    let name = match first.as_str() {
+        "None" => return None,
+        "Season" => season()?,
+        "The Lord's Day" if !sunday => return None,
+        n => n,
+    };
+    bcp::preface(name).map(|p| p.name.clone())
+}
+
+/// The Collect of the Day and the readings of an entry as importable items.
+pub fn items(entry: &Entry, year: char) -> Vec<ProperItem> {
+    let mut out = Vec::new();
+    if let Some(found) = collect_name(entry).as_deref().and_then(bcp::find_collect) {
         for rite in [Rite::Two, Rite::One] {
             for (i, text) in found.texts(rite).iter().enumerate() {
                 out.push(ProperItem {
@@ -615,6 +657,26 @@ pub fn default_items(items: &[ProperItem], rite: Rite, track: u8) -> Vec<ProperI
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_preface_follows_the_day() {
+        let p = |d: &str| preface_for(d.parse().unwrap(), None);
+        assert_eq!(p("2026-11-29").as_deref(), Some("Advent"), "Advent 1");
+        assert_eq!(p("2026-12-25").as_deref(), Some("Incarnation"), "Christmas Day");
+        assert_eq!(p("2027-01-06").as_deref(), Some("Epiphany"), "the Epiphany");
+        assert_eq!(p("2027-01-17").as_deref(), Some("Epiphany"), "2 Epiphany: Epiphany, or the Lord's Day");
+        assert_eq!(p("2027-02-10").as_deref(), Some("Lent"), "Ash Wednesday");
+        assert_eq!(p("2027-03-21").as_deref(), Some("Holy Week"), "Palm Sunday");
+        assert_eq!(p("2027-03-28").as_deref(), Some("Easter"), "Easter Day");
+        assert_eq!(p("2027-05-06").as_deref(), Some("Ascension"), "Ascension Day");
+        assert_eq!(p("2027-05-16").as_deref(), Some("Pentecost"), "Pentecost");
+        assert_eq!(p("2027-05-23").as_deref(), Some("Trinity Sunday"), "Trinity Sunday");
+        assert_eq!(p("2026-11-08").as_deref(), Some("The Lord's Day: Of God the Father"), "Proper 27");
+        assert_eq!(p("2026-11-01").as_deref(), Some("All Saints"), "All Saints' Day");
+        assert_eq!(p("2027-03-26").as_deref(), None, "Good Friday");
+        assert_eq!(p("2027-04-02").as_deref(), Some("Easter"), "Friday in Easter Week (not the lesser feast)");
+        assert_eq!(p("2026-11-10").as_deref(), None, "a weekday after Pentecost");
+    }
 
     fn d(s: &str) -> Date {
         s.parse().unwrap()

@@ -262,7 +262,8 @@ function versionBar(versions, shown) {
 function slotFor(item) {
   if (item?.category !== "hymn" || !app.service) return null;
   const c = app.service.cues[app.selectedIndex()];
-  return c?.category === "hymn" ? c : null;
+  // A hymn slot, or the Sanctus (said or sung): a hymnal setting can fill it.
+  return c?.category === "hymn" || /sanctus/i.test(c?.title ?? "") ? c : null;
 }
 
 /** Puts a library hymn into a slot; the slot keeps its name. */

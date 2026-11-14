@@ -259,6 +259,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         templates::layouts_get,
         templates::layouts_set,
         templates::layouts_reset,
+        templates::layouts_defaults,
+        templates::layouts_make_default,
         services::liturgical_info,
         services::services_list,
         services::service_create,

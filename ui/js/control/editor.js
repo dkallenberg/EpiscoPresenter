@@ -11,7 +11,7 @@ import { assetUrl } from "/js/bridge.js";
 import { domToLines, linesToDom, setIndent } from "/js/control/richtext.js";
 import { refreshGoogleSlides, slideMakerPanel, webVideoPanel } from "/js/control/made.js";
 import { saveCueToLibrary } from "/js/control/library.js";
-import { lookCards, lookPanel } from "/js/control/looks.js";
+import { lookCards, lookPanel, openServiceSettings } from "/js/control/looks.js";
 import { pickMedia } from "/js/control/media.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
@@ -181,6 +181,8 @@ function render(c) {
         c.category === "gospel" ? gospelMusicPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
         c.category === "hymn" ? hymnPanel(c) : null,
+        c.category === "eucharistic_prayer" ? prefaceNote() : null,
+        isSanctus(c) ? sanctusPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
         looks,
       ].filter(Boolean),
@@ -375,7 +377,7 @@ function metaForm(c) {
   // A hymn's title is the hymn's own ("Lift Up Your Heads"); the cue keeps
   // its place in the service ("Entrance Hymn").
   const fields =
-    type === "hymn"
+    type === "hymn" && !isSanctus(c)
       ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, textInput("title", "e.g. Lift Up Your Heads"), ".wide")]
       : type === "anthem"
         ? anthemFields(c)
@@ -428,7 +430,8 @@ function metaForm(c) {
         oninput: (e) => setOverride({ title: e.target.value.trim() || undefined }),
       }),
     ),
-    o.category
+    // (The Sanctus says "Said" or "Sung" in its own panel instead.)
+    o.category && !isSanctus(c)
       ? el(
           "span.note",
           {},
@@ -596,6 +599,60 @@ function psalmPanel(c) {
       {},
       "Apply rebuilds the slides from the verses, keeping who sings each verse. Or place antiphons by hand: ♫ Antiphon between verses copies the first antiphon there. Choose Choir or People beside each verse; the people’s verses are bold.",
     ),
+  );
+}
+
+// ----- the Sanctus -----
+
+const isSanctus = (c) => /sanctus/i.test(c.title) || /sanctus/.test(extraOf(ed.doc, "based_on") ?? "");
+
+/** Said (by all, in bold, on a prayer's layout) or sung (as a hymn), and
+ *  which words: the Prayer Book's in either rite, or a hymnal setting from
+ *  the Library (e.g. S 125, imported like a hymn: Use for Sanctus). */
+function sanctusPanel(c) {
+  const sung = c.category === "hymn";
+  const how = (category) => call("set_cue_overrides", { id: c.id, overrides: { ...c.overrides, category } });
+  const words = (id) => call("library_fill_cue", { id, cue: c.id });
+  const bcp = extraOf(ed.doc, "based_on");
+  const choice = (label, on, onclick, title) => el(`button.small${on ? ".active" : ""}`, { disabled: app.readonly, onclick, title }, label);
+  return el(
+    "div.section.reading-panel.sanctus-panel",
+    {},
+    el("div.reading-row", {},
+      el("strong", {}, "Sanctus"),
+      el("div.seg", {},
+        choice("Said", !sung, () => how("acclamation"), "Said by all: the people's words in bold, laid out like a prayer"),
+        choice("Sung", sung, () => how(null), "Sung: shown as a hymn (words on black in the sanctuary, the hymn panel on the stream)"),
+      ),
+      el("span.muted.small", {}, "Words:"),
+      el("div.seg", {},
+        choice("Rite II (BCP 362)", bcp === "sanctus", () => words("builtin:sanctus")),
+        choice("Rite I (BCP 334)", bcp === "rite1/sanctus", () => words("builtin:rite1/sanctus")),
+        choice(
+          "A hymnal setting…",
+          !bcp,
+          () => document.querySelector('.tabs button[data-tab="library"]')?.click(),
+          "Import the setting's words like a hymn (Library → Import hymns…, e.g. “S 125 Sanctus.txt”), select it there and click “Use for Sanctus”",
+        ),
+      ),
+    ),
+  );
+}
+
+// ----- the Proper Preface -----
+
+/** Eucharistic Prayers A, B, I and II: which Proper Preface is said after
+ *  the rubric (it is added on the slides, bulletin and script, not to the
+ *  prayer's own text), and where to change it. */
+function prefaceNote() {
+  const has = ed.doc.blocks.some((b) => b.kind === "paragraph" && b.role === "Rubric" && /Proper Preface/.test(b.lines.flat().map((s) => s.text).join("")));
+  if (!has) return null;
+  const used = app.service?.preface_used;
+  return el(
+    "p.muted.small.preface-note",
+    {},
+    used ? `Proper Preface: ${used}${app.service?.preface ? "" : " (as appointed for the day)"}. It is said after the rubric below, on the slides and in the bulletin and script. ` : "No Proper Preface for this service. ",
+    el("button.link", { onclick: () => openServiceSettings() }, "Change it in Service settings"),
   );
 }
 

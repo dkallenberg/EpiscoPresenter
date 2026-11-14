@@ -90,6 +90,13 @@ pub struct Service {
     /// service is loaded, never written to the plan).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub templates: crate::template::Templates,
+    /// The Proper Preface in Eucharistic Prayers A, B, I and II: a preface's
+    /// name ("Easter"), `"none"`, or (unset) the one appointed for the date.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preface: Option<String>,
+    /// The preface in use (runtime only, for the windows).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preface_used: Option<String>,
     /// The prelude: on the stream's welcome slide and the bulletin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prelude: Option<crate::music::Music>,
@@ -140,6 +147,14 @@ pub struct Cue {
     pub content: CueContent,
 }
 
+/// A Eucharistic Prayer with the Proper Preface in its place, in the
+/// prayer's rite (`rite: I` in its front matter, else Rite II). `None`: no
+/// preface, or a prayer without its place for one (C, D).
+pub fn preface_in(doc: &LiturgyDocument, preface: Option<&crate::bcp::PrefaceEntry>) -> Option<LiturgyDocument> {
+    let rite = if doc.meta.extra("rite") == Some("I") { crate::bcp::Rite::One } else { crate::bcp::Rite::Two };
+    crate::bcp::with_preface(doc, preface?.text(rite)?)
+}
+
 /// Plan-level settings for one cue (`title`, `type`, `[cue.sanctuary]`,
 /// `[cue.stream]` in TOML).
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -168,6 +183,8 @@ pub struct BuildContext<'a> {
     pub no_deacon: bool,
     /// The slide layouts (how much text each slide type holds).
     pub templates: Option<&'a crate::template::Templates>,
+    /// The Proper Preface for the Eucharistic Prayers that have one.
+    pub preface: Option<&'static crate::bcp::PrefaceEntry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -326,6 +343,9 @@ impl Cue {
         let CueContent::Liturgy { document, slides, stream_slides, stream_at, .. } = &mut self.content else {
             return;
         };
+        // A hymn's words said instead of sung (the Sanctus, said): said by
+        // all, so the people's (bold), on a prayer's layout.
+        let said = document.meta.effective_category() == ElementCategory::Hymn && category != ElementCategory::Hymn;
         // A reading's slides show its title and responses; the scripture
         // itself only when the item asks (`slide_text: true`). The bulletin
         // and script print it in full either way.
@@ -340,10 +360,23 @@ impl Cue {
             |key| if made { crate::fit::Capacity::AS_WRITTEN } else { crate::fit::capacity(key, templates) };
         let sanctuary = fitted_for(sanctuary_key);
         let stream = fitted_for(stream_key);
+        // The Proper Preface goes into the prayer where the rubric says.
+        let with_preface =
+            (category == ElementCategory::EucharisticPrayer).then(|| preface_in(document, ctx.preface)).flatten();
+        let document: &LiturgyDocument = with_preface.as_ref().unwrap_or(document);
         let fitted = crate::fit::fit(document, sanctuary, stream, &keep);
         *slides = fitted.steps;
         *stream_slides = fitted.stream;
         *stream_at = fitted.stream_at;
+        if said {
+            for slide in slides.iter_mut().chain(stream_slides.iter_mut()) {
+                for block in &mut slide.blocks {
+                    if let Block::Paragraph { role: role @ None, .. } = block {
+                        *role = Some(crate::role::Role::People);
+                    }
+                }
+            }
+        }
         if ctx.bishop || ctx.no_deacon {
             for slide in slides.iter_mut().chain(stream_slides.iter_mut()) {
                 for block in &mut slide.blocks {
@@ -408,18 +441,33 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            preface: self.preface_entry(),
             templates: Some(&self.templates),
         }
     }
 
     /// Recomputes every cue's derived fields (after service-wide changes).
+    /// The Proper Preface in use: the one chosen, else the date's.
+    pub fn preface_entry(&self) -> Option<&'static crate::bcp::PrefaceEntry> {
+        match self.preface.as_deref() {
+            Some("none") => None,
+            Some(name) => crate::bcp::preface(name),
+            None => {
+                let date = self.date.as_deref()?.parse().ok()?;
+                crate::bcp::preface(&crate::lectionary::preface_for(date, None)?)
+            }
+        }
+    }
+
     pub fn rebuild_all(&mut self) {
+        self.preface_used = self.preface_entry().map(|p| p.name.clone());
         let ctx = BuildContext {
             color: self.color,
             looks: Some(&self.looks),
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            preface: self.preface_entry(),
             templates: Some(&self.templates),
         };
         for cue in &mut self.cues {
@@ -486,6 +534,7 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            preface: self.preface_entry(),
             templates: None,
         };
         let Service { cues, looks, templates, .. } = self;
@@ -531,6 +580,7 @@ impl Service {
             deck_slides: self.deck_slides,
             bishop: self.bishop,
             no_deacon: self.no_deacon,
+            preface: self.preface_entry(),
             templates: None,
         };
         let Service { cues, looks, templates, .. } = self;
@@ -662,6 +712,7 @@ impl Service {
             track: plan.track.filter(|t| matches!(t, 1 | 2)),
             bible: plan.bible.as_deref().and_then(crate::bible::BibleVersion::parse),
             prelude: plan.prelude.filter(|m| !m.is_empty()),
+            preface: plan.preface.filter(|p| !p.trim().is_empty()),
             ..Default::default()
         };
 
@@ -823,6 +874,7 @@ impl Service {
             track: self.track.filter(|t| *t == 2),
             bible: self.bible.map(|b| b.initials().into()),
             prelude: self.prelude.clone().filter(|m| !m.is_empty()),
+            preface: self.preface.clone(),
             looks: self.looks.clone(),
             cues,
         };
@@ -883,6 +935,9 @@ struct ServicePlan {
     /// `"NRSV"` or `"NRSVue"`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     bible: Option<String>,
+    /// The Proper Preface's name, or "none" (unset: the date's).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    preface: Option<String>,
     // Tables must follow plain values in TOML.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     prelude: Option<crate::music::Music>,
@@ -948,6 +1003,69 @@ mod tests {
         changed.meta.title = "Collect (parish)".into();
         assert!(s.set_document(&id, changed).is_ok());
         assert_eq!(s.cues[0].document().unwrap().meta.title, "Collect (parish)");
+    }
+
+    #[test]
+    fn the_proper_preface_is_said_where_the_prayer_says() {
+        let a: LiturgyDocument = include_str!("../../../library/eucharistic-prayer-a.ewm").parse().unwrap();
+        let one: LiturgyDocument = include_str!("../../../library/rite1/eucharistic-prayer-1.ewm").parse().unwrap();
+        let c: LiturgyDocument = include_str!("../../../library/eucharistic-prayer-c.ewm").parse().unwrap();
+        let mut s = Service { date: Some("2027-03-28".into()), ..Default::default() };
+        for (id, doc) in [("a", a), ("one", one), ("c", c.clone())] {
+            let at = s.cues.len();
+            s.insert_cue(at, Cue::liturgy(id, doc, None, CueOverrides::default()));
+        }
+        s.rebuild_all();
+        let text = |s: &Service, id: &str| {
+            let cue = s.cue(id).unwrap();
+            (0..cue.slide_count())
+                .filter_map(|i| cue.slide(i))
+                .flat_map(|sl| sl.blocks.iter().map(Block::plain_text))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        assert_eq!(s.preface_used.as_deref(), Some("Easter"));
+        assert!(text(&s, "a").contains("But chiefly are we bound to praise you for the glorious resurrection"));
+        assert!(text(&s, "one").contains("But chiefly are we bound to praise thee for the glorious resurrection"));
+        let c_text = text(&s, "c");
+        assert!(!c_text.contains("But chiefly"), "Prayer C has no Proper Preface");
+        // In the bulletin and script too.
+        let script = crate::bulletin::to_html(&crate::bulletin::script(&s, &Default::default()));
+        assert!(script.contains("But chiefly are we bound to praise you"));
+        // The parish may choose another, or none.
+        s.preface = Some("The Lord's Day: Of God the Son".into());
+        s.rebuild_all();
+        assert!(text(&s, "a").contains("who on the first day of the week overcame death"));
+        s.preface = Some("none".into());
+        s.rebuild_all();
+        assert!(!text(&s, "a").contains("But chiefly") && !text(&s, "a").contains("first day of the week"));
+        assert_eq!(s.cue("c").unwrap().document(), Some(&c), "the prayer's own text is unchanged");
+    }
+
+    #[test]
+    fn the_sanctus_said_or_sung() {
+        let doc: LiturgyDocument = include_str!("../../../library/sanctus.ewm").parse().unwrap();
+        let said = CueOverrides { category: Some(ElementCategory::Acclamation), ..Default::default() };
+        let mut s = Service::default();
+        s.insert_cue(0, Cue::liturgy("said", doc.clone(), None, said));
+        s.insert_cue(1, Cue::liturgy("sung", doc, None, CueOverrides::default()));
+        let roles = |id: &str| -> Vec<Option<crate::role::Role>> {
+            s.cue(id)
+                .unwrap()
+                .slide(0)
+                .unwrap()
+                .blocks
+                .iter()
+                .filter_map(|b| match b {
+                    Block::Paragraph { role, .. } => Some(role.clone()),
+                    _ => None,
+                })
+                .collect()
+        };
+        assert!(roles("said").iter().all(|r| *r == Some(crate::role::Role::People)), "said by all");
+        assert!(roles("sung").iter().all(Option::is_none), "sung: as a hymn");
+        assert_eq!(s.cue("said").unwrap().sanctuary.layout, crate::look::Layout::Centered);
+        assert_eq!(s.cue("sung").unwrap().sanctuary.layout, crate::look::Layout::Lyrics);
     }
 
     #[test]

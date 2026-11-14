@@ -324,21 +324,19 @@ function imagePiece(stage, name, spec, cue, block) {
   return node;
 }
 
-/** The text box grows into title space above it that this slide leaves empty. */
+/** The text box grows up into the space of the boxes above it that this
+ *  slide leaves empty (no title, no section heading, a hidden piece), gap
+ *  or no gap between them, but not past one that is shown. */
 function textRect(T, shown) {
   const t = { ...T.text };
   const bottom = t.y + t.h;
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const [name, spec] of Object.entries(T)) {
-      if (name === "text" || shown.has(name) || spec.kind === "font" || spec.x == null) continue;
-      const touches = spec.y < t.y && spec.y + spec.h >= t.y - 2 && spec.x < t.x + t.w && spec.x + spec.w > t.x;
-      if (touches) {
-        t.y = spec.y;
-        changed = true;
-      }
-    }
+  const across = (s) => s.x < t.x + t.w && s.x + s.w > t.x;
+  const above = Object.entries(T).filter(([name, s]) => name !== "text" && s && s.kind !== "font" && s.x != null && s.y < t.y && across(s));
+  const unused = above.filter(([name]) => !shown.has(name)).map(([, s]) => s.y);
+  if (unused.length) {
+    // Shown boxes above stay clear of the text.
+    const floor = Math.max(...above.filter(([name]) => shown.has(name)).map(([, s]) => s.y + s.h), -Infinity);
+    t.y = Math.min(t.y, Math.max(Math.min(...unused), floor));
   }
   t.h = bottom - t.y;
   return t;

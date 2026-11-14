@@ -139,7 +139,7 @@ fn table(rite: Rite, postcommunion: Option<Cue>, dismissal: bool) -> Vec<Option<
     let mut v = vec![
         hymn_cue("Offertory Hymn"),
         lib(rite, "sursum-corda"),
-        lib(rite, "sanctus"),
+        lib(rite, "sanctus").map(crate::services::said),
         lib(rite, "lords-prayer"),
         lib(rite, "fraction-anthem"),
         (rite == Rite::One).then(|| lib(rite, "humble-access")).flatten(),
@@ -410,6 +410,16 @@ pub fn apply(s: &mut Service, o: Options) {
         s.liturgy = Some(o.occasion.label().to_string());
     }
     let vigil = o.occasion == Occasion::EasterVigil;
+    // The Proper Preface these services appoint (else the date's).
+    s.preface = if vigil {
+        Some("Easter".into())
+    } else if o.occasion.is_ordination() {
+        Some("Apostles and Ordinations".into())
+    } else if o.baptismal == Some(Baptismal::Baptism) || o.confirmation {
+        Some("Baptism".into())
+    } else {
+        s.preface.take()
+    };
 
     // The Passion Gospel is announced in its own way (Palm Sunday, Good Friday).
     let passion = match o.occasion {

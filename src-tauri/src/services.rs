@@ -149,6 +149,13 @@ fn hymn_placeholder(title: &str) -> LiturgyDocument {
     }
 }
 
+/// The Sanctus said (by all, in bold, on a prayer's layout), as new
+/// services have it; the Editor's Sanctus panel makes it sung (as a hymn).
+pub(crate) fn said(mut cue: Cue) -> Cue {
+    cue.overrides.category = Some(ElementCategory::Acclamation);
+    cue
+}
+
 /// A hymn slot.
 pub(crate) fn hymn_cue(title: &str) -> Option<Cue> {
     Some(Cue::liturgy("", hymn_placeholder(title), None, CueOverrides::default()))
@@ -292,7 +299,7 @@ fn standard_cues(day: &LiturgicalDay, rite: Rite, prayers: Option<PrayersForm>) 
         lib("the-peace", None),
         hymn("Offertory Hymn"),
         lib("sursum-corda", None),
-        lib("sanctus", None),
+        lib("sanctus", None).map(said),
         lib("lords-prayer", None),
         lib("fraction-anthem", None),
         humble_access,

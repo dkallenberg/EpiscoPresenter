@@ -79,15 +79,75 @@ pub fn layouts_set(
     store(&app, &engine, all)
 }
 
-/// Resets one slide type (or, with no key, every one) to the built-in layout.
+/// The parish's own default layouts (`layouts-default.json`, kept in step
+/// with the shared folder like the layouts themselves).
+fn default_file(app: &AppHandle) -> CmdResult<PathBuf> {
+    crate::storage::data_dir(app, "layouts-default.json")
+}
+
+fn read_defaults(app: &AppHandle) -> Templates {
+    default_file(app)
+        .ok()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .and_then(|t| serde_json::from_str(&t).ok())
+        .unwrap_or_default()
+}
+
+/// The parish's defaults: what Reset goes back to (else the built-in).
 #[tauri::command]
-pub fn layouts_reset(app: AppHandle, engine: State<'_, Engine>, key: Option<String>) -> CmdResult<Templates> {
+pub fn layouts_defaults(app: AppHandle) -> Templates {
+    read_defaults(&app)
+}
+
+/// Makes a slide type's layout as it is now (or, with no key, every one)
+/// the parish's default, which Reset goes back to.
+#[tauri::command]
+pub fn layouts_make_default(app: AppHandle, key: Option<String>) -> CmdResult<Templates> {
+    let now = current();
+    let mut defaults = read_defaults(&app);
+    match key {
+        Some(k) => match now.get(&k) {
+            Some(t) => {
+                defaults.insert(k, t.clone());
+            }
+            // As built: the default is the built-in layout.
+            None => {
+                defaults.remove(&k);
+            }
+        },
+        None => defaults = now,
+    }
+    template::prune(&mut defaults);
+    let path = default_file(&app)?;
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, serde_json::to_string_pretty(&defaults).map_err(|e| e.to_string())?)
+        .map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    Ok(defaults)
+}
+
+/// Resets one slide type (or, with no key, every one) to the parish's
+/// default, or with `builtin` to the built-in layout.
+#[tauri::command]
+pub fn layouts_reset(
+    app: AppHandle,
+    engine: State<'_, Engine>,
+    key: Option<String>,
+    builtin: Option<bool>,
+) -> CmdResult<Templates> {
+    let defaults = if builtin.unwrap_or(false) { Templates::new() } else { read_defaults(&app) };
     let mut all = current();
     match key {
-        Some(k) => {
-            all.remove(&k);
-        }
-        None => all.clear(),
+        Some(k) => match defaults.get(&k) {
+            Some(t) => {
+                all.insert(k, t.clone());
+            }
+            None => {
+                all.remove(&k);
+            }
+        },
+        None => all = defaults,
     }
     store(&app, &engine, all)
 }

@@ -165,6 +165,8 @@ pub struct Vocabulary {
     layouts: Vec<Layout>,
     builtin_backgrounds: Vec<&'static str>,
     default_key_color: &'static str,
+    /// The Proper Prefaces, by name (Service settings).
+    prefaces: Vec<String>,
 }
 
 /// Option lists for the editor's selectors, with their formatting.
@@ -193,6 +195,7 @@ pub fn vocabulary() -> Vocabulary {
         layouts: Layout::ALL.to_vec(),
         builtin_backgrounds: BUILTIN_BACKGROUNDS.to_vec(),
         default_key_color: DEFAULT_KEY_COLOR,
+        prefaces: episco_core::bcp::prefaces().iter().map(|p| p.name.clone()).collect(),
     }
 }
 
@@ -468,6 +471,9 @@ pub struct ServiceDetails {
     /// The prelude (title and composer); none clears it.
     #[serde(default)]
     prelude: Option<episco_core::music::Music>,
+    /// The Proper Preface: a name, "none", or empty for the date's.
+    #[serde(default)]
+    preface: Option<String>,
 }
 
 /// Edits the service's own settings.
@@ -487,6 +493,7 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
         s.bible = details.bible;
         s.prelude =
             details.prelude.map(|m| episco_core::music::Music::new(&m.title, &m.composer)).filter(|m| !m.is_empty());
+        s.preface = details.preface.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
         s.modified = true;
         s.rebuild_all();
         Ok(())

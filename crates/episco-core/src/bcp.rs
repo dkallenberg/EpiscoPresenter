@@ -16,6 +16,8 @@ use crate::propers::PsalmVerse;
 const PSALTER: &str = include_str!("../../../library/bcp/psalter.txt");
 const CANTICLES: &str = include_str!("../../../library/bcp/canticles.txt");
 const COLLECTS: &str = include_str!("../../../library/bcp/collects.txt");
+const PREFACES: &str = include_str!("../../../library/bcp/prefaces.txt");
+const PREFACE_DAYS: &str = include_str!("../../../library/bcp/preface-days.txt");
 
 /// Rite I (traditional language) or Rite II (contemporary).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -361,6 +363,98 @@ pub fn find_collect(name: &str) -> Option<&'static CollectEntry> {
         .map(|(_, c)| c)
 }
 
+// ---------------------------------------------------------------------------
+// Proper Prefaces
+// ---------------------------------------------------------------------------
+
+/// A Proper Preface (BCP pp. 344-349, 377-382), e.g. "Easter" or "The Lord's
+/// Day: Of God the Son".
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct PrefaceEntry {
+    pub name: String,
+    /// Contemporary (Rite II); more than one where the book offers "or this".
+    pub contemporary: Vec<String>,
+    /// Traditional (Rite I).
+    pub traditional: Vec<String>,
+}
+
+impl PrefaceEntry {
+    /// The preface in a rite (the first, where the book gives a choice).
+    pub fn text(&self, rite: Rite) -> Option<&str> {
+        match rite {
+            Rite::One => self.traditional.first(),
+            Rite::Two => self.contemporary.first(),
+        }
+        .map(String::as_str)
+    }
+}
+
+/// Every Proper Preface, in the book's order.
+pub fn prefaces() -> &'static Vec<PrefaceEntry> {
+    static P: OnceLock<Vec<PrefaceEntry>> = OnceLock::new();
+    P.get_or_init(|| {
+        let mut out: Vec<PrefaceEntry> = Vec::new();
+        for line in PREFACES.lines() {
+            if let Some(t) = line.strip_prefix("== ") {
+                out.push(PrefaceEntry { name: t.trim().into(), contemporary: Vec::new(), traditional: Vec::new() });
+            } else if let (Some(text), Some(p)) = (line.strip_prefix("II: "), out.last_mut()) {
+                p.contemporary.push(text.into());
+            } else if let (Some(text), Some(p)) = (line.strip_prefix("I: "), out.last_mut()) {
+                p.traditional.push(text.into());
+            }
+        }
+        out
+    })
+}
+
+/// A preface by name. "The Lord's Day" alone is the first of its three.
+pub fn preface(name: &str) -> Option<&'static PrefaceEntry> {
+    let all = prefaces();
+    all.iter().find(|p| p.name == name).or_else(|| all.iter().find(|p| p.name.starts_with(&format!("{name}: "))))
+}
+
+/// The prefaces a day's collect is appointed with (the note under it:
+/// "Preface of the Epiphany, or of the Lord's Day"), by the collect's
+/// title. `["None"]` where the book says no Proper Preface is used;
+/// "Season" means the season's own.
+pub fn preface_names_for(collect_title: &str) -> Option<Vec<String>> {
+    static D: OnceLock<Vec<(String, Vec<String>)>> = OnceLock::new();
+    let days = D.get_or_init(|| {
+        PREFACE_DAYS
+            .lines()
+            .filter(|l| !l.starts_with('#'))
+            .filter_map(|l| l.split_once(" => "))
+            .map(|(day, names)| (day.trim().to_string(), names.split(" | ").map(|n| n.trim().to_string()).collect()))
+            .collect()
+    });
+    if let Some((_, names)) = days.iter().find(|(d, _)| d == collect_title) {
+        return Some(names.clone());
+    }
+    // The two sources spell a few titles differently: the closest by words.
+    let want = words(collect_title);
+    days.iter()
+        .filter(|(d, _)| {
+            let have = words(d);
+            !have.is_empty() && have.iter().all(|w| want.contains(w)) && want.iter().all(|w| have.contains(w))
+        })
+        .map(|(_, n)| n.clone())
+        .next()
+}
+
+/// Puts a preface in a Eucharistic Prayer after its rubric "Here a Proper
+/// Preface is sung or said …", for the Celebrant. `None` for a prayer
+/// without that place (Prayers C and D).
+pub fn with_preface(doc: &crate::LiturgyDocument, text: &str) -> Option<crate::LiturgyDocument> {
+    use crate::document::{Block, Span};
+    use crate::role::Role;
+    let at = doc.blocks.iter().position(|b| {
+        matches!(b, Block::Paragraph { role: Some(Role::Rubric), .. }) && b.plain_text().contains("Proper Preface")
+    })?;
+    let mut out = doc.clone();
+    out.blocks.insert(at + 1, Block::Paragraph { role: Some(Role::Celebrant), lines: vec![vec![Span::plain(text)]] });
+    Some(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -414,6 +508,45 @@ mod tests {
         let t = canticle(traditional_canticle(15).unwrap()).unwrap();
         assert!(t.verses[0][0].starts_with("My soul doth magnify the Lord"), "{:?}", t.verses[0]);
         assert_eq!(canticle_verses(9).unwrap().len(), 7);
+    }
+
+    #[test]
+    fn proper_prefaces() {
+        assert_eq!(prefaces().len(), 19);
+        let easter = preface("Easter").unwrap();
+        assert!(easter.text(Rite::Two).unwrap().starts_with("But chiefly are we bound to praise you"));
+        assert!(easter.text(Rite::One).unwrap().starts_with("But chiefly are we bound to praise thee"));
+        assert_eq!(preface("The Lord's Day").unwrap().name, "The Lord's Day: Of God the Father");
+        assert_eq!(preface("Lent").unwrap().contemporary.len(), 2);
+        assert!(preface("A Saint").unwrap().traditional[2].starts_with("Because thou art greatly"));
+        // Every name the day table uses is a preface.
+        for line in PREFACE_DAYS.lines().filter(|l| !l.starts_with('#')) {
+            for name in line.split(" => ").nth(1).unwrap().split(" | ") {
+                assert!(matches!(name, "None" | "Season") || preface(name).is_some(), "{line}");
+            }
+        }
+        // Every collect of the seasons and holy days has its preface.
+        let missing: Vec<&str> = collects()
+            .iter()
+            .take_while(|c| c.title != "Of a Martyr")
+            .filter(|c| preface_names_for(&c.title).is_none())
+            .map(|c| c.title.as_str())
+            .collect();
+        // No Eucharistic Prayer on these days.
+        assert_eq!(missing, ["Good Friday", "Holy Saturday"]);
+        assert_eq!(preface_names_for("Second Sunday after the Epiphany").unwrap(), ["Epiphany", "The Lord's Day"]);
+        assert_eq!(preface_names_for("Proper 1").unwrap(), ["None"]);
+    }
+
+    #[test]
+    fn a_preface_goes_after_its_rubric() {
+        let doc: crate::LiturgyDocument = "---\ntitle: EP\n---\n[Celebrant] It is right.\n\n---\n\n[Rubric] *Here a Proper Preface is sung or said.*\n[Celebrant] Therefore we praise you.\n".parse().unwrap();
+        let with = with_preface(&doc, "For you are the source of light and life.").unwrap();
+        let texts: Vec<String> = with.blocks.iter().map(|b| b.plain_text()).collect();
+        let at = texts.iter().position(|t| t.starts_with("For you are")).unwrap();
+        assert!(texts[at - 1].contains("Proper Preface") && texts[at + 1].starts_with("Therefore"));
+        let c: crate::LiturgyDocument = "---\ntitle: C\n---\n[Celebrant] The Lord be with you.\n".parse().unwrap();
+        assert!(with_preface(&c, "x").is_none());
     }
 
     #[test]

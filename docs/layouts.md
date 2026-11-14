@@ -29,7 +29,12 @@ lines** styles, which apply inside the text box.
   **Font**, **Size**, **Colour**, **Bold**, **Italic**, **Align** and
   **Vertical** alignment, or untick **Show this element** to hide it.
   **Auto** colour follows the background's light or dark text.
-* **Reset element** / **Reset <type>** go back to the built-in layout.
+* **Make this the default** keeps the slide type as it is now as the
+  parish's own default (`layouts-default.json`, shared with every computer
+  through the parish library). **Reset element** / **Reset <type> to the
+  default** go back to it; **Built-in layout** goes back to the layout the
+  app comes with (and makes that the default again). Without a default of
+  the parish's own, Reset goes back to the built-in layout.
 
 Dashed boxes are pieces the previewed slide does not use (for example the
 title on a slide without a heading). Text shrinks below its size when it

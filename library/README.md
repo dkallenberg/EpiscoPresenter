@@ -18,6 +18,9 @@ compiled into the app.
 * `bcp/psalter.txt` — the Psalter, one verse per line, from the CC0 XML
   edition at github.com/freeuniversalist/1979psalter.
 * `bcp/canticles.txt` — Canticles 1-21 (Morning Prayer I and II).
+* `bcp/prefaces.txt` — the Proper Prefaces (BCP pp. 344-349, 377-382), and
+  `bcp/preface-days.txt` — which preface each day's collect is appointed
+  with; from www.bcponline.org by `tools/bcp/prefaces.py`.
 * `bcp/collects.txt` — the Collects of the Church Year, Holy Days and the
   Common of Saints, contemporary (II) and traditional (I).
   Canticles and collects are from the Online BCP source,

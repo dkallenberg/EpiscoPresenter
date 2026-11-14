@@ -52,7 +52,13 @@ shared through the parish library folder.
    to resize it. Arrow keys nudge it.
 3. On the right set the font, size, colour, bold, italic and alignment, or
    untick **Show this element**.
-4. **Reset element** or **Reset <type>** goes back to the built-in layout.
+4. **Make this the default** keeps the layout as it is now as the parish's
+   default (shared with every computer). **Reset element** and **Reset …
+   to the default** go back to it; **Built-in layout** goes back to the
+   layout the app comes with.
+
+On slides without a title or section heading (most prayers), the text box
+grows up into their space, even when you've left a gap between the boxes.
 
 ### How much text a slide holds
 

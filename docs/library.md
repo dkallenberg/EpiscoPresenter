@@ -189,6 +189,39 @@ credit it, put a line in **Parish details → Music licence notice**, which prin
 in the bulletin.) **Remove text** goes back to the
 citation and responses only.
 
+### The Proper Preface
+
+Eucharistic Prayers A and B (Rite I: Prayers I and II) say a Proper
+Preface where the rubric "Here a Proper Preface is sung or said…" stands.
+The app adds it there on the slides, in the bulletin and in the script (the
+prayer's own text is not changed), in the prayer's rite:
+
+* **As appointed for the day** (the default): the preface the Prayer Book
+  notes under the day's collect (pp. 159-261), e.g. Advent, Incarnation,
+  Epiphany, Lent, Holy Week, Easter, Ascension, Pentecost, Trinity Sunday,
+  All Saints, or the Lord's Day on the Sundays after Pentecost. Where the
+  book offers a choice the first is used; the Lord's Day prefaces are for
+  Sundays only; Good Friday and Holy Saturday have none.
+* Holy Baptism and Confirmation use the Baptism preface, ordinations the
+  Apostles and Ordinations preface, and the Easter Vigil the Easter preface.
+* **⚙ Settings → Service settings → Proper Preface** chooses another (for
+  example the Lord's Day "Of God the Son"), or **None**.
+
+Selecting the prayer in the Editor says which preface is used. The texts
+(BCP pp. 344-349 and 377-382) and the table of days are in
+`library/bcp/prefaces.txt` and `preface-days.txt`, made by
+`tools/bcp/prefaces.py` from the Online BCP.
+
+### The Sanctus, said or sung
+
+The Sanctus item in the Editor has **Said** (the people's words in bold,
+laid out like a prayer: new services start this way) or **Sung** (shown as
+a hymn: words on black in the sanctuary, the hymn panel on the stream), and
+its words: **Rite II (BCP 362)**, **Rite I (BCP 334)**, or **A hymnal
+setting**: import the setting's words like a hymn (`S 125 Sanctus.txt`),
+select it in the Library and click **Use for Sanctus** (it is then sung,
+with its number).
+
 ### Music before the Gospel
 
 The Gospel's slides run in the order they are used: the music line (if

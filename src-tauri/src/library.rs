@@ -526,6 +526,10 @@ pub fn library_fill_cue(app: AppHandle, engine: State<'_, Engine>, id: String, c
         let c = s.cue(&cue).ok_or("no such cue")?;
         let mut overrides = c.overrides.clone();
         overrides.title = Some(c.title.clone());
+        // A hymnal setting (the Sanctus as S 125, say) is sung: shown as a hymn.
+        if doc.meta.effective_category() == episco_core::ElementCategory::Hymn && doc.meta.extra(BASED_ON).is_none() {
+            overrides.category = None;
+        }
         s.set_document(&cue, doc).map_err(|e| e.to_string())?;
         s.set_overrides(&cue, overrides).map_err(|e| e.to_string())
     })

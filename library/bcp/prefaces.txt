@@ -1,0 +1,67 @@
+# Proper Prefaces of the 1979 Book of Common Prayer (public domain), pp. 344-349 (I) and 377-382 (II).
+# Source: the Online BCP (www.bcponline.org/HE/pphe1.html, pphe2.html), by tools/bcp/prefaces.py.
+# Format: '== Name' then 'II: preface' (contemporary) and 'I: preface' (traditional);
+# several lines for one rite are alternatives ('or this').
+== The Lord's Day: Of God the Father
+II: For you are the source of light and life, you made us in your image, and called us to new life in Jesus Christ our Lord.
+I: Creator of the light and source of life, who hast made us in thine image, and called us to new life in Jesus Christ our Lord.
+== The Lord's Day: Of God the Son
+II: Through Jesus Christ our Lord; who on the first day of the week overcame death and the grave, and by his glorious resurrection opened to us the way of everlasting life.
+I: Through Jesus Christ our Lord; who on the first day of the week overcame death and the grave, and by his glorious resurrection opened to us the way of everlasting life.
+== The Lord's Day: Of God the Holy Spirit
+II: For by water and the Holy Spirit you have made us a new people in Jesus Christ our Lord, to show forth your glory in all the world.
+I: Who by water and the Holy Spirit hast made us a new people in Jesus Christ our Lord, to show forth thy glory in all the world.
+== Advent
+II: Because you sent your beloved Son to redeem us from sin and death, and to make us heirs in him of everlasting life; that when he shall come again in power and great triumph to judge the world, we may without shame or fear rejoice to behold his appearing.
+I: Because thou didst send thy beloved Son to redeem us from sin and death, and to make us heirs in him of everlasting life; that when he shall come again in power and great triumph to judge the world, we may without shame or fear rejoice to behold his appearing.
+== Incarnation
+II: Because you gave Jesus Christ, your only Son, to be born for us; who, by the mighty power of the Holy Spirit, was made perfect Man of the flesh of the Virgin Mary his mother; so that we might be delivered from the bondage of sin, and receive power to become your children.
+I: Because thou didst give Jesus Christ, thine only Son, to be born for us; who, by the mighty power of the Holy Ghost, was made very Man of the substance of the Virgin Mary his mother; that we might be delivered from the bondage of sin, and receive power to become thy children.
+== Epiphany
+II: Because in the mystery of the Word made flesh, you have caused a new light to shine in our hearts, to give the knowledge of your glory in the face of your Son Jesus Christ our Lord.
+I: Because in the mystery of the Word made flesh, thou hast caused a new light to shine in our hearts, to give the knowledge of thy glory in the face of thy Son Jesus Christ our Lord.
+== Lent
+II: Through Jesus Christ our Lord; who was tempted in every way as we are, yet did not sin. By his grace we are able to triumph over every evil, and to live no longer for ourselves alone, but for him who died for us and rose again.
+II: You bid your faithful people cleanse their hearts, and prepare with joy for the Paschal feast; that, fervent in prayer and in works of mercy, and renewed by your Word and Sacraments, they may come to the fullness of grace which you have prepared for those who love you.
+I: Through Jesus Christ our Lord; who was in every way tempted as we are, yet did not sin; by whose grace we are able to triumph over every evil, and to live no longer unto ourselves, but unto him who died for us and rose again.
+I: Who dost bid thy faithful people cleanse their hearts, and prepare with joy for the Paschal feast; that, fervent in prayer and in works of mercy, and renewed by thy Word and Sacraments, they may come to the fullness of grace which thou hast prepared for those who love thee.
+== Holy Week
+II: Through Jesus Christ our Lord. For our sins he was lifted high upon the cross, that he might draw the whole world to himself; and, by his suffering and death, he became the source of eternal salvation for all who put their trust in him.
+I: Through Jesus Christ our Lord; who for our sins was lifted high upon the cross, that he might draw the whole world to himself; who by his suffering and death became the author of eternal salvation for all who put their trust in him.
+== Easter
+II: But chiefly are we bound to praise you for the glorious resurrection of your Son Jesus Christ our Lord; for he is the true Paschal Lamb, who was sacrificed for us, and has taken away the sin of the world. By his death he has destroyed death, and by his rising to life again he has won for us everlasting life.
+I: But chiefly are we bound to praise thee for the glorious resurrection of thy Son Jesus Christ our Lord; for he is the very Paschal Lamb, who was sacrificed for us, and hath taken away the sin of the world; who by his death hath destroyed death, and by his rising to life again hath won for us everlasting life.
+== Ascension
+II: Through your dearly beloved Son Jesus Christ our Lord. After his glorious resurrection he openly appeared to his disciples, and in their sight ascended into heaven, to prepare a place for us; that where he is, there we might also be, and reign with him in glory.
+I: Through thy dearly beloved Son Jesus Christ our Lord; who after his glorious resurrection manifestly appeared to his disciples; and in their sight ascended into heaven, to prepare a place for us; that where he is, there we might also be, and reign with him in glory.
+== Pentecost
+II: Through Jesus Christ our Lord. In fulfillment of his true promise, the Holy Spirit came down [on this day] from heaven, lighting upon the disciples, to teach them and to lead them into all truth; uniting peoples of many tongues in the confession of one faith, and giving to your Church the power to serve you as a royal priesthood, and to preach the Gospel to all nations.
+I: Through Jesus Christ our Lord; according to whose true promise the Holy Ghost came down [on this day] from heaven, lighting upon the disciples, to teach them and to lead them into all truth; uniting peoples of many tongues in the confession of one faith, and giving to thy Church the power to serve thee as a royal priesthood, and to preach the Gospel to all nations.
+== Trinity Sunday
+II: For with your co-eternal Son and Holy Spirit, you are one God, one Lord, in Trinity of Persons and in Unity of Being; and we celebrate the one and equal glory of you, O Father, and of the Son, and of the Holy Spirit.
+I: For with thy co-eternal Son and Holy Spirit, thou art one God, one Lord, in Trinity of Persons and in Unity of Substance; and we celebrate the one and equal glory of thee, O Father, and of the Son, and of the Holy Spirit.
+== All Saints
+II: For in the multitude of your saints you have surrounded us with a great cloud of witnesses, that we might rejoice in their fellowship, and run with endurance the race that is set before us; and, together with them, receive the crown of glory that never fades away.
+I: Who, in the multitude of thy saints, hast compassed us about with so great a cloud of witnesses, that we, rejoicing in their fellowship, may run with patience the race that is set before us; and, together with them, may receive the crown of glory that fadeth not away.
+== A Saint
+II: For the wonderful grace and virtue declared in all your saints, who have been the chosen vessels of your grace, and the lights of the world in their generations.
+II: Because in the obedience of your saints you have given us an example of righteousness, and in their eternal joy a glorious pledge of the hope of our calling.
+II: Because you are greatly glorified in the assembly of your saints. All your creatures praise you, and your faithful servants bless you, confessing before the rulers of this world the great Name of your only Son.
+I: For the wonderful grace and virtue declared in all thy saints, who have been chosen vessels of thy grace, and the lights of the world in their generations.
+I: Who in the obedience of thy saints hast given us an example of righteousness, and in their eternal joy a glorious pledge of the hope of our calling.
+I: Because thou art greatly glorified in the assembly of thy saints. All thy creatures praise thee, and thy faithful servants bless thee, confessing before the rulers of this world the great Name of thine only Son.
+== Apostles and Ordinations
+II: Through the great shepherd of your flock, Jesus Christ our Lord; who after his resurrection sent forth his apostles to preach the Gospel and to teach all nations; and promised to be with them always, even to the end of the ages.
+I: Through the great shepherd of thy flock, Jesus Christ our Lord; who after his resurrection sent forth his apostles to preach the Gospel and to teach all nations; and promised to be with them always, even unto the end of the ages.
+== Dedication of a Church
+II: Through Jesus Christ our great High Priest; in whom we are built up as living stones of a holy temple, that we might offer before you a sacrifice of praise and prayer which is holy and pleasing in your sight.
+I: Through Jesus Christ our great High Priest; in whom we are built up as living stones of a holy temple, that we might offer before thee a sacrifice of praise and prayer which is holy and pleasing in thy sight.
+== Baptism
+II: Because in Jesus Christ our Lord you have received us as your sons and daughters, made us citizens of your kingdom, and given us the Holy Spirit to guide us into all truth.
+I: Because in Jesus Christ our Lord thou hast received us as thy sons and daughters, made us citizens of thy kingdom, and given us the Holy Spirit to guide us into all truth.
+== Marriage
+II: Because in the love of wife and husband, you have given us an image of the heavenly Jerusalem, adorned as a bride for her bridegroom, your Son Jesus Christ our Lord; who loves her and gave himself for her, that he might make the whole creation new.
+I: Because in the love of wife and husband, thou hast given us an image of the heavenly Jerusalem, adorned as a bride for her bridegroom, thy Son Jesus Christ our Lord; who loveth her and gave himself for her, that he might make the whole creation new.
+== Commemoration of the Dead
+II: Through Jesus Christ our Lord; who rose victorious from the dead, and comforts us with the blessed hope of everlasting life. For to your faithful people, O Lord, life is changed, not ended; and when our mortal body lies in death, there is prepared for us a dwelling place eternal in the heavens.
+I: Through Jesus Christ our Lord; who rose victorious from the dead, and doth comfort us with the blessed hope of everlasting life; for to thy faithful people, O Lord, life is changed, not ended; and when our mortal body doth lie in death, there is prepared for us a dwelling place eternal in the heavens.

@@ -450,6 +450,21 @@ pub fn welcome(service: &Service, parish: &ParishInfo) -> Welcome {
     Welcome { line, greeting }
 }
 
+/// A Eucharistic Prayer with the service's Proper Preface in its place (as
+/// on the slides); any other item as it is.
+fn with_preface<'a>(cue: &'a Cue, service: &Service) -> std::borrow::Cow<'a, Cue> {
+    if cue.category == ElementCategory::EucharisticPrayer {
+        if let Some(doc) = cue.document().and_then(|d| crate::service::preface_in(d, service.preface_entry())) {
+            let mut c = cue.clone();
+            if let CueContent::Liturgy { document, .. } = &mut c.content {
+                **document = doc;
+            }
+            return std::borrow::Cow::Owned(c);
+        }
+    }
+    std::borrow::Cow::Borrowed(cue)
+}
+
 /// The prelude's line at the head of the bulletin and script.
 fn prelude_entry(service: &Service) -> Option<Entry> {
     let m = service.prelude.as_ref().filter(|m| !m.is_empty())?;
@@ -807,6 +822,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
                 .cues
                 .iter()
                 .map(|cue| {
+                    let cue = &with_preface(cue, service);
                     let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
                     presider_labels(&mut e.pieces, service);
                     speaker_labels(&mut e.pieces, parish.speaker_labels);
@@ -833,7 +849,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
             }
             _ => BulletinStyle::Full,
         };
-        let mut e = entry(cue, style, true, service.library_root.as_deref());
+        let mut e = entry(&with_preface(cue, service), style, true, service.library_root.as_deref());
         if cue.category == ElementCategory::EucharisticPrayer
             && !entries.iter().any(|x: &Entry| x.pieces.contains(&Piece::PageBreak))
         {

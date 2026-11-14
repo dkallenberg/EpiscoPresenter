@@ -136,6 +136,25 @@ Gospel acclamation on the first slide. The music you choose becomes the
 parish's usual one for new services. **Put the slides in order** fixes the
 order after editing by hand.
 
+## The Proper Preface
+
+Eucharistic Prayers A and B (and Rite I's Prayers I and II) include the
+Proper Preface appointed for the day, where the Prayer Book's rubric says,
+on the slides and in the bulletin and script. Select the prayer in the
+Editor to see which one. To use another (or none), choose it in **⚙
+Settings → Service settings → Proper Preface**. Baptisms, confirmations,
+ordinations and the Easter Vigil get their own automatically.
+
+## The Sanctus
+
+Select the **Sanctus** and choose:
+
+* **Said**: the people's words in bold, like a prayer (new services start
+  this way), or **Sung**: shown like a hymn.
+* The words: **Rite II**, **Rite I**, or **A hymnal setting**. For a
+  setting such as S 125, import its words like a hymn, select it in the
+  Library and click **Use for Sanctus**.
+
 ## The sermon
 
 Select **The Sermon**. **Preacher** offers the Rector, Assistant and Bishop
