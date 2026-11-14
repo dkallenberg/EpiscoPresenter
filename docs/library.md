@@ -161,8 +161,9 @@ The app removes the reference and version lines, section headings, verse
 numbers, footnote and cross-reference markers, and the footnotes and copyright
 notice at the end, then lays the text out about 30–70 words to a slide
 (**Slides**) between the title slide (or the Gospel's announcement) and the
-closing response. The version's initials, e.g. "(NRSVue)", follow the last
-slide, as the NCC asks for use in services. **Remove text** goes back to the
+closing response. (The translation is not named after the reading; to
+credit it, put a line in **Parish details → Music licence notice**, which prints
+in the bulletin.) **Remove text** goes back to the
 citation and responses only.
 
 ### Music before the Gospel

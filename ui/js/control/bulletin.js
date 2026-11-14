@@ -447,7 +447,7 @@ export async function openReadings(focus = null) {
       el(
         "p.muted.small",
         {},
-        "The NRSV and NRSVue are copyright the National Council of Churches, so the app does not include their text. The text appears in the bulletin, the script and on the slides, with the version's initials after it.",
+        "The NRSV and NRSVue are copyright the National Council of Churches, so the app does not include their text. The text appears in the bulletin, the script and on the slides.",
       ),
       el("label.field.inline", {}, el("span", {}, "Bible"), version),
       fileBox,

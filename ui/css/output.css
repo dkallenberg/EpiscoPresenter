@@ -44,6 +44,8 @@
 .row.span > .text { grid-column: 1 / -1; }
 .label { font-size: calc(var(--label) * var(--fit)); font-style: italic; white-space: nowrap; }
 .label.number { font-style: normal; font-weight: 700; font-size: 1em; }
+/* Psalm verse numbers are plain. */
+.cat-psalm .label.number { font-weight: 400; }
 .rubric, .score, .score-missing { grid-column: 1 / -1; }
 .rubric { font-style: italic; font-size: calc(var(--label) * var(--fit)); padding-left: 2.6em; }
 .people .text { font-weight: 700; }

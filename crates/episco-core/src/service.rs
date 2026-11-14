@@ -661,7 +661,15 @@ impl Service {
                         parsed.warnings.iter().map(|w| format!("{}:{}: {}", file.display(), w.line, w.message)),
                     );
                     let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("item");
-                    Cue::liturgy(service.unique_id(stem), parsed.document, resolved, overrides)
+                    let mut document = parsed.document;
+                    // The translation's initials no longer end a reading.
+                    let tidied = matches!(
+                        document.meta.effective_category(),
+                        ElementCategory::Reading | ElementCategory::Gospel
+                    ) && crate::bible::strip_version_note(&mut document);
+                    let mut cue = Cue::liturgy(service.unique_id(stem), document, resolved, overrides);
+                    cue.modified = tidied;
+                    cue
                 }
             };
             service.cues.push(cue);
@@ -879,6 +887,23 @@ fn slug(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn older_readings_lose_the_version_at_their_end() {
+        let dir = std::env::temp_dir().join(format!("episco-version-note-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("reading.ewm"),
+            "---\ntitle: First Reading\ntype: reading\nbible: NRSVue\n---\n# The First Reading\n---\nFor I know that my Redeemer lives. (NRSVue)\n\n---\n\n[Reader] The word of the Lord.\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("service.toml"), "title = \"T\"\n[[cue]]\nfile = \"reading.ewm\"\n").unwrap();
+        let s = Service::load_plan(dir.join("service.toml")).unwrap().service;
+        let text = s.cues[0].document().unwrap().blocks.iter().map(Block::plain_text).collect::<Vec<_>>().join("|");
+        assert!(text.contains("Redeemer lives.|") && !text.contains("(NRSVue)"), "{text}");
+        assert!(s.cues[0].modified, "saved without it next time");
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn readings_show_their_responses_unless_the_text_is_asked_for() {

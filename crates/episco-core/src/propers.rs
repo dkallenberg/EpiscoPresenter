@@ -1037,7 +1037,7 @@ mod tests {
             crate::bible::BibleVersion::Nrsvue,
             40,
         );
-        assert_eq!(titles(&with_text)[2], "Then the kingdom of heaven will be like this. (NRSVue)");
+        assert_eq!(titles(&with_text)[2], "Then the kingdom of heaven will be like this.");
         // Music first; set again replaces it; None removes it.
         let m = arrange_gospel(&with_text, Some(Some(("media/alleluia.png".into(), "Alleluia".into()))));
         assert_eq!(titles(&m)[0], "music");

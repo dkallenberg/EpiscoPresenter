@@ -293,26 +293,14 @@ pub fn passage_blocks(clean: &str, version: BibleVersion, words: usize) -> Vec<B
 /// on from the slide before ("2,5"), for printing the reading in paragraphs.
 fn text_blocks(clean: &str, version: BibleVersion, words: usize) -> (Vec<Block>, String) {
     let slides = text_slides(clean, words);
-    let n = slides.len();
+    let _ = version;
     let mut out = Vec::new();
     let mut continues = Vec::new();
     for (i, s) in slides.into_iter().enumerate() {
         if !s.new_paragraph {
             continues.push((i + 1).to_string());
         }
-        let parts = s.parts.len();
-        let lines = s
-            .parts
-            .into_iter()
-            .enumerate()
-            .map(|(j, p)| {
-                if i + 1 == n && j + 1 == parts {
-                    vec![Span::plain(format!("{p} ({})", version.initials()))]
-                } else {
-                    vec![Span::plain(p)]
-                }
-            })
-            .collect();
+        let lines = s.parts.into_iter().map(|p| vec![Span::plain(p)]).collect();
         out.push(Block::Paragraph { role: None, lines });
         out.push(Block::SlideBreak);
     }
@@ -321,6 +309,24 @@ fn text_blocks(clean: &str, version: BibleVersion, words: usize) -> (Vec<Block>,
 
 /// Front-matter key: the text slides that carry a paragraph on (see [`text_blocks`]).
 pub const TEXT_CONTINUES: &str = "text_continues";
+
+/// Takes the translation's initials ("(NRSVue)") off the end of a
+/// reading's text, where earlier versions put them. Returns whether it did.
+pub fn strip_version_note(doc: &mut LiturgyDocument) -> bool {
+    let Some(Block::Paragraph { lines, .. }) =
+        doc.blocks.iter_mut().rev().find(|b| matches!(b, Block::Paragraph { role: None, .. }))
+    else {
+        return false;
+    };
+    let Some(last) = lines.last_mut().and_then(|l| l.last_mut()) else { return false };
+    for v in [" (NRSVue)", " (NRSV)"] {
+        if let Some(rest) = last.text.strip_suffix(v) {
+            last.text = rest.to_string();
+            return true;
+        }
+    }
+    false
+}
 
 /// Replaces a reading's text slides with `text` (or removes them when the
 /// text is empty). The text goes after the title slide and the Gospel's
@@ -739,7 +745,7 @@ New Revised Standard Version Updated Edition. Copyright © 2021 National Council
             .filter(|b| matches!(b, Block::Paragraph { role: None, .. }))
             .map(Block::plain_text)
             .collect();
-        assert!(text.starts_with("“O that my words") && text.ends_with("(NRSVue)"), "{text}");
+        assert!(text.starts_with("“O that my words") && !text.contains("(NRSV"), "{text}");
         assert_eq!(with.meta.extra("bible"), Some("NRSVue"));
 
         // Paragraphs survive the slides: a long paragraph over two slides is
@@ -788,13 +794,23 @@ New Revised Standard Version Updated Edition. Copyright © 2021 National Council
         assert!(slides[0].is_title());
         assert!(slides[1].blocks[0].plain_text().starts_with("The Israelites"));
         let last_text = &slides[slides.len() - 2].blocks[0].plain_text();
-        assert!(last_text.ends_with("(NRSVue)"), "{last_text}");
+        assert!(!last_text.contains("NRSV"), "no version at the end: {last_text}");
         assert_eq!(slides.last().unwrap().blocks[0].plain_text(), "The word of the Lord.");
         assert_eq!(with.meta.extra("bible"), Some("NRSVue"));
         // Replacing and removing the text leaves the responses intact.
         let again = set_reading_text(&with, "At that time Deborah judged Israel.", BibleVersion::Nrsv, 30);
         assert_eq!(again.slides().len(), 3);
-        assert!(again.slides()[1].blocks[0].plain_text().ends_with("(NRSV)"));
+        assert_eq!(again.meta.extra("bible"), Some("NRSV"));
+        // Older readings lose the initials they ended with.
+        let mut old = again.clone();
+        if let Some(Block::Paragraph { lines, .. }) =
+            old.blocks.iter_mut().rev().find(|b| matches!(b, Block::Paragraph { role: None, .. }))
+        {
+            lines.last_mut().unwrap().last_mut().unwrap().text.push_str(" (NRSV)");
+        }
+        assert!(strip_version_note(&mut old));
+        assert_eq!(old, again);
+        assert!(!strip_version_note(&mut old));
         let none = set_reading_text(&again, "", BibleVersion::Nrsv, 30);
         assert_eq!(none.blocks, reading.blocks);
         assert_eq!(none.meta.extra("bible"), None);

@@ -101,8 +101,7 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
     and the copyright line are removed.
 
   Either way the text appears in the bulletin (in its paragraphs), the
-  script and on the slides (about 40 words each), with the version's
-  initials after it. Until then a reading in full text shows a yellow
+  script and on the slides (about 40 words each). Until then a reading in full text shows a yellow
   *[The text of … goes here]*, also highlighted in the Word file, and the
   button turns gold and counts the readings still to add. Clicking a
   placeholder opens the dialog at that reading.

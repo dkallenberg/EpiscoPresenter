@@ -779,7 +779,7 @@ function readingPanel(c) {
     el(
       "p.muted.small",
       {},
-      "The NRSV and NRSVue are copyright the National Council of Churches, so the app cannot include their text. Copy the passage from a licensed source and paste it here; the version's initials are added after the reading, as the NCC asks for service use.",
+      "The NRSV and NRSVue are copyright the National Council of Churches, so the app cannot include their text. Copy the passage from a licensed source and paste it here. To credit the translation, add a line to the licence notice in ⚙ Settings → Parish details.",
     ),
   );
 }
