@@ -41,6 +41,26 @@ gold and the planner works from this computer's folder until it is back.
 On the presentation computer, set the shared folder to **Available offline**
 in Google Drive, so services are on the computer before Sunday.
 
+**Each computer's own copy.** Both apps keep a copy of the parish library
+on the computer (library items and hymns, media, backgrounds, the Bible
+file, slide layouts and parish details) and work from it, so the Library
+opens quickly and keeps working when Google Drive is not. The shared folder
+holds a **change log** for each computer (`change-log/<computer>.jsonl`):
+a line for every file it added, changed or removed. At start-up and every
+half minute each app reads what the other computers have logged since it
+last looked and copies just those files (or removes them), then sends its
+own changes to the shared folder and logs them. A file whose log line
+arrives before the file itself (Google Drive can be slow) waits until it is
+there. The first time, or with a new shared folder, the copy and the shared
+folder are compared file by file instead: a file on one side only goes to
+the other, and where both have it the newer wins (nothing is removed).
+Until EpiscoPlanner's first copy is made it works from the shared folder.
+Services and templates are not copied: they stay in the shared folder
+(EpiscoPresenter takes its own copy of a service when it is Ready). The
+copy is in the app's local data folder (on macOS
+`~/Library/Application Support/org.episcopresenter.planner/parish-library/`;
+EpiscoPresenter's is its own data folder).
+
 **Speed.** Google Drive for desktop normally *streams* files: it downloads a
 file's contents the first time it is read, which makes a folder of many
 small files slow to open. On every computer that uses the shared folder,

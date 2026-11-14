@@ -10,8 +10,7 @@ The control window has three panes: the **service timeline** (left), the
 | ☰ Services | The Services screen: upcoming services, **Schedule services…** (one service, or the coming Sundays), Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
 | The service | Its title, date and time. |
 | Save state | **Saved ✓** or **Saving…**, since services save themselves. For the example (or a copy), **Not saved yet · Keep this service** adds it to your services. |
-| Screens closed · Open… | Shown while the output screens are closed; opens them. |
-| 🖥 (monitor icon, right end) | The **Output screens** card: open, close or move the sanctuary and stream screens. Gold while the screens are closed, filled green while one is open; hover it to see each screen. (EpiscoPresenter only.) |
+| 🖥 and 📡 (screen icons, right end) | One icon for each screen this computer drives: the monitor for the sanctuary screen and the broadcast icon for the live stream (one computer shows both; with two computers, each shows its own). **Red** while that screen is closed, **green** while it is open; hover for where it is. Click for the **Output screens** card: open, close or move them. (EpiscoPresenter only.) |
 | ⚙ (gear icon, right end) | Settings: everything not needed every week, in one menu (below). |
 
 **⚙ Settings** (the gear at the right end of the top bar):

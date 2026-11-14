@@ -513,7 +513,7 @@ fn library_dirs(app: &AppHandle, engine: &Engine) -> Vec<PathBuf> {
     if let Some(dir) = plan_dir(engine) {
         dirs.push(dir.join("backgrounds"));
     }
-    if let Ok(d) = crate::storage::data_root(app) {
+    if let Ok(d) = crate::storage::local_root(app) {
         dirs.push(d.join("backgrounds"));
         // Images in the media library can be backgrounds too.
         dirs.push(d.join("media"));

@@ -32,11 +32,13 @@
       <span id="service-when" class="service-when"></span>
       <button id="save-status" class="save-status" hidden></button>
       <button id="handoff-note" class="small warn-btn" hidden title="This service was changed in EpiscoPlanner after it was copied here. Click to refresh it.">⟳ Updated in the planner</button>
-      <button id="screens-note" class="small warn-btn" hidden title="The sanctuary and stream screens are closed. Click to open them.">Screens closed · Open…</button>
       <span class="spacer"></span>
       <span id="stage-banner" class="stage-banner" hidden></span>
       <span id="link" class="link">…</span>
-      <button id="btn-screens" class="icon-btn" aria-label="Output screens" title="Output screens: open, close or move the sanctuary and stream screens"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+      <span id="screen-icons" class="screen-icons">
+        <button id="btn-screens" class="icon-btn screen-icon" data-output="sanctuary" aria-label="Sanctuary screen" title="The sanctuary screen: open, close or move it"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+        <button id="btn-stream-screen" class="icon-btn screen-icon" data-output="stream" aria-label="Live stream output" title="The live stream output: open, close or move it" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/></svg></button>
+      </span>
       <div class="menu-wrap">
         <button id="btn-menu" class="icon-btn" aria-label="Settings" title="Settings: the service, screens, layouts, the parish library and this computer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         <div id="settings-menu" class="settings-menu" hidden>

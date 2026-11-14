@@ -21,12 +21,15 @@ async function refresh() {
   b.textContent = `Output screens… (${open} of ${status.outputs.length} open)`;
   b.classList.toggle("outputs-off", open === 0);
   b.title = open ? status.outputs.map((o) => `${o.title}: ${describe(o)}`).join("\n") : "The output screens are closed. Click to open them.";
-  // The monitor icon at the right of the top bar says the same.
-  const icon = document.getElementById("btn-screens");
-  if (icon) {
-    icon.classList.toggle("outputs-off", open === 0);
-    icon.classList.toggle("outputs-on", open > 0);
-    icon.title = `Output screens (${open} of ${status.outputs.length} open)\n${status.outputs.map((o) => `${o.title}: ${describe(o)}`).join("\n")}`;
+  // One icon per screen this computer drives (the sanctuary's monitor, the
+  // stream's): red while it is closed, green while it is open.
+  for (const icon of document.querySelectorAll(".screen-icon")) {
+    const o = status.outputs.find((x) => x.output === icon.dataset.output);
+    icon.hidden = !o;
+    if (!o) continue;
+    icon.classList.toggle("outputs-off", !o.open);
+    icon.classList.toggle("outputs-on", o.open);
+    icon.title = `${o.title}: ${describe(o)}. Click to open, close or move it.`;
   }
   // Once screens have been opened, "Choose the screens" is done (Getting started).
   if (open > 0) {
@@ -34,9 +37,6 @@ async function refresh() {
       localStorage.setItem("setup.screens", "yes");
     } catch {}
   }
-  // With the screens closed, say so in the top bar (the button is in a menu).
-  const note = document.getElementById("screens-note");
-  if (note) note.hidden = open > 0 || app.mode === "planner";
   if (panel) draw();
 }
 
@@ -96,12 +96,13 @@ function close() {
   panel = null;
 }
 
-async function toggle() {
+async function toggle(anchor) {
   if (panel) return close();
   panel = el("div.outputs-panel");
   document.body.append(panel);
   // Under the monitor icon at the right of the top bar, kept on screen.
-  const r = (document.getElementById("btn-screens") ?? document.getElementById("btn-menu") ?? button()).getBoundingClientRect();
+  const shown = anchor?.offsetParent ? anchor : document.querySelector(".screen-icon:not([hidden])");
+  const r = (shown ?? document.getElementById("btn-menu") ?? button()).getBoundingClientRect();
   panel.style.top = `${r.bottom + 6}px`;
   panel.style.left = `${Math.max(8, Math.min(r.right - 540, innerWidth - 560))}px`;
   panel.append(el("p.muted", {}, "Looking for monitors…"));
@@ -114,13 +115,12 @@ export function initOutputs() {
   const openFromMenu = (e) => {
     e.stopPropagation();
     document.getElementById("settings-menu")?.setAttribute("hidden", "");
-    toggle();
+    toggle(e.currentTarget);
   };
   b.addEventListener("click", openFromMenu);
-  document.getElementById("screens-note")?.addEventListener("click", openFromMenu);
-  document.getElementById("btn-screens")?.addEventListener("click", openFromMenu);
+  for (const icon of document.querySelectorAll(".screen-icon")) icon.addEventListener("click", openFromMenu);
   document.addEventListener("mousedown", (e) => {
-    if (panel && !panel.contains(e.target) && !e.target.closest?.("#btn-outputs, #screens-note, #btn-screens")) close();
+    if (panel && !panel.contains(e.target) && !e.target.closest?.("#btn-outputs, .screen-icon")) close();
   });
   document.addEventListener("keydown", (e) => e.key === "Escape" && close());
   listen("episco://outputs", () => refresh());

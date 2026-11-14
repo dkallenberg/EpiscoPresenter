@@ -1,8 +1,15 @@
 # Library and media
 
 The **Library** tab holds everything you can reuse: Prayer Book texts,
-the parish's own items and hymns, and pictures and videos. It's kept in the
-parish library folder, so every computer sees the same library.
+the parish's own items and hymns, and pictures and videos.
+
+Every computer keeps its own copy of the library and keeps it in step with
+the shared parish library folder: at start-up and every half minute it
+fetches what the other computers have added, changed or removed (each
+computer writes a change log in the shared folder) and sends its own
+changes. A hymn imported on the presentation computer reaches the
+planners, and the other way round, within a minute or so (plus however long
+Google Drive takes).
 
 ## Items
 

@@ -16,7 +16,7 @@ pub const EVENT: &str = "episco://parish";
 const PARISH_FILE: &str = "parish.json";
 
 fn parish_path(app: &AppHandle) -> CmdResult<PathBuf> {
-    Ok(crate::storage::data_root(app)?.join(PARISH_FILE))
+    crate::storage::data_dir(app, PARISH_FILE)
 }
 
 /// The parish details as saved: the logo relative to the library folder,
@@ -47,7 +47,7 @@ pub fn welcome_for(service: &episco_core::Service) -> episco_core::bulletin::Wel
 /// The parish details with the logo as a full path (if the file is there).
 fn parish_resolved(app: &AppHandle) -> ParishInfo {
     let mut p = load_parish(app);
-    let root = crate::storage::data_root(app).ok();
+    let root = crate::storage::local_root(app).ok();
     p.logo = p.logo.and_then(|l| {
         let full = if l.is_absolute() { l } else { root.as_ref()?.join(l) };
         full.is_file().then_some(full)
@@ -64,7 +64,7 @@ pub fn parish_get(app: AppHandle) -> ParishInfo {
 /// (as `parish-logo.png` or `.jpg`) so every computer can find it.
 #[tauri::command]
 pub fn parish_set(app: AppHandle, engine: State<'_, Engine>, mut info: ParishInfo) -> CmdResult<ParishInfo> {
-    let root = crate::storage::data_root(&app)?;
+    let root = crate::storage::local_root(&app)?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     if let Some(logo) = info.logo.take() {
         let rel = match logo.strip_prefix(&root) {

@@ -22,6 +22,7 @@ mod occasions;
 mod scripture;
 mod services;
 mod storage;
+mod sync;
 mod templates;
 mod windows;
 
@@ -82,6 +83,7 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
             app.manage(AppMode::Planner);
             // Commands that read the node config get a plain one (no outputs are opened).
             app.manage(NodeConfig::default());
+            sync::spawn(app.handle().clone());
             Ok(())
         })
         .run(context)
@@ -137,6 +139,7 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             windows::open_at_start(app.handle(), &config)?;
             app.manage(config);
             // Copy services marked Ready in the parish library to this computer.
+            sync::spawn(app.handle().clone());
             handoff::spawn(app.handle().clone());
             Ok(())
         })
@@ -215,6 +218,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::library_fill_cue,
         library::anthem_add,
         library::anthem_set,
+        sync::library_sync,
         library::library_delete,
         library::library_copy,
         library::cue_make_version,

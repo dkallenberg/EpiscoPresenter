@@ -51,10 +51,11 @@ Click the **monitor icon** at the right end of the top bar (beside the
 
 ![The Output screens card, opened from the monitor icon](images/output-screens.png)
 
-The screens don't open by themselves. While they're closed the monitor
-icon is gold and the top bar also shows **Screens closed · Open…**; once one
-is open the icon fills in green. Hover the icon to see which screens are
-open and where. In an output window, **Esc** leaves full
+The screens don't open by themselves. The top bar has an icon for each
+screen this computer drives: a **monitor** for the sanctuary screen and a
+**broadcast** icon for the live stream (with two computers, each shows only
+its own). An icon is **red** while its screen is closed and **green** once
+it's open. Hover an icon to see where its screen is. In an output window, **Esc** leaves full
 screen and a double-click switches it back.
 
 On a Mac a full-screen output stays on every desktop (Space) of its

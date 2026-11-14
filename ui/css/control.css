@@ -453,8 +453,11 @@ body.reordering, body.reordering * { cursor: grabbing !important; user-select: n
 /* The top bar's icon buttons (output screens, settings), at its right end. */
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 30px; padding: 0; }
 .icon-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-#btn-screens.outputs-off { border-color: var(--accent); color: var(--accent); }
-#btn-screens.outputs-on svg rect { fill: color-mix(in srgb, var(--ok) 35%, transparent); }
+/* One icon per screen this computer drives: red while closed, green while open. */
+.screen-icons { display: inline-flex; gap: 6px; }
+.screen-icon.outputs-off { border-color: var(--live); color: var(--live); }
+.screen-icon.outputs-on { border-color: var(--ok); color: var(--ok); }
+.screen-icon.outputs-on svg rect, .screen-icon.outputs-on svg circle { fill: color-mix(in srgb, var(--ok) 35%, transparent); }
 .outputs-panel { position: fixed; z-index: 50; width: 540px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 10px; }
 .out-head { display: flex; align-items: center; }
 .out-row { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; align-items: end; padding: 8px; border-radius: 8px; background: var(--panel-2); }
@@ -478,6 +481,7 @@ body.planner .planner-only { display: inline-block; }
 body.planner .pane.right,
 body.planner #btn-outputs,
 body.planner #btn-screens,
+body.planner .screen-icons,
 body.planner #btn-connection,
 body.planner #link,
 body.planner #stage-banner,

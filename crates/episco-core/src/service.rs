@@ -954,7 +954,10 @@ mod tests {
     fn the_prelude_is_saved_with_the_service() {
         let mut s = Service { title: "T".into(), ..Default::default() };
         s.prelude = Some(crate::music::Music::new("Adagio", "Johann Sebastian Bach, arr. by Homer Whitfield"));
-        s.insert_cue(0, Cue::liturgy("c", "---\ntitle: C\n---\nWords\n".parse().unwrap(), None, CueOverrides::default()));
+        s.insert_cue(
+            0,
+            Cue::liturgy("c", "---\ntitle: C\n---\nWords\n".parse().unwrap(), None, CueOverrides::default()),
+        );
         let dir = std::env::temp_dir().join(format!("episco-prelude-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();

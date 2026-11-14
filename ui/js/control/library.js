@@ -54,7 +54,11 @@ function insertionPoint() {
 
 export function initLibrary() {
   listen("episco://storage", () => refresh());
-  document.querySelector('.tabs button[data-tab="library"]').addEventListener("click", refresh);
+  document.querySelector('.tabs button[data-tab="library"]').addEventListener("click", () => {
+    refresh();
+    // Fetch the other computers' changes now (the list refreshes if any came).
+    if (window.__TAURI__) window.__TAURI__.core.invoke("library_sync").catch(() => {});
+  });
 }
 
 export async function refresh() {

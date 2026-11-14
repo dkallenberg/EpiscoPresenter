@@ -11,6 +11,11 @@
 //!   services/  templates/  library/  media/  backgrounds/  layouts.json
 //! ```
 //!
+//! Each computer works from its own copy of the library (items, hymns,
+//! media, backgrounds, layouts, parish details), kept in step with the
+//! shared folder through a change log: see sync.rs. Services and templates
+//! are used in the shared folder itself.
+//!
 //! The choice, and the user's name (shown to the others as who changed
 //! what), are kept per computer in `library.json` in the app's config folder.
 //! The downloaded announcements deck stays per computer (deck.rs).
@@ -63,14 +68,55 @@ pub fn shared_root() -> Option<PathBuf> {
 /// The data root as last worked out (see [`root`]).
 static ROOT: RwLock<Option<PathBuf>> = RwLock::new(None);
 
-/// The folder in use (as [`data_root`]), for code without the app handle;
-/// `library:…` paths in services are relative to it.
+/// This computer's copy of the parish library (see [`local_root`]), for
+/// code without the app handle.
+static LOCAL: RwLock<Option<PathBuf>> = RwLock::new(None);
+
+/// The library on this computer (as [`local_root`]), for code without the
+/// app handle; `library:…` paths in services are relative to it.
 pub fn root() -> Option<PathBuf> {
-    let settings = settings();
-    match settings.folder {
-        Some(f) if f.is_dir() && !is_presenter() => Some(f),
-        _ => ROOT.read().unwrap_or_else(|e| e.into_inner()).clone(),
+    LOCAL
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone()
+        .or_else(|| ROOT.read().unwrap_or_else(|e| e.into_inner()).clone())
+}
+
+/// Where this computer keeps the parish library (items, hymns, media,
+/// backgrounds, the Bible file, layouts, parish details): EpiscoPresenter's
+/// own data folder; for EpiscoPlanner with a shared folder chosen, a copy in
+/// its local data folder, kept in step with the shared folder (sync.rs);
+/// else the app's data folder.
+///
+/// Until EpiscoPlanner's copy has been made the first time (which can take a
+/// while from Google Drive), it keeps working from the shared folder.
+pub fn local_root(app: &AppHandle) -> CmdResult<PathBuf> {
+    let copy = copy_root(app)?;
+    match shared_root() {
+        Some(shared) if !is_presenter() && !copy.join(COPY_MADE).is_file() => Ok(shared),
+        _ => Ok(copy),
     }
+}
+
+/// Marks a finished first copy of the library (sync.rs).
+pub const COPY_MADE: &str = ".copy-made";
+
+/// Where this computer's copy of the library is kept (see [`local_root`]).
+pub fn copy_root(app: &AppHandle) -> CmdResult<PathBuf> {
+    let path = app.path();
+    match settings().folder {
+        Some(_) if !is_presenter() => Ok(path.app_local_data_dir().map_err(|e| e.to_string())?.join("parish-library")),
+        _ => path.app_data_dir().map_err(|e| e.to_string()),
+    }
+}
+
+/// After the first copy: from now on, work from it.
+pub fn copy_made(app: &AppHandle) {
+    set_local(app);
+}
+
+pub fn set_local(app: &AppHandle) {
+    *LOCAL.write().unwrap_or_else(|e| e.into_inner()) = local_root(app).ok();
 }
 
 fn settings_path(app: &AppHandle) -> CmdResult<PathBuf> {
@@ -86,6 +132,7 @@ pub fn init(app: &AppHandle) {
         .unwrap_or_default();
     *SETTINGS.write().unwrap_or_else(|e| e.into_inner()) = Some(settings);
     *ROOT.write().unwrap_or_else(|e| e.into_inner()) = app.path().app_data_dir().ok();
+    set_local(app);
 }
 
 pub fn settings() -> StorageSettings {
@@ -101,8 +148,13 @@ pub fn data_root(app: &AppHandle) -> CmdResult<PathBuf> {
     }
 }
 
-/// A folder inside the data root, e.g. `services`.
+/// A folder (or file) of the library, e.g. `services` or `layouts.json`:
+/// the parts kept on this computer (see sync.rs) come from its copy, the
+/// rest (services, templates, bulletins) from the data root.
 pub fn data_dir(app: &AppHandle, name: &str) -> CmdResult<PathBuf> {
+    if crate::sync::is_synced(name) {
+        return Ok(local_root(app)?.join(name));
+    }
     Ok(data_root(app)?.join(name))
 }
 
@@ -160,6 +212,16 @@ pub fn storage_set(
     }
     let new = StorageSettings { folder, name: name.trim().to_string() };
     let old = settings();
+    if old.folder != new.folder && !is_presenter() {
+        // EpiscoPlanner's copy belongs to the old folder: send it any changes
+        // not yet sent, then start a new copy for the new folder.
+        let _ = crate::sync::run(&app);
+        if let Ok(copy) = copy_root(&app) {
+            if copy.ends_with("parish-library") && copy.is_dir() {
+                let _ = std::fs::remove_dir_all(&copy);
+            }
+        }
+    }
     let path = settings_path(&app)?;
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
@@ -167,6 +229,7 @@ pub fn storage_set(
     std::fs::write(&path, serde_json::to_string_pretty(&new).map_err(|e| e.to_string())?)
         .map_err(|e| format!("could not save {}: {e}", path.display()))?;
     *SETTINGS.write().unwrap_or_else(|e| e.into_inner()) = Some(new.clone());
+    set_local(&app);
     if old.folder != new.folder && !is_presenter() {
         // Slide layouts come from the new folder too.
         crate::templates::init(&app);
@@ -174,10 +237,15 @@ pub fn storage_set(
         let _ = engine.load_service(None);
     }
     let _ = app.emit(EVENT, ());
-    if is_presenter() {
-        // Look for Ready services in the new folder now.
-        crate::handoff::check(&app);
-    }
+    // Bring this computer's library into step with the new folder, then
+    // (EpiscoPresenter) look for Ready services there.
+    let later = app.clone();
+    std::thread::spawn(move || {
+        let _ = crate::sync::run(&later);
+        if is_presenter() {
+            crate::handoff::check(&later);
+        }
+    });
     storage_get(app)
 }
 

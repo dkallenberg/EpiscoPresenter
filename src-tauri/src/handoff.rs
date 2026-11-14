@@ -252,7 +252,10 @@ fn copy_if_newer(from: &Path, to: &Path) -> CmdResult<bool> {
 pub fn copy(app: &AppHandle, folder: &str) -> CmdResult<PathBuf> {
     let shared = crate::storage::shared_root().ok_or("the parish library folder cannot be reached")?;
     let local_root = crate::storage::data_root(app)?;
-    let (plan, layouts) = copy_between(&shared, &local_root, folder)?;
+    // The library comes by the change log (sync.rs): bring it up to date
+    // first; the hand-off then only fills in anything still on its way.
+    let _ = crate::sync::run(app);
+    let (plan, layouts) = copy_between(&shared, &local_root, folder, false)?;
     if layouts {
         crate::templates::init(app);
     }
@@ -263,7 +266,10 @@ pub fn copy(app: &AppHandle, folder: &str) -> CmdResult<PathBuf> {
 
 /// [`copy`] between a shared library folder and this computer's folder.
 /// Returns the local plan and whether the slide layouts were updated.
-fn copy_between(shared: &Path, local_root: &Path, folder: &str) -> CmdResult<(PathBuf, bool)> {
+/// With `library` false (the library is kept in step by sync.rs), the
+/// pictures and videos it uses are copied only if missing here, and the
+/// layouts and parish details are left to the sync.
+fn copy_between(shared: &Path, local_root: &Path, folder: &str, library: bool) -> CmdResult<(PathBuf, bool)> {
     if folder.is_empty() || folder.contains(['/', '\\']) || folder.starts_with('.') {
         return Err("bad service folder".into());
     }
@@ -277,12 +283,18 @@ fn copy_between(shared: &Path, local_root: &Path, folder: &str) -> CmdResult<(Pa
     let _ = std::fs::remove_dir_all(&tmp);
     copy_dir(&from, &tmp)?;
     for rel in library_paths(&tmp) {
-        copy_if_newer(&shared.join(&rel), &local_root.join(&rel))?;
+        let to = local_root.join(&rel);
+        if library || !to.is_file() {
+            copy_if_newer(&shared.join(&rel), &to)?;
+        }
     }
-    // The slide layouts go with the services.
-    let layouts = copy_if_newer(&shared.join("layouts.json"), &local_root.join("layouts.json"))?;
-    // The parish details too (service times, clergy, the bulletin's back page).
-    copy_if_newer(&shared.join("parish.json"), &local_root.join("parish.json"))?;
+    let mut layouts = false;
+    if library {
+        // The slide layouts go with the services.
+        layouts = copy_if_newer(&shared.join("layouts.json"), &local_root.join("layouts.json"))?;
+        // The parish details too (service times, clergy, the bulletin's back page).
+        copy_if_newer(&shared.join("parish.json"), &local_root.join("parish.json"))?;
+    }
     let _ = std::fs::remove_dir_all(&to);
     std::fs::rename(&tmp, &to).map_err(|e| format!("could not replace {}: {e}", to.display()))?;
     let src = Source { shared_modified: newest(&from), local_modified: newest(&to), copied_at: now() };
@@ -406,7 +418,7 @@ mod tests {
         // Marked Ready in the planner.
         service_set_ready(svc.join(PLAN_FILE), true).unwrap();
         assert_eq!(state(&local), Some(HandoffState::New));
-        let (plan, layouts) = copy_between(&shared, &local, "2026-11-15-proper-28").unwrap();
+        let (plan, layouts) = copy_between(&shared, &local, "2026-11-15-proper-28", true).unwrap();
         assert!(plan.is_file() && layouts);
         assert!(local.join("media/antiphon.png").is_file(), "the pictures it uses come too");
         assert!(!plan.parent().unwrap().join(READY_FILE).exists());
@@ -422,7 +434,7 @@ mod tests {
         std::fs::write(plan.parent().unwrap().join("liturgies/psalm.ewm"), "---\ntitle: Local edit\n---\n").unwrap();
         assert_eq!(state(&local), Some(HandoffState::Conflict));
         // Refresh takes the planner's version.
-        copy_between(&shared, &local, "2026-11-15-proper-28").unwrap();
+        copy_between(&shared, &local, "2026-11-15-proper-28", true).unwrap();
         assert_eq!(state(&local), Some(HandoffState::Copied));
         let text = std::fs::read_to_string(plan.parent().unwrap().join("liturgies/psalm.ewm")).unwrap();
         assert!(text.contains("(changed)"));
@@ -431,7 +443,7 @@ mod tests {
         service_set_ready(svc.join(PLAN_FILE), false).unwrap();
         assert!(status_in(&shared, &local.join("services")).is_empty());
         assert!(plan.is_file());
-        assert!(copy_between(&shared, &local, "../x").is_err());
+        assert!(copy_between(&shared, &local, "../x", true).is_err());
         let _ = std::fs::remove_dir_all(&base);
     }
 }
