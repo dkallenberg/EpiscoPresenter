@@ -188,6 +188,10 @@ function render(c) {
         header(c),
         el("div#live-banner.live-banner", { hidden: true }),
         isPrayerBook() ? prayerBookNotice(c) : null,
+        // A Eucharistic Prayer is long: its Sanctus (said or sung) and its
+        // Proper Preface come before its words.
+        c.category === "eucharistic_prayer" ? prayerSanctusPanel(c) : null,
+        c.category === "eucharistic_prayer" ? prefaceNote() : null,
         // The words first; then the item's details, its panels and its look.
         ...madePanels(c),
         metaForm(c),
@@ -195,8 +199,6 @@ function render(c) {
         c.category === "gospel" ? gospelMusicPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
         c.category === "hymn" ? hymnPanel(c) : null,
-        c.category === "eucharistic_prayer" ? prefaceNote() : null,
-        c.category === "eucharistic_prayer" ? prayerSanctusPanel(c) : null,
         isSanctus(c) ? sanctusPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
         looks,

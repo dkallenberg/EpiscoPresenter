@@ -150,7 +150,10 @@ pub struct Cue {
 /// The Sanctus in a Eucharistic Prayer: the people's "Holy, holy, holy …".
 fn is_sanctus(b: &Block) -> bool {
     match b {
-        Block::Paragraph { role, .. } if role.is_none() || *role == Some(crate::role::Role::People) => {
+        // The people's part (Rite I: "All").
+        Block::Paragraph { role, .. }
+            if role.is_none() || matches!(role, Some(crate::role::Role::People | crate::role::Role::All)) =>
+        {
             b.plain_text().to_lowercase().starts_with("holy, holy, holy")
         }
         _ => false,
@@ -1105,6 +1108,9 @@ mod tests {
 
     #[test]
     fn the_sanctus_sung_within_a_eucharistic_prayer() {
+        // Rite I's is the people's too ("All").
+        let one: LiturgyDocument = include_str!("../../../library/rite1/eucharistic-prayer-1.ewm").parse().unwrap();
+        assert!(sanctus_sung(&one).is_some(), "Rite I: Holy, holy, holy, Lord God of Hosts");
         let a: LiturgyDocument = include_str!("../../../library/eucharistic-prayer-a.ewm").parse().unwrap();
         let sung = CueOverrides { sanctus_sung: true, ..Default::default() };
         let mut s = Service::default();
