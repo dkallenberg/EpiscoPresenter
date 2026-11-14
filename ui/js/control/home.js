@@ -365,10 +365,33 @@ function serviceOptions() {
     [["", "Usual"], ["1", "Form I"], ["2", "Form II"], ["3", "Form III"], ["4", "Form IV"], ["5", "Form V"], ["6", "Form VI"], ["rite1", "Rite I prayer (BCP 328)"]],
     "The Prayers of the People (BCP 383-393; Rite I, 328). Usual: the Rite I prayer in Rite I, Form I in Rite II",
   );
+  // The Eucharistic Prayer, from the rite's own (remembered for each rite).
+  const PRAYERS = {
+    II: [["A", "Prayer A"], ["B", "Prayer B"], ["C", "Prayer C"], ["D", "Prayer D"]],
+    I: [["I", "Prayer I"], ["II", "Prayer II"]],
+  };
+  const ep = el("select", {
+    title: "A whole Eucharistic Prayer in the service (in place of the opening dialogue; it has the Sanctus and the Proper Preface), or just the dialogue and the Sanctus",
+    onchange: (e) => remember(`svc.ep.${rite.value}`, e.target.value),
+  });
+  const fillPrayers = () => {
+    const chosen = recall(`svc.ep.${rite.value}`, "");
+    ep.replaceChildren(
+      el("option", { value: "", selected: !chosen }, "Dialogue and Sanctus only"),
+      ...PRAYERS[rite.value].map(([v, l]) => el("option", { value: v, selected: v === chosen }, l)),
+    );
+  };
+  rite.addEventListener("change", fillPrayers);
+  fillPrayers();
   const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
   return {
-    row: el("div.home-row.four", {}, field("Rite", rite), field("Readings", track), field("Bible", bible), field("Prayers of the People", prayers)),
-    value: () => ({ rite: rite.value, track: Number(track.value), bible: bible.value, prayers: prayers.value || null }),
+    row: el(
+      "div",
+      {},
+      el("div.home-row.four", {}, field("Rite", rite), field("Readings", track), field("Bible", bible), field("Prayers of the People", prayers)),
+      el("div.home-row.four", {}, field("Eucharistic Prayer", ep)),
+    ),
+    value: () => ({ rite: rite.value, track: Number(track.value), bible: bible.value, prayers: prayers.value || null, eucharistic_prayer: ep.value || null }),
   };
 }
 

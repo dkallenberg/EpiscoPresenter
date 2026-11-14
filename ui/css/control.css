@@ -634,3 +634,6 @@ body.planner .settings-menu .menu-group.planner-only { display: flex; }
 
 /* Open on another computer (EpiscoPlanner). */
 .badge.in-use { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); border: 1px solid var(--accent); }
+
+/* A second row of service choices (Eucharistic Prayer) under the first. */
+.home-row + .home-row { margin-top: 8px; }

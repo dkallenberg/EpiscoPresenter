@@ -325,9 +325,13 @@ function imagePiece(stage, name, spec, cue, block) {
 }
 
 /** The text box grows up into the space of the boxes above it that this
- *  slide leaves empty (no title, no section heading, a hidden piece), gap
- *  or no gap between them, but not past one that is shown. */
-function textRect(T, shown) {
+ *  slide leaves empty (no title, no section heading, a hidden piece). On
+ *  the sanctuary's slides it does so across a gap between them (the glass
+ *  is one open space), but not past a box that is shown; on the stream's
+ *  only into a box that touches it, since its text sits on a drawn panel
+ *  or bar (the Bottom Bar's music space above it is glass). */
+function textRect(T, shown, key = "") {
+  if (!key.startsWith("sanctuary.")) return touchingRect(T, shown);
   const t = { ...T.text };
   const bottom = t.y + t.h;
   const across = (s) => s.x < t.x + t.w && s.x + s.w > t.x;
@@ -364,9 +368,29 @@ function growCredits(node, spec) {
   return bottom - h;
 }
 
-function textBox(stage, T, shown, content, cls = "", limits = {}) {
+/** The text box grows into empty boxes above it that touch it. */
+function touchingRect(T, shown) {
+  const t = { ...T.text };
+  const bottom = t.y + t.h;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const [name, spec] of Object.entries(T)) {
+      if (name === "text" || shown.has(name) || spec.kind === "font" || spec.x == null) continue;
+      const touches = spec.y < t.y && spec.y + spec.h >= t.y - 2 && spec.x < t.x + t.w && spec.x + spec.w > t.x;
+      if (touches) {
+        t.y = spec.y;
+        changed = true;
+      }
+    }
+  }
+  t.h = bottom - t.y;
+  return t;
+}
+
+function textBox(stage, T, shown, content, cls = "", limits = {}, key = "") {
   const box = el("div", `box tbox ${cls}`);
-  const rect = textRect(T, shown);
+  const rect = textRect(T, shown, key);
   // Keep clear of the credits when they have grown into the verse box.
   if (limits.bottom != null && rect.y + rect.h > limits.bottom - 12 && limits.bottom - 12 > rect.y) {
     rect.h = limits.bottom - 12 - rect.y;
@@ -540,14 +564,14 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     box.style.alignItems = "center";
   };
   if (p.big) {
-    centre(textBox(stage, T, shown, el("div", key === "stream.lower_third" ? "lt-main" : "title-big", p.big), "title-card"));
+    centre(textBox(stage, T, shown, el("div", key === "stream.lower_third" ? "lt-main" : "title-big", p.big), "title-card", {}, key));
   } else if (p.text) {
     const hymn = key === "stream.hymn";
     const stream = key.startsWith("stream.");
     const blocks = p.text;
     const o = typeOptions(templates, key);
     const lines = { reflow: o.join, hanging: o.hanging, psalm: cue.category === "psalm", alternate: o.alternate };
-    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits);
+    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits, key);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
     if (blocks.length && blocks.every((b) => b.kind === "image")) {
       centre(box);

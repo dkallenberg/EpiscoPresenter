@@ -39,6 +39,18 @@ Schedule services has these choices, remembered for next time:
 The same three are in **⚙ Settings → Service settings** for the open service. Changing them
 there affects texts added from then on.
 
+### Eucharistic Prayer
+
+**Eucharistic Prayer** chooses the Great Thanksgiving for new services, from
+the chosen rite (remembered for each rite):
+
+* **Dialogue and Sanctus only** (the default): "The Great Thanksgiving" (the
+  opening dialogue) and the Sanctus, as items of their own.
+* **Prayer A, B, C or D** (Rite II) or **Prayer I or II** (Rite I): the whole
+  prayer in place of the dialogue; it begins with the dialogue and has the
+  Sanctus (so the separate Sanctus is left out) and, for A, B, I and II, the
+  Proper Preface. The script prints it in full.
+
 ### Prayers of the People
 
 The standard order has the Prayers of the People between the Creed and the

@@ -149,6 +149,57 @@ fn hymn_placeholder(title: &str) -> LiturgyDocument {
     }
 }
 
+/// A Eucharistic Prayer: A–D (Rite II, BCP 361-375), I and II (Rite I,
+/// BCP 333-343).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum EucharisticPrayer {
+    A,
+    B,
+    C,
+    D,
+    #[serde(rename = "I")]
+    One,
+    #[serde(rename = "II")]
+    Two,
+}
+
+/// The library item of a Eucharistic Prayer in a rite; none for a prayer
+/// the rite does not have (Prayer A in Rite I).
+fn eucharistic_prayer_item(rite: Rite, prayer: EucharisticPrayer) -> Option<&'static str> {
+    use EucharisticPrayer as P;
+    match (rite, prayer) {
+        (Rite::Two, P::A) => Some("eucharistic-prayer-a"),
+        (Rite::Two, P::B) => Some("eucharistic-prayer-b"),
+        (Rite::Two, P::C) => Some("eucharistic-prayer-c"),
+        (Rite::Two, P::D) => Some("eucharistic-prayer-d"),
+        (Rite::One, P::One) => Some("rite1/eucharistic-prayer-1"),
+        (Rite::One, P::Two) => Some("rite1/eucharistic-prayer-2"),
+        _ => None,
+    }
+}
+
+/// Puts a whole Eucharistic Prayer in place of the Great Thanksgiving's
+/// dialogue (the prayer begins with it), and leaves out the separate Sanctus
+/// that follows it (the prayer has the Sanctus in its place).
+fn use_eucharistic_prayer(service: &mut Service, rite: Rite, prayer: EucharisticPrayer) {
+    let Some(doc) = eucharistic_prayer_item(rite, prayer).and_then(builtin_doc) else { return };
+    let is = |c: &Cue, name: &str| {
+        c.document().and_then(|d| d.meta.extra("based_on")).is_some_and(|b| b == name || b == format!("rite1/{name}"))
+    };
+    let Some(at) = service.cues.iter().position(|c| is(c, "sursum-corda")) else { return };
+    let mut cue = Cue::liturgy("", doc, None, CueOverrides::default());
+    cue.modified = true;
+    service.cues[at] = cue;
+    if service.cues.get(at + 1).is_some_and(|c| is(c, "sanctus")) {
+        service.cues.remove(at + 1);
+    }
+    let ids: Vec<String> = service.cues.iter().map(|c| c.id.clone()).collect();
+    if service.cues[at].id.is_empty() || ids.iter().filter(|i| **i == service.cues[at].id).count() > 1 {
+        let title = service.cues[at].document().map(|d| d.meta.title.clone()).unwrap_or_default();
+        service.cues[at].id = service.unique_id(&title);
+    }
+}
+
 /// The Sanctus said (by all, in bold, on a prayer's layout), as new
 /// services have it; the Editor's Sanctus panel makes it sung (as a hymn).
 pub(crate) fn said(mut cue: Cue) -> Cue {
@@ -364,6 +415,11 @@ pub struct ServiceOptions {
     /// "rite1" (BCP 328). Default: the rite's usual one.
     #[serde(default)]
     pub prayers: Option<PrayersForm>,
+    /// The Eucharistic Prayer: "A"–"D" (Rite II) or "I", "II" (Rite I) in
+    /// full, in place of the dialogue (and the separate Sanctus, which the
+    /// prayer has). None: the dialogue and the Sanctus only.
+    #[serde(default)]
+    pub eucharistic_prayer: Option<EucharisticPrayer>,
     /// The kind of service (Holy Week, ordinations) and the bishop,
     /// baptism, renewal and confirmation options.
     #[serde(default, flatten)]
@@ -420,6 +476,9 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
         }
     }
     crate::occasions::apply(&mut service, opts.occasion);
+    if let Some(prayer) = opts.eucharistic_prayer {
+        use_eucharistic_prayer(&mut service, rite, prayer);
+    }
     service.rite = (rite == Rite::One).then_some(rite);
     service.track = (track == 2).then_some(2);
     service.bible = bible;
@@ -794,6 +853,46 @@ mod tests {
         let i = t.iter().position(|x| *x == a).unwrap_or_else(|| panic!("no {a} in {t:?}"));
         let j = t.iter().position(|x| *x == b).unwrap_or_else(|| panic!("no {b} in {t:?}"));
         i < j
+    }
+
+    #[test]
+    fn the_eucharistic_prayer_chosen() {
+        let date: Date = "2026-11-08".parse().unwrap();
+        let titles = |s: &Service| s.cues.iter().map(|c| c.title.clone()).collect::<Vec<_>>();
+        let with = |rite, prayer| {
+            build(
+                date,
+                None,
+                None,
+                ServiceOptions { rite: Some(rite), eucharistic_prayer: Some(prayer), ..Default::default() },
+            )
+        };
+        let usual = titles(&build(date, None, None, ServiceOptions::default()));
+        let gt = usual.iter().position(|t| t == "The Great Thanksgiving").unwrap();
+        assert_eq!(usual[gt + 1], "Sanctus");
+
+        let a = with(Rite::Two, EucharisticPrayer::A);
+        let t = titles(&a);
+        assert_eq!(t[gt], "Eucharistic Prayer A");
+        assert_ne!(t[gt + 1], "Sanctus", "the prayer has the Sanctus");
+        assert_eq!(t.len(), usual.len() - 1);
+        let cue = &a.cues[gt];
+        assert_eq!(cue.category, ElementCategory::EucharisticPrayer);
+        assert!(a.cues.iter().filter(|c| c.id == cue.id).count() == 1);
+        // Its Proper Preface is said (the Lord's Day, after Pentecost).
+        let text: String = (0..cue.slide_count())
+            .filter_map(|i| cue.slide(i))
+            .flat_map(|s| s.blocks.iter().map(episco_core::Block::plain_text))
+            .collect();
+        assert!(text.contains("For you are the source of light and life"));
+
+        let two = with(Rite::One, EucharisticPrayer::Two);
+        assert_eq!(titles(&two)[gt], "Eucharistic Prayer II");
+        // A prayer the rite doesn't have: as usual.
+        assert_eq!(
+            titles(&with(Rite::One, EucharisticPrayer::A)),
+            titles(&build(date, None, None, ServiceOptions { rite: Some(Rite::One), ..Default::default() }))
+        );
     }
 
     #[test]
@@ -1178,6 +1277,7 @@ mod tests {
             by_season: false,
             occasion: Default::default(),
             prayers: None,
+            eucharistic_prayer: None,
         };
         let s = build("2026-11-15".parse().unwrap(), None, None, opts);
         let t = titles(&s);

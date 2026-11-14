@@ -37,6 +37,7 @@ Both share these settings, which are remembered for next time:
 | **Readings** | Track 1 or Track 2, for the Season after Pentecost. |
 | **Bible** | NRSVue or NRSV, for the reading texts. |
 | **Prayers of the People** | Forms I–VI, the Rite I prayer, or *usual for the rite*. |
+| **Eucharistic Prayer** | *Dialogue and Sanctus only*, or a whole prayer: A–D (Rite II), I or II (Rite I). A whole prayer includes the Sanctus and the Proper Preface. |
 
 All of these can be changed later for one service in **⚙ Settings →
 Service settings**.
