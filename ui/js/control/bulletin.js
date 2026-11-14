@@ -467,8 +467,11 @@ function renderItem() {
   if (!v) return;
   const cue = app.selectedCue();
   const entry = cue && v.page.querySelector(`.entry[data-cue="${CSS.escape(cue.id)}"]`);
-  v.item.hidden = !entry || app.readonly;
-  if (!entry) return;
+  // An item left out has no place on the page: its bar stays in view so it
+  // can be brought back.
+  const leftOut = cue && !entry && styles.get(cue.id)?.style === "hidden";
+  v.item.hidden = !(entry || leftOut) || app.readonly;
+  if (v.item.hidden) return;
   const info = styles.get(cue.id);
   const current = info?.style ?? "full";
   const seg = el(
@@ -488,10 +491,11 @@ function renderItem() {
       ),
     ),
   );
-  v.item.replaceChildren(el("span.doc-item-name", { title: cue.title }, "In the bulletin:"), seg);
-  // Just above the item, at its right.
+  v.item.replaceChildren(el("span.doc-item-name", { title: cue.title }, leftOut ? `“${cue.title}” is left out:` : "In the bulletin:"), seg);
   if (v.item.parentNode !== v.page) v.page.append(v.item);
-  v.item.style.top = `${Math.max(0, entry.offsetTop - v.item.offsetHeight - 4)}px`;
+  // Just above the item, at its right; a left-out item's at the top of the view.
+  const top = entry ? entry.offsetTop - v.item.offsetHeight - 4 : v.scroll.scrollTop - v.page.offsetTop + 8;
+  v.item.style.top = `${Math.max(0, top)}px`;
 }
 
 async function exportDoc(kind) {
