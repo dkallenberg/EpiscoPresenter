@@ -33,8 +33,12 @@ on them in worship.
 
 ### Versions: BCP, the parish's copies, the default
 
-Each built-in item is marked **BCP**: the Prayer Book's text, which never
-changes. The parish can keep its own versions of it:
+Each built-in item is marked **BCP**: the Prayer Book's text, which is
+protected. In a service it is shown, not edited: the Editor shows it
+read-only with **Make a parish version to edit**, which saves a dated copy
+in the Library and switches the item to it, and the bulletin preview does
+not let you type into it. Any change has to be made in a parish version.
+The parish can keep its own versions of it:
 
 1. Select the item. Under **Versions**, **BCP** is the Prayer Book's text;
    each copy is labelled with the day it was made (*13 Nov 2026*), and the
@@ -93,6 +97,14 @@ edition, a OneLicense or CCLI reprint licence, …):
   or Both.
 * For a psalm, make it the **Psalm's musical setting** (see below).
 * Rename or delete it.
+* **Tag** it: type tags under its name (e.g. *Advent*, *music*, *Christmas
+  pageant*; several at once with commas, Enter adds them) and remove one
+  with ✕. Tags are kept in the media folder (`media/tags.json`), so every
+  computer using the parish library sees them.
+
+The **Tags** chips above the pictures show only those with a tag; the search
+finds names and tags. The picture chooser (music lines, slide pictures) has
+the same search and tags.
 
 Images in the media library also appear in every background picker, and the
 editor's **Choose…** buttons for music images open the media library first.

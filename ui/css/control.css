@@ -601,3 +601,23 @@ body.planner .settings-menu .menu-group.planner-only { display: flex; }
 .scheduler .sched-one, .scheduler .sched-sundays { display: flex; flex-direction: column; gap: 8px; }
 .scheduler [hidden] { display: none !important; }
 .home-head .schedule-btn { margin-right: 4px; }
+
+/* Blackout and its lock */
+.blackout-pair { display: flex; gap: 4px; }
+.blackout-pair .blackout { flex: 1; }
+.blackout-lock { padding: 10px 10px; }
+.blackout-lock.locked { border-color: var(--live); box-shadow: 0 0 0 1px var(--live); }
+
+/* Media tags */
+.media-tile-tags { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.media-tags { align-items: center; }
+.media-tag-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 8px; }
+.media-tag-editor .media-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; border-radius: 12px; background: rgba(217, 164, 58, 0.18); font-size: 12px; }
+.media-tag-editor .tag-x { border: 0; background: none; padding: 0 4px; font-size: 11px; cursor: pointer; color: inherit; }
+.media-tag-editor .tag-input { flex: 1; min-width: 160px; }
+
+/* The Prayer Book's text in the Editor: shown, not edited */
+.bcp-notice { display: flex; align-items: center; gap: 12px; margin: 8px 0; padding: 10px 12px; border-radius: 8px; background: rgba(217, 164, 58, 0.14); border-left: 4px solid var(--accent, #d9a43a); font-size: 13px; }
+.bcp-notice span { flex: 1; }
+.ed-locked #blocks .divider, .ed-locked #blocks .brow-tools { display: none; }
+.ed-locked #blocks { opacity: 0.92; }

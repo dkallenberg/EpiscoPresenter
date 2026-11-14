@@ -484,6 +484,16 @@ impl Service {
         let Service { cues, looks, templates, .. } = self;
         let cue = &mut cues[i];
         match &mut cue.content {
+            // The Prayer Book's text stays as it is: a change becomes a
+            // parish version (which carries `created`).
+            CueContent::Liturgy { document: d, .. }
+                if d.meta.is_prayer_book_text() && document.meta.extra("created").is_none() && **d != document =>
+            {
+                return Err(ServiceError::Edit(format!(
+                    "“{}” is the Prayer Book's text and cannot be changed. Make a parish version to edit it.",
+                    cue.title
+                )));
+            }
             CueContent::Liturgy { document: d, .. } => **d = document,
             CueContent::Announcements { .. } => {
                 return Err(ServiceError::Edit(format!("`{}` is an announcements cue and has no text", cue.title)))
@@ -897,6 +907,26 @@ fn slug(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_prayer_books_text_cannot_be_changed() {
+        let mut s = Service::default();
+        let bcp: LiturgyDocument =
+            "---\ntitle: Collect for Purity\nbased_on: collect-for-purity\n---\n[Celebrant] Almighty God\n"
+                .parse()
+                .unwrap();
+        let id = s.insert_cue(0, Cue::liturgy("c", bcp.clone(), None, CueOverrides::default()));
+        let mut changed = bcp.clone();
+        changed.meta.title = "Collect".into();
+        assert!(s.set_document(&id, changed.clone()).is_err(), "no change to the BCP text");
+        assert!(s.set_document(&id, bcp.clone()).is_ok(), "the same text is fine");
+        // As a dated parish version it can change, and then change again.
+        changed.meta.extra.push(("created".into(), "2026-11-14".into()));
+        assert!(s.set_document(&id, changed.clone()).is_ok());
+        changed.meta.title = "Collect (parish)".into();
+        assert!(s.set_document(&id, changed).is_ok());
+        assert_eq!(s.cues[0].document().unwrap().meta.title, "Collect (parish)");
+    }
 
     #[test]
     fn older_gospels_open_in_the_order_they_are_used() {

@@ -19,7 +19,7 @@ The control window has three panes: the **service timeline** (left), the
 | --- | --- | --- |
 | This service | Service settings… | Title, date, season, colour, rite (I or II), lectionary track, Bible version for reading texts, the announcements deck (Google Slides link and its number of slides) and the stream key colour. |
 | | Save a copy… | Writes a copy of the service elsewhere. |
-| Screens | Output screens… | Opens the output screens, which do not open by themselves: for the Sanctuary (and Live Stream), **Full screen** on a monitor (the second monitor unless you choose another), **Window** for an ordinary window, or **Close**. It shows how many are open. In an output, Esc leaves full screen; a double-click toggles it. |
+| Screens | Output screens… | Opens the output screens, which do not open by themselves: for the Sanctuary (and Live Stream), **Full screen** on a monitor (the second monitor unless you choose another), **Window** for an ordinary window, or **Close**. It shows how many are open. In an output, Esc leaves full screen; a double-click toggles it. On the Mac a full-screen output is on every desktop (Space) of its monitor and above other windows, so switching desktops (a swipe, Mission Control, Ctrl-arrow) leaves it showing. |
 | | Slide layouts… | Where text, titles and music go on each kind of slide, their fonts, and how much text a slide holds. See [layouts.md](layouts.md). |
 | | Connection to the other computer… | The sanctuary and live-stream computers (below). |
 | Parish | Parish library folder… | The shared parish library folder. Marked ⚠ (and the ⚙ button too) when it cannot be found. |
@@ -205,6 +205,10 @@ the selected item; **← Editor** goes back. **Apply** parses it and applies it
   **Before the service**. A button stays red while its effect is active. Clear Text
   and Clear Media reset when you move to another slide; Blackout stays on until
   you press it again.
+* **Blackout** blacks out the **sanctuary screen only**; the live stream
+  carries on. The **🔓** beside it locks Blackout as it is (on or off), on
+  every computer: the button, **B** and Clear All cannot change it until you
+  unlock it (**🔒**).
 * **Stage message**: type and press Enter, or use a preset. It appears on the
   control screens only, never on the audience outputs.
 
@@ -212,7 +216,7 @@ the selected item; **← Editor** goes back. **Apply** parses it and applies it
 | --- | --- |
 | → ↓ Space PageDown | Next |
 | ← ↑ PageUp | Previous |
-| B | Blackout on/off |
+| B | Blackout on/off (sanctuary only; not while locked) |
 | Esc | Clear text |
 | M | Clear media |
 

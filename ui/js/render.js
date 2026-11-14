@@ -778,7 +778,8 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   stage.className = `stage out-${output}`;
   stage.style.background = output === "stream" ? keyColor(service) : "#000";
 
-  if (st.blackout) return; // sanctuary black; stream fully keyed (camera only)
+  // Blackout is for the sanctuary screen only; the live stream carries on.
+  if (st.blackout && output === "sanctuary") return;
 
   const cue = active?.cue;
   if (!cue) return renderPreService(stage, service, output, { ...opts, keepDeck }, st);

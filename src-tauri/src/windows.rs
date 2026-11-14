@@ -160,11 +160,16 @@ fn window_label(window: &WebviewWindow) -> &'static str {
 }
 
 /// Full screen on the window's current screen: macOS's simple full screen
-/// (no new Space, menu bar and Dock hidden), elsewhere the usual one.
+/// (no new Space, menu bar and Dock hidden), elsewhere the usual one. On
+/// the Mac a full-screen output is also on every Space (desktop) and above
+/// other windows, so switching desktops, by a swipe, Mission Control or
+/// Ctrl-arrow, never takes it off its screen.
 fn set_full(window: &WebviewWindow, on: bool) {
     let label = window_label(window);
     if cfg!(target_os = "macos") {
         let _ = window.set_simple_fullscreen(on);
+        let _ = window.set_visible_on_all_workspaces(on);
+        let _ = window.set_always_on_top(on);
     } else {
         let _ = window.set_fullscreen(on);
     }
@@ -271,6 +276,7 @@ pub fn show_output(
         // Back to an ordinary window (after a "fill the monitor" fallback).
         let _ = window.set_decorations(true);
         let _ = window.set_always_on_top(false);
+        let _ = window.set_visible_on_all_workspaces(false);
         let _ = window.show();
         let placed = match &target {
             Some(m) => move_to(&window, m, label).await,
@@ -286,6 +292,7 @@ pub fn show_output(
                     let _ = window.set_decorations(false);
                     Area::of(m).apply(&window);
                     let _ = window.set_always_on_top(true);
+                    let _ = window.set_visible_on_all_workspaces(true);
                 }
                 _ => set_full(&window, true),
             }

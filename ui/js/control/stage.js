@@ -12,6 +12,9 @@ export function initStage() {
   document.querySelectorAll("[data-cmd]").forEach((b) =>
     b.addEventListener("click", () => send({ type: b.dataset.cmd }).catch(console.error)),
   );
+  document.getElementById("blackout-lock")?.addEventListener("click", () =>
+    send({ type: "lock_blackout", on: !app.state.blackout_locked }).catch(console.error),
+  );
 
   const form = document.getElementById("stage-form");
   const input = document.getElementById("stage-text");
@@ -72,6 +75,16 @@ function renderArmed() {
   const st = app.state;
   const set = (cmd, on) => document.querySelector(`[data-cmd="${cmd}"]`)?.classList.toggle("armed", Boolean(on));
   set("toggle_blackout", st.blackout);
+  // Locked: the button shows its state but cannot change it.
+  const lock = document.getElementById("blackout-lock");
+  const blackout = document.querySelector('[data-cmd="toggle_blackout"]');
+  if (lock && blackout) {
+    lock.textContent = st.blackout_locked ? "🔒" : "🔓";
+    lock.classList.toggle("locked", Boolean(st.blackout_locked));
+    lock.title = st.blackout_locked ? "Blackout is locked. Click to unlock it." : "Lock Blackout as it is, so it cannot be turned on or off by accident";
+    blackout.disabled = Boolean(st.blackout_locked);
+    blackout.textContent = st.blackout_locked ? (st.blackout ? "Blackout (locked)" : "Blackout locked off") : "Blackout";
+  }
   set("clear_text", st.text_cleared);
   set("clear_media", st.media_cleared);
   set("reset", !st.active);

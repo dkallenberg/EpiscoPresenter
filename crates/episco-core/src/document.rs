@@ -74,6 +74,13 @@ impl FrontMatter {
         self.extra.iter().find(|(k, _)| k == key).map(|(_, v)| v.as_str())
     }
 
+    /// The Book of Common Prayer's own text (a built-in item, not a parish
+    /// version of it): it cannot be changed; a change is made in a dated
+    /// parish version (`based_on` names the item; `created` marks a version).
+    pub fn is_prayer_book_text(&self) -> bool {
+        self.extra("based_on").is_some() && self.extra("created").is_none()
+    }
+
     /// Slides made in the app (the slide maker, imported pages): shown as
     /// written, each in its own layout.
     pub fn is_made_slides(&self) -> bool {

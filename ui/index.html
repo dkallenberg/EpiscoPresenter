@@ -135,7 +135,10 @@
         </div>
         <div class="actions">
           <button data-cmd="clear_text" title="Esc">Clear Text</button>
-          <button data-cmd="toggle_blackout" class="blackout" title="B">Blackout</button>
+          <div class="blackout-pair">
+            <button data-cmd="toggle_blackout" class="blackout" title="Black on the sanctuary screen; the live stream carries on (B)">Blackout</button>
+            <button id="blackout-lock" class="blackout-lock" title="Lock Blackout as it is, so it cannot be turned on or off by accident">🔓</button>
+          </div>
           <button data-cmd="clear_media" title="M">Clear Media</button>
           <button data-cmd="reset" title="Back to the announcements shown before the service">Before the service</button>
         </div>

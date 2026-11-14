@@ -25,6 +25,56 @@ pub struct MediaEntry {
     kind: &'static str,
     /// Bytes.
     size: u64,
+    /// The parish's words for it ("Advent", "music", "Christmas pageant").
+    tags: Vec<String>,
+}
+
+// ---- tags -------------------------------------------------------------------
+
+/// File name → tags, kept beside the files in `media/tags.json` (so every
+/// computer using the library sees them).
+type Tags = std::collections::BTreeMap<String, Vec<String>>;
+
+fn read_tags(dir: &Path) -> Tags {
+    std::fs::read_to_string(dir.join("tags.json")).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+fn write_tags(dir: &Path, tags: &Tags) -> CmdResult<()> {
+    let path = dir.join("tags.json");
+    let json = serde_json::to_string_pretty(tags).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| format!("could not save {}: {e}", path.display()))
+}
+
+/// Tags as typed: trimmed, without repeats (ignoring case), in order.
+fn clean_tags(tags: Vec<String>) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for t in tags {
+        let t = t.trim().trim_start_matches('#').trim().to_string();
+        if !t.is_empty() && !out.iter().any(|o| o.eq_ignore_ascii_case(&t)) {
+            out.push(t);
+        }
+    }
+    out
+}
+
+fn file_key(path: &Path) -> String {
+    path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// Sets a media file's tags (an empty list removes them).
+#[tauri::command]
+pub fn media_set_tags(app: AppHandle, path: PathBuf, tags: Vec<String>) -> CmdResult<Vec<String>> {
+    let path = inside_media(&app, &path)?;
+    let dir = media_dir(&app)?;
+    let mut all = read_tags(&dir);
+    let tags = clean_tags(tags);
+    if tags.is_empty() {
+        all.remove(&file_key(&path));
+    } else {
+        all.insert(file_key(&path), tags.clone());
+    }
+    write_tags(&dir, &all)?;
+    Ok(tags)
 }
 
 fn media_dir(app: &AppHandle) -> CmdResult<PathBuf> {
@@ -50,15 +100,19 @@ fn entry(path: PathBuf) -> Option<MediaEntry> {
     let kind = kind(&path)?;
     let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
     let name = path.file_stem()?.to_string_lossy().into_owned();
-    Some(MediaEntry { path, name, kind, size })
+    Some(MediaEntry { path, name, kind, size, tags: Vec::new() })
 }
 
 /// Every image and video in the media folder, by name.
 #[tauri::command]
 pub fn media_list(app: AppHandle) -> Vec<MediaEntry> {
     let Ok(dir) = media_dir(&app) else { return Vec::new() };
-    let Ok(read) = std::fs::read_dir(dir) else { return Vec::new() };
+    let tags = read_tags(&dir);
+    let Ok(read) = std::fs::read_dir(&dir) else { return Vec::new() };
     let mut out: Vec<MediaEntry> = read.filter_map(|e| e.ok()).filter_map(|e| entry(e.path())).collect();
+    for e in &mut out {
+        e.tags = tags.get(&file_key(&e.path)).cloned().unwrap_or_default();
+    }
     out.sort_by_key(|e| e.name.to_lowercase());
     out
 }
@@ -136,7 +190,13 @@ fn inside_media(app: &AppHandle, path: &Path) -> CmdResult<PathBuf> {
 #[tauri::command]
 pub fn media_delete(app: AppHandle, path: PathBuf) -> CmdResult<()> {
     let path = inside_media(&app, &path)?;
-    std::fs::remove_file(&path).map_err(|e| format!("could not delete {}: {e}", path.display()))
+    std::fs::remove_file(&path).map_err(|e| format!("could not delete {}: {e}", path.display()))?;
+    let dir = media_dir(&app)?;
+    let mut all = read_tags(&dir);
+    if all.remove(&file_key(&path)).is_some() {
+        write_tags(&dir, &all)?;
+    }
+    Ok(())
 }
 
 /// Renames a file in the media library (keeps the extension).
@@ -152,6 +212,13 @@ pub fn media_rename(app: AppHandle, path: PathBuf, name: String) -> CmdResult<Pa
         return Err(format!("“{clean}” already exists"));
     }
     std::fs::rename(&path, &dest).map_err(|e| e.to_string())?;
+    // The tags go with the file.
+    let dir = media_dir(&app)?;
+    let mut all = read_tags(&dir);
+    if let Some(t) = all.remove(&file_key(&path)) {
+        all.insert(file_key(&dest), t);
+        write_tags(&dir, &all)?;
+    }
     Ok(dest)
 }
 
@@ -241,4 +308,24 @@ pub fn blank_add(engine: State<'_, Engine>, after: Option<usize>, title: Option<
         cue.modified = true;
         Ok(s.insert_cue(at, cue))
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tags_are_tidied_and_kept_beside_the_files() {
+        assert_eq!(
+            clean_tags(vec![" Advent ".into(), "#music".into(), "advent".into(), "".into()]),
+            ["Advent", "music"]
+        );
+        let dir = std::env::temp_dir().join(format!("episco-tags-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut t = Tags::new();
+        t.insert("alleluia.png".into(), vec!["music".into()]);
+        write_tags(&dir, &t).unwrap();
+        assert_eq!(read_tags(&dir), t);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

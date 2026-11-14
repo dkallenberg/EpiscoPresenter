@@ -173,6 +173,7 @@ function render(c) {
       ...[
         header(c),
         el("div#live-banner.live-banner", { hidden: true }),
+        isPrayerBook() ? prayerBookNotice(c) : null,
         // The words first; then the item's details, its panels and its look.
         ...madePanels(c),
         metaForm(c),
@@ -187,6 +188,37 @@ function render(c) {
   }
   refreshLooks(c);
   renderStatus();
+  root.classList.toggle("ed-locked", c.content.kind === "liturgy" && isPrayerBook());
+  if (root.classList.contains("ed-locked")) lockText();
+}
+
+/** The Prayer Book's own text (not a parish version): it is shown, not edited. */
+const isPrayerBook = () => Boolean(ed.doc && extraOf(ed.doc, "based_on") && !extraOf(ed.doc, "created"));
+
+function prayerBookNotice(c) {
+  return el(
+    "div.bcp-notice",
+    {},
+    el("span", {}, "📖 This is the Prayer Book's text (BCP), which can't be changed. To change it, make a parish version: it is saved in the Library with today's date, and this service uses it."),
+    app.readonly
+      ? null
+      : el(
+          "button.primary",
+          {
+            onclick: async () => {
+              const lib = await call("cue_make_version", { id: c.id });
+              if (lib) toast("Parish version made: edit it here. Save to Library keeps your changes; set it as the default in the Library.");
+            },
+          },
+          "Make a parish version to edit",
+        ),
+  );
+}
+
+/** Makes the text and its details read-only (the Prayer Book's text). */
+function lockText() {
+  for (const n of root.querySelectorAll("#blocks [contenteditable], .meta-form [contenteditable]")) n.contentEditable = "false";
+  for (const n of root.querySelectorAll("#blocks input, #blocks select, #blocks textarea, #blocks button, .meta-form input, .meta-form select")) n.disabled = true;
 }
 
 /** Made slides get the slide maker, a web video its link; everything else

@@ -297,6 +297,24 @@ pub fn library_copy(app: AppHandle, id: String) -> CmdResult<String> {
     save_version(&user_dir(&app)?, &name, doc)
 }
 
+/// Turns an item that is the Prayer Book's text into a new dated parish
+/// version (saved in the library), which can then be edited. Returns the
+/// version's library id.
+#[tauri::command]
+pub fn cue_make_version(app: AppHandle, engine: State<'_, Engine>, id: String) -> CmdResult<String> {
+    let service = engine.service().ok_or("no service is loaded")?;
+    let doc = service.cue(&id).and_then(|c| c.document()).ok_or("no such item")?.clone();
+    if !doc.meta.is_prayer_book_text() {
+        return Err("this item can already be edited".into());
+    }
+    let name = doc.meta.extra(BASED_ON).unwrap_or_default().to_string();
+    let dir = user_dir(&app)?;
+    let lib_id = save_version(&dir, &name, doc)?;
+    let version = ewm::load_file(dir.join(user_file(&lib_id)?)).map_err(|e| e.to_string())?.document;
+    engine.edit_service(|s| s.set_document(&id, version).map_err(|e| e.to_string()))?;
+    Ok(lib_id)
+}
+
 /// Makes a version the default for its built-in item; `None` (or the
 /// built-in item itself) goes back to the Prayer Book's text.
 #[tauri::command]

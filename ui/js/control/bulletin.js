@@ -116,6 +116,11 @@ async function refresh(v) {
   for (const img of v.page.querySelectorAll("img[data-path]")) img.src = assetUrl(null, img.dataset.path);
   if (!app.readonly) {
     for (const n of v.page.querySelectorAll(".ed, .entry[data-cue] .ed-title")) {
+      // The Prayer Book's own text is not edited here (make a parish version).
+      if (styles.get(n.closest("[data-cue]")?.dataset.cue)?.protected) {
+        n.title = "The Prayer Book's text: to change it, make a parish version in the Editor.";
+        continue;
+      }
       n.contentEditable = "true";
       n.spellcheck = true;
       n.dataset.orig = n.innerHTML;

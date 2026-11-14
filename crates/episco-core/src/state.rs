@@ -23,8 +23,11 @@ pub struct PresentationState {
     /// `None` before the first cue is taken (the pre-service state, during
     /// which the announcement loop runs).
     pub active: Option<CuePosition>,
-    /// Both outputs fully black.
+    /// The sanctuary screen black (the live stream carries on).
     pub blackout: bool,
+    /// Blackout cannot be turned on or off until unlocked.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub blackout_locked: bool,
     /// Text layer hidden; backgrounds remain. Reset by navigation.
     pub text_cleared: bool,
     /// Media / background layer hidden. Reset by navigation.
@@ -49,6 +52,10 @@ pub enum Command {
     Reset,
     ToggleBlackout,
     SetBlackout {
+        on: bool,
+    },
+    /// Locks (or unlocks) Blackout as it is.
+    LockBlackout {
         on: bool,
     },
     ClearText,
@@ -87,14 +94,18 @@ impl PresentationState {
                 self.text_cleared = false;
                 self.media_cleared = false;
             }
-            Command::ToggleBlackout => self.blackout = !self.blackout,
-            Command::SetBlackout { on } => self.blackout = *on,
+            Command::ToggleBlackout if !self.blackout_locked => self.blackout = !self.blackout,
+            Command::SetBlackout { on } if !self.blackout_locked => self.blackout = *on,
+            Command::ToggleBlackout | Command::SetBlackout { .. } => {}
+            Command::LockBlackout { on } => self.blackout_locked = *on,
             Command::ClearText => self.text_cleared = true,
             Command::ClearMedia => self.media_cleared = true,
             Command::ClearAll => {
                 self.text_cleared = true;
                 self.media_cleared = true;
-                self.blackout = false;
+                if !self.blackout_locked {
+                    self.blackout = false;
+                }
             }
             Command::StageMessage { text } => {
                 let t = text.trim();
@@ -199,6 +210,25 @@ mod tests {
         s.apply(&Command::Next, &outline);
         assert!(!s.text_cleared);
         assert!(s.blackout);
+    }
+
+    #[test]
+    fn a_locked_blackout_stays_as_it_is() {
+        let outline = [2];
+        let mut s = PresentationState::default();
+        s.apply(&Command::ToggleBlackout, &outline);
+        s.apply(&Command::LockBlackout { on: true }, &outline);
+        for cmd in [Command::ToggleBlackout, Command::SetBlackout { on: false }, Command::ClearAll] {
+            s.apply(&cmd, &outline);
+            assert!(s.blackout, "{cmd:?} must not lift a locked blackout");
+        }
+        s.apply(&Command::LockBlackout { on: false }, &outline);
+        s.apply(&Command::ToggleBlackout, &outline);
+        assert!(!s.blackout);
+        // Locked while off: it cannot be turned on by accident either.
+        s.apply(&Command::LockBlackout { on: true }, &outline);
+        s.apply(&Command::ToggleBlackout, &outline);
+        assert!(!s.blackout);
     }
 
     #[test]

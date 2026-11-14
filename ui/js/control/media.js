@@ -5,7 +5,28 @@
 
 import { app, call, el, toast } from "/js/control/util.js";
 
-const media = { files: [], filter: "all", query: "", selected: null };
+const media = { files: [], filter: "all", query: "", tag: null, selected: null };
+
+/** Every tag in the library, A to Z. */
+const allTags = () => [...new Set(media.files.flatMap((f) => f.tags ?? []))].sort((a, b) => a.localeCompare(b));
+
+/** A file matches words typed in its name or its tags. */
+const matchesQuery = (f, q) => {
+  q = q.trim().toLowerCase();
+  return !q || f.name.toLowerCase().includes(q) || (f.tags ?? []).some((t) => t.toLowerCase().includes(q));
+};
+
+/** Tag chips to narrow a list; `onPick(tag|null)`. */
+function tagChips(current, onPick) {
+  const tags = allTags();
+  if (!tags.length) return null;
+  return el(
+    "div.chips.media-tags",
+    {},
+    el("span.muted.small", {}, "Tags:"),
+    tags.map((t) => el(`button.chip${current === t ? ".active" : ""}`, { onclick: () => onPick(current === t ? null : t) }, `#${t}`)),
+  );
+}
 
 const url = (path) => (window.__TAURI__?.core?.convertFileSrc ? window.__TAURI__.core.convertFileSrc(path) : path);
 const isVideo = (f) => f.kind === "video";
@@ -36,7 +57,8 @@ const shown = () =>
   media.files.filter(
     (f) =>
       (media.filter === "all" || f.kind === media.filter) &&
-      (!media.query.trim() || f.name.toLowerCase().includes(media.query.trim().toLowerCase())),
+      (!media.tag || (f.tags ?? []).includes(media.tag)) &&
+      matchesQuery(f, media.query),
   );
 
 /** The Media view inside the Library tab. `toolbar` holds the Items/Media switch. */
@@ -57,7 +79,7 @@ function draw(root, toolbar) {
   );
   const search = el("input.lib-search", {
     type: "search",
-    placeholder: "Search media…",
+    placeholder: "Search names and tags…",
     value: media.query,
     oninput: (e) => {
       media.query = e.target.value;
@@ -81,6 +103,7 @@ function draw(root, toolbar) {
             },
             el("div.media-thumb", {}, thumb(f), isVideo(f) ? el("span.media-kind", {}, "▶") : null),
             el("div.media-name", {}, f.name),
+            f.tags?.length ? el("div.media-tile-tags", {}, f.tags.map((t) => `#${t}`).join(" ")) : null,
           ),
         )
       : el(
@@ -101,6 +124,7 @@ function draw(root, toolbar) {
         el("button.small", { onclick: async () => { const a = await importFiles(); if (a) { media.selected = a[0].path; draw(root, toolbar); } } }, "Import…"),
       ),
       chips,
+      tagChips(media.tag, (t) => { media.tag = t; draw(root, toolbar); }),
       grid,
       el("p.hint.muted", {}, "Double-click to add as its own item (full screen). Files are copied into the app’s media folder."),
     ),
@@ -139,6 +163,7 @@ function preview(root, toolbar) {
     {},
     el("div.media-big", {}, big),
     el("div.media-info", {}, name, el("span.muted.small", {}, `${isVideo(f) ? "Video" : "Image"} · ${size(f.size)}`)),
+    tagEditor(f, root, toolbar),
     el(
       "div.media-actions",
       {},
@@ -155,6 +180,42 @@ function preview(root, toolbar) {
       el("button.small.danger-btn", { disabled: app.readonly, onclick: () => remove(f, root, toolbar) }, "Delete"),
     ),
     isVideo(f) ? el("p.muted.small", {}, "Videos play on the screens when their item is live, with sound from the sanctuary computer.") : null,
+  );
+}
+
+/** The selected file's tags: remove one with ✕, add with Enter (several at
+ *  once with commas). */
+function tagEditor(f, root, toolbar) {
+  const save = async (tags) => {
+    const saved = await call("media_set_tags", { path: f.path, tags });
+    if (saved === undefined) return;
+    f.tags = saved;
+    draw(root, toolbar);
+    root.querySelector(".tag-input")?.focus();
+  };
+  const input = el("input.tag-input", {
+    placeholder: f.tags?.length ? "Add a tag" : "Add tags, e.g. Advent, music, Christmas pageant",
+    disabled: app.readonly,
+    list: "media-tag-list",
+    onkeydown: (e) => {
+      if (e.key !== "Enter" || !input.value.trim()) return;
+      e.preventDefault();
+      save([...(f.tags ?? []), ...input.value.split(",").map((t) => t.trim()).filter(Boolean)]);
+    },
+  });
+  return el(
+    "div.media-tag-editor",
+    {},
+    (f.tags ?? []).map((t) =>
+      el(
+        "span.media-tag",
+        {},
+        `#${t}`,
+        app.readonly ? null : el("button.tag-x", { title: `Remove #${t}`, onclick: () => save(f.tags.filter((x) => x !== t)) }, "✕"),
+      ),
+    ),
+    input,
+    el("datalist", { id: "media-tag-list" }, allTags().map((t) => el("option", { value: t }))),
   );
 }
 
@@ -200,14 +261,24 @@ export function pickMedia({ kind, relativeTo = null, title = "Choose from the me
       resolve(v);
     };
     const grid = el("div.media-grid.picker");
+    let tag = null;
+    const search = el("input.lib-search", { type: "search", placeholder: "Search names and tags…", oninput: () => fill() });
+    const chipsHost = el("div");
     const fill = () => {
-      const files = media.files.filter((f) => !kind || f.kind === kind);
+      chipsHost.replaceChildren(tagChips(tag, (t) => { tag = t; fill(); }) ?? "");
+      const files = media.files.filter((f) => (!kind || f.kind === kind) && (!tag || (f.tags ?? []).includes(tag)) && matchesQuery(f, search.value));
       grid.replaceChildren(
         ...(files.length
           ? files.map((f) =>
-              el("div.media-tile", { title: f.name, onclick: () => finish(f.path) }, el("div.media-thumb", {}, thumb(f)), el("div.media-name", {}, f.name)),
+              el(
+                "div.media-tile",
+                { title: f.name, onclick: () => finish(f.path) },
+                el("div.media-thumb", {}, thumb(f)),
+                el("div.media-name", {}, f.name),
+                f.tags?.length ? el("div.media-tile-tags", {}, f.tags.map((t) => `#${t}`).join(" ")) : null,
+              ),
             )
-          : [el("p.muted", {}, "The media library is empty. Import an image first.")]),
+          : [el("p.muted", {}, media.files.length ? "Nothing matches." : "The media library is empty. Import an image first.")]),
       );
     };
     const overlay = el(
@@ -217,6 +288,8 @@ export function pickMedia({ kind, relativeTo = null, title = "Choose from the me
         "div.modal.wide",
         {},
         el("h3", {}, title),
+        search,
+        chipsHost,
         grid,
         el(
           "div.modal-actions",

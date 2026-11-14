@@ -191,6 +191,9 @@ pub struct CueBulletin {
     /// What the item still needs before Sunday, in plain words.
     #[serde(skip_serializing_if = "Option::is_none")]
     todo: Option<String>,
+    /// The Prayer Book's own text: it cannot be edited in the preview.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    protected: bool,
 }
 
 /// What an item still needs: a reading's text, a hymn chosen, the preacher.
@@ -235,6 +238,7 @@ pub fn bulletin_styles(engine: State<'_, Engine>) -> Vec<CueBulletin> {
                     citation: c.document().and_then(|d| d.meta.citation.clone()).filter(|x| !x.trim().is_empty()),
                     bible: c.document().and_then(|d| d.meta.extra("bible")).map(String::from),
                     todo: todo(c),
+                    protected: c.document().is_some_and(|d| d.meta.is_prayer_book_text()),
                 })
                 .collect()
         })
