@@ -4,7 +4,8 @@ import { send } from "/js/bridge.js";
 import { openPropers } from "/js/control/library.js";
 import { addAnthem, addGoogleSlides, addPdfSlides, addSlides, addWebVideo } from "/js/control/made.js";
 import { backgroundName } from "/js/control/looks.js";
-import { onDeckChange, pageCount } from "/js/deckpdf.js";
+import { load as loadDeck, loopSlide, onDeckChange, pageCount, slideImage } from "/js/deckpdf.js";
+import { backgroundCss } from "/js/render.js";
 import { app, call, el, reportWarnings, slideCount, titleCase } from "/js/control/util.js";
 
 const ICONS = {
@@ -175,6 +176,48 @@ function render(list) {
   list.querySelector(".cue.on-air")?.scrollIntoView({ block: "nearest" });
 }
 
+/** EpiscoPresenter shows a small picture of each item's slides on its row
+ *  (EpiscoPlanner's list is plain). */
+const pictures = () => app.mode === "presenter";
+
+/** A thumbnail of the deck: slide `n`, or the slide a loop shows now. */
+function deckThumb(n = null) {
+  const url = app.service?.announcements_deck;
+  const thumb = el("span.cue-thumb.deck-thumb");
+  if (!url) {
+    thumb.style.background = "#222";
+    return thumb;
+  }
+  const img = el("img", { alt: "" });
+  thumb.append(img);
+  const show = (k) => slideImage(url, k, 160).then((u) => u && (img.src = u));
+  loadDeck(url).then((pages) => {
+    if (!pages) return (thumb.textContent = "▤");
+    if (n) return show(Math.min(n, pages));
+    let current = 0;
+    const timer = setInterval(() => {
+      if (!img.isConnected) return clearInterval(timer);
+      const k = loopSlide(pages);
+      if (k !== current) show((current = k));
+    }, 1000);
+    show((current = loopSlide(pages)));
+  });
+  return thumb;
+}
+
+/** An item's slides in small: the sanctuary's background, with the live
+ *  stream's inset. */
+function cueThumb(cue, active, onAir) {
+  if (cue.content.kind === "announcements") {
+    return deckThumb(cue.content.mode === "loop" ? null : (onAir ? active.slide : 0) + 1);
+  }
+  return el(
+    "span.cue-thumb",
+    { style: { background: backgroundCss(app.service, cue, cue.sanctuary.background, cue.sanctuary.fit) } },
+    el("span.cue-thumb-stream", { style: { background: backgroundCss(app.service, cue, cue.stream.background, cue.stream.fit) } }),
+  );
+}
+
 function preServiceRow(service, active) {
   const deck = Boolean(service.announcements_deck);
   const live = !active;
@@ -188,6 +231,7 @@ function preServiceRow(service, active) {
       ondblclick: () => send({ type: "reset" }),
     },
     el("span.cue-num", {}, "–"),
+    pictures() ? deckThumb() : null,
     el("div.cue-body", {}, el("div.cue-title", {}, el("span.cue-icon", {}, ICONS.announcements), "Before the service")),
     el("div.cue-icons", {}, live ? el("span.badge.live", {}, "On screen") : null),
   );
@@ -250,6 +294,7 @@ function cueRow(cue, i, active, count) {
       ondblclick: () => send({ type: "go_to", cue: i, slide: 0 }),
     },
     el("span.cue-num", {}, String(i + 1)),
+    pictures() ? cueThumb(cue, active, onAir) : null,
     el("div.cue-body", {}, el("div.cue-title", {}, el("span.cue-icon", {}, ICONS[cue.category] ?? "•"), cue.title)),
     icons,
     tools,

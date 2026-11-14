@@ -637,3 +637,6 @@ body.planner .settings-menu .menu-group.planner-only { display: flex; }
 
 /* A second row of service choices (Eucharistic Prayer) under the first. */
 .home-row + .home-row { margin-top: 8px; }
+
+/* EpiscoPresenter's service list: a picture of each item's slides. */
+body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; }

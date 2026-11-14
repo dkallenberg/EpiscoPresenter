@@ -279,7 +279,7 @@ function header(c) {
   return el(
     "div.ed-head",
     {},
-    el("div.ed-title", {}, el("strong#ed-title", {}, c.title), el("div#ed-file.muted.small")),
+    el("div.ed-title", {}, el("strong#ed-title", {}, c.title)),
     el("span.spacer"),
     app.readonly
       ? el("span.muted", {}, readonlyReason())
@@ -316,13 +316,7 @@ function renderStatus() {
   const c = cue();
   if (!c) return;
   const title = document.getElementById("ed-title");
-  const file = document.getElementById("ed-file");
   if (title) title.textContent = c.title;
-  if (file) {
-    const src = c.content.source;
-    file.textContent = c.content.kind === "liturgy" ? (src ?? "Not saved to a file yet") : "Google Slides announcements";
-    if (c.modified || ed.dirty || ed.held) file.textContent += " · unsaved changes";
-  }
   const banner = document.getElementById("live-banner");
   if (banner) {
     banner.hidden = !ed.held;

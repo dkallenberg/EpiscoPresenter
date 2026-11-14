@@ -49,7 +49,9 @@ technical detail at the end for whoever helps.
 
 * The first row is **Before the service**: the announcements loop that runs
   until the first item is shown. It is marked **On screen** while it runs.
-* Each row shows the item's number, an icon for its kind and its name, with
+* Each row shows the item's number, a small picture of its slides (the
+  sanctuary's background with the live stream's inset; the announcements
+  deck's slide; EpiscoPresenter only), an icon for its kind and its name, with
   **On screen 2/5** (which slide) while it is shown and **●** while it has
   unsaved changes. Hover a row for the rest: its kind and number of slides,
   its caption, and its backgrounds on both screens.
