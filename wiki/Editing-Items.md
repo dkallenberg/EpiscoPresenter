@@ -163,6 +163,11 @@ Select the **Sanctus** and choose:
   setting such as S 125, import its words like a hymn, select it in the
   Library and click **Use for Sanctus**.
 
+In a whole **Eucharistic Prayer** (A–D, I or II), the Sanctus is inside
+the prayer: select the prayer in the Editor and use its **Sanctus** row,
+**Said** or **Sung**. Sung, the Sanctus gets a slide of its own shown like
+a hymn; the rest of the prayer looks as before.
+
 ## The sermon
 
 Select **The Sermon**. **Preacher** offers the Rector, Assistant and Bishop

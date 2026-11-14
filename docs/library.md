@@ -222,6 +222,14 @@ setting**: import the setting's words like a hymn (`S 125 Sanctus.txt`),
 select it in the Library and click **Use for Sanctus** (it is then sung,
 with its number).
 
+Within a whole Eucharistic Prayer (A, B, C, D, I or II), select the prayer
+in the Editor: its **Sanctus** row has **Said** (the people's part in bold,
+as the rest of the prayer) or **Sung**: the Sanctus is then a slide of its
+own on both screens, shown as a hymn (words on black, level lines, no
+"People" label, in the sanctuary; the hymn panel on the stream), and the
+rest of the prayer keeps its look. The bulletin and script print the prayer
+as usual. (The choice is kept in the service plan: `sanctus_sung = true`.)
+
 ### Music before the Gospel
 
 The Gospel's slides run in the order they are used: the music line (if

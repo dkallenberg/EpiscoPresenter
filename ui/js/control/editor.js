@@ -196,6 +196,7 @@ function render(c) {
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
         c.category === "hymn" ? hymnPanel(c) : null,
         c.category === "eucharistic_prayer" ? prefaceNote() : null,
+        c.category === "eucharistic_prayer" ? prayerSanctusPanel(c) : null,
         isSanctus(c) ? sanctusPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
         looks,
@@ -650,6 +651,32 @@ function sanctusPanel(c) {
           "Import the setting's words like a hymn (Library → Import hymns…, e.g. “S 125 Sanctus.txt”), select it there and click “Use for Sanctus”",
         ),
       ),
+    ),
+  );
+}
+
+/** A whole Eucharistic Prayer: its Sanctus said (the people's part, as
+ *  printed) or sung (that slide shown as a hymn, a slide of its own). */
+function prayerSanctusPanel(c) {
+  const has = ed.doc.blocks.some((b) => b.kind === "paragraph" && /^holy, holy, holy/i.test(b.lines.flat().map((s) => s.text).join("")));
+  if (!has) return null;
+  const sung = Boolean(c.overrides?.sanctus_sung);
+  const set = (on) => call("set_cue_overrides", { id: c.id, overrides: { ...c.overrides, sanctus_sung: on } });
+  const choice = (label, on, value, title) => el(`button.small${on ? ".active" : ""}`, { disabled: app.readonly, onclick: () => set(value), title }, label);
+  return el(
+    "div.section.reading-panel.sanctus-panel",
+    {},
+    el(
+      "div.reading-row",
+      {},
+      el("strong", {}, "Sanctus"),
+      el(
+        "div.seg",
+        {},
+        choice("Said", !sung, false, "Said by all: the people's part in bold, as the rest of the prayer"),
+        choice("Sung", sung, true, "Sung: the Sanctus slide is shown as a hymn (words on black in the sanctuary, the hymn panel on the stream)"),
+      ),
+      el("span.muted.small", {}, "Holy, holy, holy … within this prayer"),
     ),
   );
 }

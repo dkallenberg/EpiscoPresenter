@@ -230,6 +230,8 @@ fn layout(doc: &LiturgyDocument, output: Output, cap: Capacity, keep: &dyn Fn(&B
                 section_start: d.section_start && i == 0,
                 level: d.level.filter(|_| d.section_start && i == 0),
                 blocks: parts.into_iter().map(|p| p.block).collect(),
+                sanctuary: None,
+                stream: None,
             };
             out.push((slide, start));
         }

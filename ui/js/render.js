@@ -818,7 +818,10 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
 
   const cue = active?.cue;
   if (!cue) return renderPreService(stage, service, output, { ...opts, keepDeck }, st);
-  const look = cue[output];
+  const slide = output === "stream" ? slideFor(cue, active.pos?.slide ?? 0, "stream") ?? active.slide : active.slide;
+  // A slide may have a look of its own (the Sanctus sung within a
+  // Eucharistic Prayer is shown as a hymn).
+  const look = slide?.[output] ?? cue[output];
   if (!look) return;
   // A season's lower-third box may be light (White): its words are dark.
   const boxText = look.layout === "lower_third" && look.background === "key" && look.tone === "light" ? lowerThirdText(cue.color ?? service?.color, seasonOf(service, cue)) : null;
@@ -845,7 +848,6 @@ export function renderOutput(stage, snap, active, output, opts = {}) {
   else if (look.layout === "lower_third" || output === "stream") stage.style.background = keyColor(service);
   if (st.text_cleared) return;
 
-  const slide = output === "stream" ? slideFor(cue, active.pos?.slide ?? 0, "stream") ?? active.slide : active.slide;
   // A media item (an image or video from the library) is just its background.
   if (!slide && cue.content.kind === "liturgy" && extra(cue, "media")) return;
 

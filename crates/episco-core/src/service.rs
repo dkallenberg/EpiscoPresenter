@@ -147,6 +147,36 @@ pub struct Cue {
     pub content: CueContent,
 }
 
+/// The Sanctus in a Eucharistic Prayer: the people's "Holy, holy, holy …".
+fn is_sanctus(b: &Block) -> bool {
+    match b {
+        Block::Paragraph { role, .. } if role.is_none() || *role == Some(crate::role::Role::People) => {
+            b.plain_text().to_lowercase().starts_with("holy, holy, holy")
+        }
+        _ => false,
+    }
+}
+
+/// A Eucharistic Prayer whose Sanctus is sung: the Sanctus on a slide of its
+/// own on both screens (the stream does not run it together with the text
+/// around it), without a speaker (it is sung, as a hymn). `None` if the
+/// prayer has no Sanctus.
+fn sanctus_sung(doc: &LiturgyDocument) -> Option<LiturgyDocument> {
+    let at = doc.blocks.iter().position(is_sanctus)?;
+    let mut out = doc.clone();
+    if let Block::Paragraph { role, lines } = &mut out.blocks[at] {
+        *role = None;
+        // Sung lines stand level (no indents), as a hymn's.
+        for line in lines.iter_mut() {
+            *line = crate::document::split_indent(line).1;
+        }
+    }
+    let apart = || Block::OutputBreak { output: Output::Stream };
+    out.blocks.insert(at + 1, apart());
+    out.blocks.insert(at, apart());
+    Some(out)
+}
+
 /// A Eucharistic Prayer with the Proper Preface in its place, in the
 /// prayer's rite (`rite: I` in its front matter, else Rite II). `None`: no
 /// preface, or a prayer without its place for one (C, D).
@@ -168,6 +198,10 @@ pub struct CueOverrides {
     /// How the item appears in the bulletin; `None` for its default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bulletin: Option<crate::bulletin::BulletinStyle>,
+    /// A Eucharistic Prayer whose Sanctus is sung: its slide is shown as a
+    /// hymn (and kept a slide of its own).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub sanctus_sung: bool,
 }
 
 /// What a cue needs from its service to resolve its derived fields.
@@ -338,6 +372,7 @@ impl Cue {
     /// The slides of both screens, fitted to their slide types.
     fn fit_slides(&mut self, ctx: &BuildContext) {
         let category = self.category;
+        let sanctus_is_sung = self.overrides.sanctus_sung;
         let sanctuary_key = crate::fit::slide_type(Output::Sanctuary, self.sanctuary.layout, category);
         let stream_key = crate::fit::slide_type(Output::Stream, self.stream.layout, category);
         let CueContent::Liturgy { document, slides, stream_slides, stream_at, .. } = &mut self.content else {
@@ -364,10 +399,31 @@ impl Cue {
         let with_preface =
             (category == ElementCategory::EucharisticPrayer).then(|| preface_in(document, ctx.preface)).flatten();
         let document: &LiturgyDocument = with_preface.as_ref().unwrap_or(document);
+        // The Sanctus sung: a slide of its own, shown as a hymn.
+        let sung = (category == ElementCategory::EucharisticPrayer && sanctus_is_sung)
+            .then(|| sanctus_sung(document))
+            .flatten();
+        let document: &LiturgyDocument = sung.as_ref().unwrap_or(document);
         let fitted = crate::fit::fit(document, sanctuary, stream, &keep);
         *slides = fitted.steps;
         *stream_slides = fitted.stream;
         *stream_at = fitted.stream_at;
+        if sung.is_some() {
+            // The hymn's look (with the service's own for hymns, if it has one).
+            let hymn = |output: Output| {
+                let mut look = default_look(ElementCategory::Hymn, output);
+                if let Some(d) = ctx.looks.and_then(|m| m.get(&ElementCategory::Hymn)) {
+                    look = look.layered(d.get(output));
+                }
+                ResolvedLook::complete(&look)
+            };
+            for slide in slides.iter_mut().chain(stream_slides.iter_mut()) {
+                if slide.blocks.iter().any(is_sanctus) {
+                    slide.sanctuary = Some(hymn(Output::Sanctuary));
+                    slide.stream = Some(hymn(Output::Stream));
+                }
+            }
+        }
         if said {
             for slide in slides.iter_mut().chain(stream_slides.iter_mut()) {
                 for block in &mut slide.blocks {
@@ -729,6 +785,7 @@ impl Service {
                 category: pc.category.as_deref().map(str::parse::<ElementCategory>).transpose().map_err(cue_err)?,
                 looks,
                 bulletin: pc.bulletin.as_deref().and_then(crate::bulletin::BulletinStyle::parse),
+                sanctus_sung: pc.sanctus_sung,
             };
             let cue = match (&pc.file, pc.announcements) {
                 (Some(_), Some(_)) => return Err(cue_err("a cue may have `file` or `announcements`, not both".into())),
@@ -851,6 +908,7 @@ impl Service {
                     background: None,
                     announcements,
                     bulletin: cue.overrides.bulletin.map(|b| b.key().to_string()),
+                    sanctus_sung: cue.overrides.sanctus_sung,
                     sanctuary: cue.overrides.looks.sanctuary.clone(),
                     stream: cue.overrides.looks.stream.clone(),
                 })
@@ -963,6 +1021,9 @@ struct PlanCue {
     /// `reference`, `full`, `title` or `hidden`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     bulletin: Option<String>,
+    /// The Sanctus within a Eucharistic Prayer is sung.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    sanctus_sung: bool,
     #[serde(default, skip_serializing_if = "Look::is_empty")]
     sanctuary: Look,
     #[serde(default, skip_serializing_if = "Look::is_empty")]
@@ -1040,6 +1101,40 @@ mod tests {
         s.rebuild_all();
         assert!(!text(&s, "a").contains("But chiefly") && !text(&s, "a").contains("first day of the week"));
         assert_eq!(s.cue("c").unwrap().document(), Some(&c), "the prayer's own text is unchanged");
+    }
+
+    #[test]
+    fn the_sanctus_sung_within_a_eucharistic_prayer() {
+        let a: LiturgyDocument = include_str!("../../../library/eucharistic-prayer-a.ewm").parse().unwrap();
+        let sung = CueOverrides { sanctus_sung: true, ..Default::default() };
+        let mut s = Service::default();
+        s.insert_cue(0, Cue::liturgy("said", a.clone(), None, CueOverrides::default()));
+        s.insert_cue(1, Cue::liturgy("sung", a, None, sung));
+        let holy = |b: &Block| b.plain_text().starts_with("Holy, Holy, Holy");
+        let sanctus_slides = |id: &str| -> Vec<Slide> {
+            let CueContent::Liturgy { slides, stream_slides, .. } = &s.cue(id).unwrap().content else { panic!() };
+            slides.iter().chain(stream_slides.iter()).filter(|sl| sl.blocks.iter().any(holy)).cloned().collect()
+        };
+        for sl in sanctus_slides("sung") {
+            assert!(
+                sl.blocks.iter().all(holy),
+                "a slide of its own: {:?}",
+                sl.blocks.iter().map(Block::plain_text).collect::<Vec<_>>()
+            );
+            assert_eq!(sl.sanctuary.as_ref().unwrap().layout, crate::look::Layout::Lyrics);
+            assert_eq!(sl.stream.as_ref().unwrap().layout, crate::look::Layout::LeftPanelWide);
+            assert!(matches!(&sl.blocks[0], Block::Paragraph { role: None, .. }), "sung: no speaker");
+            if let Block::Paragraph { lines, .. } = &sl.blocks[0] {
+                assert!(lines.iter().all(|l| crate::document::split_indent(l).0 == 0), "sung lines stand level");
+            }
+        }
+        for sl in sanctus_slides("said") {
+            assert!(sl.sanctuary.is_none() && sl.stream.is_none(), "said: the prayer's own look");
+        }
+        // The rest of the prayer keeps its look; the prayer's text is unchanged.
+        let cue = s.cue("sung").unwrap();
+        assert_eq!(cue.stream.layout, crate::look::Layout::BottomBar);
+        assert!(cue.document().unwrap().blocks.iter().all(|b| !matches!(b, Block::OutputBreak { .. })));
     }
 
     #[test]

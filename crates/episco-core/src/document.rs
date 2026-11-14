@@ -242,6 +242,12 @@ pub struct Slide {
     /// Empty for a *title slide*: a heading followed directly by a slide
     /// break, shown as a title card (e.g. "First Reading" + citation).
     pub blocks: Vec<Block>,
+    /// This slide's own look on each screen, where it differs from its
+    /// item's (the Sanctus sung within a Eucharistic Prayer, as a hymn).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sanctuary: Option<crate::look::ResolvedLook>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stream: Option<crate::look::ResolvedLook>,
 }
 
 impl Slide {
@@ -278,6 +284,8 @@ impl LiturgyDocument {
                     section_start: *fresh,
                     level: level.filter(|_| *fresh),
                     blocks: std::mem::take(current),
+                    sanctuary: None,
+                    stream: None,
                 });
                 *fresh = false;
             }
