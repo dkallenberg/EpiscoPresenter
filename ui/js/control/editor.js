@@ -173,14 +173,15 @@ function render(c) {
       ...[
         header(c),
         el("div#live-banner.live-banner", { hidden: true }),
-        looks,
+        // The words first; then the item's details, its panels and its look.
+        ...madePanels(c),
         metaForm(c),
         c.category === "psalm" ? psalmPanel(c) : null,
         c.category === "gospel" ? gospelMusicPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
-      c.category === "hymn" ? hymnPanel(c) : null,
+        c.category === "hymn" ? hymnPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
-        ...madePanels(c),
+        looks,
       ].filter(Boolean),
     );
   }

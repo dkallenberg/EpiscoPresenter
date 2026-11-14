@@ -71,8 +71,9 @@ a slide to put it on air. The live slide has a red frame.
 Edits the selected item. Changes reach every output about a third of a second
 after you stop typing.
 
-The item's **title** (and citation or hymn number) come first, then its
-words. **Name in the service list** is saved in the service plan instead of
+The item's **words** come first, then its **title** (and citation or hymn
+number), any panel for its kind (psalm, reading, Gospel music, hymn,
+preacher), and **Appearance** last. **Name in the service list** is saved in the service plan instead of
 the item (e.g. "Processional Hymn" for *Lift Up Your Heads*). **More…** under
 them holds the item's type, season and colour, its live-stream caption, and
 **Edit the file (.ewm)…** (the Source view, for experienced users).
