@@ -1,7 +1,7 @@
 // Operator control window: boot, top bar, tabs and keyboard shortcuts.
 
 import { connectStore, inTauri, invoke, listen, send, setPlannerMode } from "/js/bridge.js";
-import { initBulletin } from "/js/control/bulletin.js";
+import { initBulletin, openParish } from "/js/control/bulletin.js";
 import { initStorage } from "/js/control/storage.js";
 import { initEditor } from "/js/control/editor.js";
 import { initHandoff, initHome, showHome } from "/js/control/home.js";
@@ -34,8 +34,8 @@ document.querySelectorAll(".tabs button[data-tab]").forEach((b) =>
   const btn = document.getElementById("btn-theme");
   const show = () => {
     const day = document.body.classList.contains("day");
-    btn.textContent = day ? "☾" : "☀";
-    btn.title = day ? "Night colours" : "Day colours";
+    btn.textContent = day ? "☾ Night colours" : "☀ Day colours";
+    btn.title = day ? "Switch to night colours" : "Switch to day colours";
   };
   btn?.addEventListener("click", () => {
     const day = document.body.classList.toggle("day");
@@ -73,7 +73,26 @@ listen("episco://autosave", (s) => {
 });
 $("btn-settings").addEventListener("click", openServiceSettings);
 $("btn-layouts").addEventListener("click", openLayouts);
+$("btn-connection").addEventListener("click", () => openConnection());
+$("btn-parish").addEventListener("click", () => openParish());
 initOutputs();
+
+// ⚙ Settings: one menu for everything not used every week. Choosing an
+// entry closes it (the day/night switch leaves it open to see the change).
+{
+  const menu = $("settings-menu");
+  const close = () => (menu.hidden = true);
+  $("btn-menu").addEventListener("click", (e) => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+  });
+  menu.addEventListener("click", (e) => {
+    if (e.target.closest("button") && e.target.closest("button").id !== "btn-theme") close();
+    else e.stopPropagation();
+  });
+  document.addEventListener("click", close);
+  document.addEventListener("keydown", (e) => e.key === "Escape" && close());
+}
 
 // The announcements deck: download it (once per computer) when a service has
 // one, and record its slide count so a single pass steps through every slide.
@@ -132,16 +151,17 @@ function renderTopbar() {
   const s = app.service;
   const isTemplate = /[\\/]templates[\\/][^\\/]+[\\/]service\.toml$/.test(s?.plan_path ?? "");
   $("service-title").textContent = s ? `${isTemplate ? "Template: " : ""}${s.title || "Untitled service"}` : "";
+  $("service-when").textContent = s && !isTemplate ? when(s.date, s.time) : "";
   const status = $("save-status");
   status.hidden = !s || app.readonly;
   if (s) {
     const [text, cls, title] = !s.plan_path
-      ? ["Not saved · Keep…", "warn", "This service has no file. Click to keep it with your scheduled services; it then saves automatically."]
+      ? ["Not saved yet · Keep this service", "warn", "This service has no file yet (an example or a copy). Click to keep it with your services; from then on it saves by itself."]
       : saveError
-        ? ["⚠ Save failed", "error", saveError]
+        ? ["⚠ Could not save · Details", "error", `${saveError}\nClick for details.`]
         : hasUnsaved()
-          ? ["Saving…", "pending", "Changes are saved automatically a moment after you stop editing."]
-          : ["✓ Saved", "ok", `Saved automatically to ${s.plan_path}`];
+          ? ["Saving…", "pending", "Changes save by themselves a moment after you stop editing."]
+          : ["Saved ✓", "ok", `Saved by itself to ${s.plan_path}`];
     status.textContent = text;
     status.className = `save-status ${cls}`;
     status.title = title;
@@ -150,15 +170,48 @@ function renderTopbar() {
   $("btn-settings").disabled = app.readonly || !s;
   $("btn-save").disabled = app.readonly || !s;
 
+  const { text, ok, warn } = linkWords(app.snap.link ?? {});
   const link = app.snap.link ?? {};
-  const role = { master: "Master", slave: "Slave", standalone: "Standalone" }[link.role] ?? "—";
-  let text = `${role} · ${link.online ? "online" : "offline"}`;
-  if (link.peer) text += ` · ${link.peer}`;
-  if (link.latency_us != null) text += ` · ${(link.latency_us / 1000).toFixed(2)} ms`;
-  if (link.error) text += ` · ${link.error}`;
   $("link").textContent = text;
-  $("link").title = `${link.endpoint ? `${link.endpoint} · ` : ""}Click to connect this computer with the other one`;
-  $("link").classList.toggle("ok", Boolean(link.online));
+  $("link").title = [
+    link.endpoint ? `Address: ${link.endpoint}` : "",
+    link.latency_us != null ? `Delay: ${(link.latency_us / 1000).toFixed(1)} ms` : "",
+    link.error ?? "",
+    "Click to set up the connection with the other computer.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  $("link").classList.toggle("ok", ok);
+  $("link").classList.toggle("warn", Boolean(warn));
+}
+
+/** The connection, in a parish's words. */
+export function linkWords(link) {
+  if (link.role === "slave") {
+    return link.online
+      ? { text: `Following ${link.peer || "the sanctuary computer"} ✓`, ok: true }
+      : { text: "Not connected to the sanctuary computer", ok: false, warn: true };
+  }
+  if (link.role === "master") {
+    if (link.peer) return { text: "Live stream connected ✓", ok: true };
+    return link.online ? { text: "Waiting for the live-stream computer", ok: false } : { text: "Network not available", ok: false, warn: true };
+  }
+  return { text: "One computer", ok: true };
+}
+
+/** "Sun 15 Nov · 10:30 am" from a service's date and time. */
+export function when(date, time) {
+  const parts = [];
+  if (date) {
+    const [y, m, d] = date.split("-").map(Number);
+    const day = new Date(y, m - 1, d);
+    parts.push(day.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }));
+  }
+  if (time) {
+    const [h, min] = time.split(":").map(Number);
+    parts.push(`${((h + 11) % 12) + 1}:${String(min).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`);
+  }
+  return parts.join(" · ");
 }
 
 // ---------- boot ----------

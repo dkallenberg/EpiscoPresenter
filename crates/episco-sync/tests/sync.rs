@@ -76,7 +76,16 @@ async fn mirror_receives_snapshot_and_updates_and_can_command() {
         e => panic!("unexpected {e:?}"),
     }
 
+    // The master knows who is following it, until they go.
+    assert_eq!(hub.clients(), vec![("stream-node".to_string(), ClientRole::Mirror)]);
     drop(client);
+    for _ in 0..50 {
+        if hub.clients().is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert!(hub.clients().is_empty(), "a closed connection leaves the list");
     server.shutdown().await;
 }
 

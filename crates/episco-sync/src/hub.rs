@@ -1,7 +1,8 @@
 //! The master node's authoritative state and its WebSocket server.
 
 use std::net::SocketAddr;
-use std::sync::{Arc, RwLock};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -15,7 +16,7 @@ use tokio::net::TcpListener;
 use tokio::sync::{broadcast, oneshot};
 use tokio::task::JoinHandle;
 
-use crate::protocol::{ClientMessage, ServerMessage, HEALTH_PATH, PROTOCOL_VERSION, WS_PATH};
+use crate::protocol::{ClientMessage, ClientRole, ServerMessage, HEALTH_PATH, PROTOCOL_VERSION, WS_PATH};
 
 /// How long a new connection has to send `hello`.
 const HELLO_TIMEOUT: Duration = Duration::from_secs(5);
@@ -61,15 +62,37 @@ pub struct SyncHub {
     config: HubConfig,
     inner: RwLock<Inner>,
     tx: broadcast::Sender<Arc<HubUpdate>>,
+    /// Who is connected now: id, name, role.
+    clients: Mutex<Vec<(u64, String, ClientRole)>>,
+    next_client: AtomicU64,
+}
+
+/// Removes a client from [`SyncHub::clients`] when its connection ends.
+struct ClientGuard {
+    hub: Arc<SyncHub>,
+    id: u64,
+}
+
+impl Drop for ClientGuard {
+    fn drop(&mut self) {
+        self.hub.clients.lock().unwrap_or_else(|e| e.into_inner()).retain(|c| c.0 != self.id);
+    }
 }
 
 impl SyncHub {
+    /// The clients connected now (name and role), in the order they came.
+    pub fn clients(&self) -> Vec<(String, ClientRole)> {
+        self.clients.lock().unwrap_or_else(|e| e.into_inner()).iter().map(|c| (c.1.clone(), c.2)).collect()
+    }
+
     pub fn new(config: HubConfig) -> Arc<SyncHub> {
         let (tx, _) = broadcast::channel(BROADCAST_CAPACITY);
         Arc::new(SyncHub {
             config,
             inner: RwLock::new(Inner { state: PresentationState::default(), service: None, outline: Vec::new() }),
             tx,
+            clients: Mutex::new(Vec::new()),
+            next_client: AtomicU64::new(1),
         })
     }
 
@@ -278,6 +301,9 @@ async fn connection(mut socket: WebSocket, hub: Arc<SyncHub>) -> Result<(), Stri
         }
     }
     tracing::info!("sync client connected: {client_name} ({role:?})");
+    let id = hub.next_client.fetch_add(1, Ordering::Relaxed);
+    hub.clients.lock().unwrap_or_else(|e| e.into_inner()).push((id, client_name.clone(), role));
+    let _guard = ClientGuard { hub: Arc::clone(&hub), id };
 
     // Subscribe before taking the snapshot so nothing falls in between;
     // anything not newer than the snapshot is skipped below.

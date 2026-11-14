@@ -92,6 +92,6 @@ colour in every season and with any key colour, so the switcher keys
 everything but the box.
 
 Lower thirds are keyed by the video switcher on the stream key colour
-(`#0000FF` by default). Change it in **⚙ Service** (Blue, Green, Transparent
+(`#0000FF` by default). Change it in **⚙ Settings → Service settings** (Blue, Green, Transparent
 or a custom colour). **Blackout** on the stream output fills it with the key
 colour, so only the camera shows.

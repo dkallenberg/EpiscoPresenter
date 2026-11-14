@@ -5,28 +5,42 @@ The control window has three panes: the **service timeline** (left), the
 
 ## Top bar
 
-| Button | Does |
+| Shows | Does |
 | --- | --- |
 | ☰ Services | The Services screen: upcoming services, New service, Schedule upcoming Sundays, Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
-| Save status | ✓ Saved / Saving…, since services save themselves. For the example, *Not saved · Keep…* adds it to your services. |
-| ▣ Outputs | Opens the output screens, which no longer open by themselves: for the Sanctuary (and Live Stream), **Full screen** on a monitor (the second monitor unless you choose another), **Window** for an ordinary window, or **Close**. The button shows how many are open (e.g. *Outputs 1/2*) and is highlighted while none are. In an output, Esc leaves full screen; a double-click toggles it. |
-| ⚙ Service | Title, date, season, colour, rite (I or II), lectionary track, Bible version for reading texts, the announcements deck (Google Slides link and its number of slides) and the stream key colour. |
-| ▦ Layouts | Where text, titles and music go on each kind of slide, and their fonts. See [layouts.md](layouts.md). |
-| Save As… | Writes a copy of the service elsewhere. |
+| The service | Its title, date and time. |
+| Save state | **Saved ✓** or **Saving…**, since services save themselves. For the example (or a copy), **Not saved yet · Keep this service** adds it to your services. |
+| Screens closed · Open… | Shown while the output screens are closed; opens them. |
+| ⚙ Settings | Everything not needed every week, in one menu (below). |
 
-The right end shows the node's role and network status (and latency on a
-slave). A stage message, when one is active, is shown here on every node.
+**⚙ Settings**:
+
+| Group | Entry | Does |
+| --- | --- | --- |
+| This service | Service settings… | Title, date, season, colour, rite (I or II), lectionary track, Bible version for reading texts, the announcements deck (Google Slides link and its number of slides) and the stream key colour. |
+| | Save a copy… | Writes a copy of the service elsewhere. |
+| Screens | Output screens… | Opens the output screens, which do not open by themselves: for the Sanctuary (and Live Stream), **Full screen** on a monitor (the second monitor unless you choose another), **Window** for an ordinary window, or **Close**. It shows how many are open. In an output, Esc leaves full screen; a double-click toggles it. |
+| | Slide layouts… | Where text, titles and music go on each kind of slide, their fonts, and how much text a slide holds. See [layouts.md](layouts.md). |
+| | Connection to the other computer… | The sanctuary and live-stream computers (below). |
+| Parish | Parish library folder… | The shared parish library folder. Marked ⚠ (and the ⚙ button too) when it cannot be found. |
+| | Parish details… | (EpiscoPlanner) Name, clergy, service times and bulletin options. |
+| This computer | Day / Night colours | (EpiscoPlanner) Light or dark screens. |
+
+The right end shows the connection in plain words: **One computer**,
+**Live stream connected ✓** / **Waiting for the live-stream computer** (on
+the sanctuary computer), or **Following … ✓** / **Not connected to the
+sanctuary computer** (on the live-stream computer). Hover for the address
+and delay; click to set up the connection. A stage message, when one is
+active, is shown here on every computer.
 
 ## Service timeline (left)
 
-* The first row is **Pre-Service**: the announcements loop that runs until the
-  first cue is taken. It is marked LIVE while it runs.
-* Each cue shows its number, type icon, title and lower-third caption, plus:
-  * **LIVE 2/5**: on air, and which slide;
-  * the **slide count**, or **GS loop / GS 1×** for a Google Slides cue;
-  * **●**: unsaved changes;
-  * a **background thumbnail**: the sanctuary look, with the stream look
-    inset at the corner (hover for the names).
+* The first row is **Before the service**: the announcements loop that runs
+  until the first item is shown. It is marked **On screen** while it runs.
+* Each row shows the item's number, an icon for its kind and its name, with
+  **On screen 2/5** (which slide) while it is shown and **●** while it has
+  unsaved changes. Hover a row for the rest: its kind and number of slides,
+  its caption, and its backgrounds on both screens.
 * **Click** selects a cue (for the editor and slide grid), **double-click** puts
   it on air, **drag** a row up or down to reorder (a gold line shows where it will go). Hover a row for ↑ ↓ ✕.
 * **+ Add** inserts after the selected cue: an item from the **Library**,
@@ -45,8 +59,27 @@ a slide to put it on air. The live slide has a red frame.
 Edits the selected item. Changes reach every output about a third of a second
 after you stop typing.
 
-**Backgrounds & layout** (the top section) has a card for each output. Each card
-has a live preview and these settings:
+The item's **title** (and citation or hymn number) come first, then its
+words. **Name in the service list** is saved in the service plan instead of
+the item (e.g. "Processional Hymn" for *Lift Up Your Heads*). **More…** under
+them holds the item's type, season and colour, its live-stream caption, and
+**Edit the file (.ewm)…** (the Source view, for experienced users).
+
+**Appearance** (closed at first; the two coloured chips show the
+backgrounds) has a card for each screen, with a live preview and one
+**Look**:
+
+| Sanctuary | Live stream |
+| --- | --- |
+| As usual for the item's type | As usual for the item's type |
+| Stained glass, light / colour / charcoal | Text on the left, camera on the right |
+| Black, as hymn lyrics | Wide text on the left (hymns) |
+| Blank: a black screen | Bar across the bottom |
+| | Lower third over the camera |
+| | Full screen, as the sanctuary |
+| | Camera only: nothing shown |
+
+**More…** in each card has the details:
 
 * **Background**: opens a picker with the built-in designs (drawn in the
   liturgical colour), the key colour, black, and your library images. **Choose
@@ -57,14 +90,11 @@ has a live preview and these settings:
 * **Use for all … items**: makes this look the service default for every item
   of the same type (for example, every Collect), so you set each background
   once.
-* **Reset**: returns the item to its type's default. A **custom** badge marks
+* **Reset**: returns the item to its type's default. A **changed** badge marks
   an item with its own look.
 
 See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 
-* **Header fields** (title, type, season, colour, background, citation, hymn #)
-  are saved in the `.ewm` file. **Timeline label** is saved in the service plan
-  instead (e.g. "Processional Hymn" for *Lift Up Your Heads*).
 * **Rows** are blocks. The dropdown sets the speaker role, which sets the row's
   colour and the on-screen style (People is bold black; Rubric is red italic
   and never projected).
@@ -91,7 +121,7 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 
 ## Announcements (Google Slides)
 
-Paste the deck's link in **⚙ Service → Announcements deck**: the ordinary
+Paste the deck's link in **⚙ Settings → Service settings → Announcements deck**: the ordinary
 sharing link (Share → Copy link) works. Share the deck as **Anyone with the
 link can view**.
 
@@ -107,7 +137,7 @@ a PDF, from Google) and shows its slides as pictures:
   **Next** / **Prev** step through them, and you can click any slide, in any
   order, to show it. In **Loop** mode it plays like Pre-Service.
 * The number of slides is found automatically. After changing the deck in
-  Google Slides, click **↻ Refresh slides** (⚙ Service, or the Announcements
+  Google Slides, click **↻ Refresh slides** (Service settings, or the Announcements
   item's Editor) to download it again.
 * The slides are shown as still pictures (animations and embedded videos in
   the deck do not play). If the deck cannot be downloaded (for example a
@@ -142,9 +172,10 @@ backgrounds, or set as a psalm's music. **Add to service** (or double-click) put
 selected cue. In the Editor, **Save to Library** keeps the selected item for
 later services. See [library.md](library.md).
 
-## Source tab
+## The item's file (Source)
 
-The raw `.ewm` text of the selected item. **Apply** parses it and applies it
+Editor → **More…** → **Edit the file (.ewm)…** shows the raw `.ewm` text of
+the selected item; **← Editor** goes back. **Apply** parses it and applies it
 (problems are listed with line numbers). **Revert** reloads it.
 
 ## Right pane
@@ -178,14 +209,14 @@ live-stream overlay and follows it, so every slide changes on both at once.
 
 1. Put both computers on the same network (wired is best).
 2. On the **sanctuary computer**, click the connection status at the right of
-   the top bar ("Standalone · online"). In **Connection** choose
+   the top bar ("One computer"), or ⚙ Settings → Connection to the other computer. Choose
    **Sanctuary computer**, then **Save** (the app restarts). The window lists
    this computer's address, e.g. `Sanctuary-Mac-mini.local` or
    `192.168.1.20`.
 3. On the **live-stream computer**, open **Connection**, choose
    **Live-stream computer**, type that address and **Save**. The status then
-   reads "Slave · online · <the sanctuary computer's name>".
-4. On each, open the screen it drives with **▣ Outputs**: the sanctuary
+   reads "Following <the sanctuary computer's name> ✓".
+4. On each, open the screen it drives with **⚙ Settings → Output screens…**: the sanctuary
    screen on the sanctuary computer, the stream on the live-stream computer.
 
 The first time, macOS asks whether EpiscoPresenter may find devices on the
@@ -197,7 +228,7 @@ computer's firewall allows EpiscoPresenter.
 
 Pictures, PDFs and videos from the parish library are shown from each
 computer's own copy of the library folder, so set the parish library folder
-up on the live-stream computer as well (📁 Library); services marked ready
+up on the live-stream computer as well (⚙ Settings → Parish library folder); services marked ready
 are copied to it with their pictures. To go back to one computer, choose
 **One computer for both**.
 

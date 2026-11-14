@@ -29,7 +29,7 @@ Both cards have three choices, remembered for next time:
 | Readings | Track 1 (default), Track 2 | Which Old Testament reading and psalm to use in the Season after Pentecost. |
 | Bible | NRSVue (default), NRSV | The translation offered when you paste reading texts (see [library.md](library.md#reading-texts)). |
 
-The same three are in **⚙ Service** for the open service. Changing them
+The same three are in **⚙ Settings → Service settings** for the open service. Changing them
 there affects texts added from then on.
 
 ### Prayers of the People
@@ -65,12 +65,12 @@ Prayer Book's own order instead of a template:
   Celebrant's and Priest's parts are labelled *Bishop* (the texts are not
   changed), and the Bishop's Blessing (BCP 523) is added before the
   dismissal. Ordinations always have it. It can be turned on or off later
-  in **⚙ Service**.
+  in **⚙ Settings → Service settings**.
 * **A deacon is serving** (on unless you turn it off; the app remembers
   your choice for the next new service): with no deacon, a priest says the
   Deacon's parts ("the Deacon or a Priest"), so they are labelled *Priest*
   on the slides, bulletin and script. With a bishop presiding they stay
-  *Priest*, not *Bishop*. It can be changed later in **⚙ Service**.
+  *Priest*, not *Bishop*. It can be changed later in **⚙ Settings → Service settings**.
 * **Baptism → Holy Baptism**: the baptismal opening acclamation replaces
   the usual one, Collect for Purity and Salutation; the Presentation and
   Examination, the Baptismal Covenant, the Prayers for the Candidates, the
@@ -83,7 +83,7 @@ Prayer Book's own order instead of a template:
   the Confirmation rite (BCP 413) takes the place of the Creed, Confession
   and Peace.
 
-These texts print in full in the bulletin by default. In **⚙ Service**,
+These texts print in full in the bulletin by default. In **⚙ Settings → Service settings**,
 *Add to this service* adds Holy Baptism, the Renewal or Confirmation to an
 existing service.
 
@@ -119,7 +119,7 @@ A template is a named order of service, e.g. *Lent, Rite I* or *Easter*.
 Arrange a service the way you want it for a season (items, hymn slots,
 backgrounds, rite), then save it:
 
-* **Services → Save open service as template…** (or **⚙ Service → Save order
+* **Services → Save open service as template…** (or **⚙ Settings → Service settings → Save order
   as template…**). Name it and tick the seasons to **use it automatically
   for** (Advent, Christmas, Epiphany, Lent, Holy Week, Easter, After
   Pentecost), or none to choose it by name only. The template keeps the
@@ -141,12 +141,12 @@ status:
 
 | Status | Meaning |
 | --- | --- |
-| ✓ Saved | Everything is on disk. |
+| Saved ✓ | Everything is on disk. |
 | Saving… | A change will be saved in a moment. |
-| Not saved · Keep… | The service has no file (the example). Click to keep it with your services; from then on it saves itself. |
-| ⚠ Save failed | Click for the reason (for example, a full disk). |
+| Not saved yet · Keep this service | The service has no file (the example, or a copy). Click to keep it with your services; from then on it saves itself. |
+| ⚠ Could not save · Details | Click for the reason (for example, a full disk). |
 
-**Save As…** writes a copy of the service elsewhere, for example to share it.
+**⚙ Settings → Save a copy…** writes a copy of the service elsewhere, for example to share it.
 After that, the copy is the one that is open and being saved.
 
 ## Where services are kept

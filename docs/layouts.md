@@ -1,6 +1,6 @@
 # Slide layouts
 
-**▦ Layouts** in the top bar opens the Layout tool. It sets, for each kind of
+**⚙ Settings → Slide layouts…** opens the Layout tool. It sets, for each kind of
 slide, where every piece goes and how its text looks. Changes apply to every
 service, save straight away (`layouts.json` in the app data folder), and are
 sent to the live-stream computer with the service.

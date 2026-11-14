@@ -21,7 +21,8 @@ function render() {
   const shared = Boolean(info.folder) && !info.missing;
   if (info.presenter) {
     // The presentation app only takes Ready services from the library.
-    b.textContent = shared ? `📁 ${folderName(info.folder)}` : info.missing ? "📁 Library folder missing" : "📁 No parish library";
+    b.textContent = shared ? `Parish library folder: ${folderName(info.folder)}…` : info.missing ? "⚠ Parish library folder missing…" : "Parish library folder: not chosen…";
+    document.getElementById("btn-menu")?.classList.toggle("warn", Boolean(info.missing));
     b.classList.toggle("warn", Boolean(info.missing));
     b.title = info.missing
       ? `The parish library ${info.folder} cannot be found. Is Google Drive running? Services already copied to this computer still work.`
@@ -30,7 +31,9 @@ function render() {
         : "Choose the parish library folder to receive services marked Ready in EpiscoPlanner.";
     return;
   }
-  b.textContent = shared ? `📁 ${folderName(info.folder)}` : info.missing ? "📁 Library folder missing" : "📁 This computer only";
+  b.textContent = shared ? `Parish library folder: ${folderName(info.folder)}…` : info.missing ? "⚠ Parish library folder missing…" : "Parish library folder: this computer only…";
+  // A missing folder needs attention: mark the menu too.
+  document.getElementById("btn-menu")?.classList.toggle("warn", Boolean(info.missing));
   b.classList.toggle("warn", Boolean(info.missing) || !info.folder);
   b.title = info.missing
     ? `The library folder ${info.folder} cannot be found. Is Google Drive running? Working from this computer's folder until it is back.`

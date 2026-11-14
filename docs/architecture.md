@@ -62,7 +62,7 @@ written with defaults on first run.
 ```
 
 * The output windows do **not** open at start-up. The operator opens them
-  from the control window's top bar (**▣ Outputs**): **Full screen** on a
+  from the control window's **⚙ Settings → Output screens…**: **Full screen** on a
   monitor or as a **Window**, and **Close**. In an output window, Esc leaves
   full screen and a double-click toggles it.
 * `sanctuary_monitor` / `stream_monitor` (indexes into the OS monitor list)

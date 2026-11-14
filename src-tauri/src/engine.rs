@@ -34,7 +34,8 @@ pub struct LinkStatus {
     pub online: bool,
     /// Master: listen address. Slave: master URL.
     pub endpoint: String,
-    /// Slave: the master's name once connected.
+    /// Slave: the master's name once connected. Master: the live-stream
+    /// computer(s) following it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub peer: Option<String>,
     /// Slave: last heartbeat round trip in microseconds.
@@ -114,6 +115,7 @@ impl Engine {
         };
 
         crate::autosave::spawn(app.clone(), Arc::clone(&hub));
+        let peer_app = app.clone();
 
         let mut updates = hub.subscribe();
         tokio::spawn(async move {
@@ -136,7 +138,30 @@ impl Engine {
             }
         });
 
-        Engine::Host { hub, link: Arc::new(RwLock::new(link)), _server: server }
+        // Which live-stream computer (or other mirror) follows this one.
+        let link = Arc::new(RwLock::new(link));
+        if server.is_some() {
+            let (hub, link, app) = (Arc::clone(&hub), Arc::clone(&link), peer_app);
+            tokio::spawn(async move {
+                let mut tick = tokio::time::interval(std::time::Duration::from_secs(2));
+                loop {
+                    tick.tick().await;
+                    let names: Vec<String> = hub
+                        .clients()
+                        .into_iter()
+                        .filter(|(_, role)| *role == episco_sync::ClientRole::Mirror)
+                        .map(|(name, _)| name)
+                        .collect();
+                    let peer = (!names.is_empty()).then(|| names.join(", "));
+                    let mut l = link.write().unwrap_or_else(|e| e.into_inner());
+                    if l.peer != peer {
+                        l.peer = peer;
+                        let _ = app.emit(events::LINK, &*l);
+                    }
+                }
+            });
+        }
+        Engine::Host { hub, link, _server: server }
     }
 
     fn start_follower(app: AppHandle, config: &NodeConfig) -> Engine {

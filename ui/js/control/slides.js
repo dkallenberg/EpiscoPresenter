@@ -79,11 +79,11 @@ function preServiceSection(jobs) {
   const back = () => send({ type: "reset" });
   const cards = url
     ? deckCards(null, -1, pages, back, jobs, "Announcements loop")
-    : [el("p.muted.small", {}, "No announcements deck: set its Google Slides link in ⚙ Service.")];
+    : [el("p.muted.small", {}, "No announcements deck: set its Google Slides link in ⚙ Settings → Service settings.")];
   return el(
     "section.slide-group.pre-group",
     {},
-    el("h3.group-head", { onclick: back, title: "Go back to the pre-service loop" }, el("span.cue-num", {}, "–"), "Pre-Service", el("span.muted", {}, " · announcements loop, a slide every 9 s")),
+    el("h3.group-head", { onclick: back, title: "Go back to the pre-service loop" }, el("span.cue-num", {}, "–"), "Before the service", el("span.muted", {}, " · the announcements, repeating every 9 seconds")),
     el("div.slide-cards", {}, cards),
   );
 }

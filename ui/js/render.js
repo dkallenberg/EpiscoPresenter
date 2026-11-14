@@ -552,7 +552,7 @@ function paintDeck(stage, service, opts, { slide = null, of = null, loop = false
   const src = deckEmbedUrl(url, { slide, loop });
   if (!src) {
     const box = el("div", "box title-card");
-    box.append(el("div", "title-small", "Announcements"), el("div", "deck-missing", "No Google Slides deck is set (⚙ Service)."));
+    box.append(el("div", "title-small", "Announcements"), el("div", "deck-missing", "No Google Slides deck is set (⚙ Settings → Service settings)."));
     stage.append(box);
     return;
   }

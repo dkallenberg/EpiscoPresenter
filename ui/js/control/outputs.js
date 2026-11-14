@@ -3,7 +3,7 @@
 // monitor) or as an ordinary window, and close them again.
 
 import { listen } from "/js/bridge.js";
-import { call, el } from "/js/control/util.js";
+import { app, call, el } from "/js/control/util.js";
 
 let panel = null;
 let status = null;
@@ -18,9 +18,12 @@ async function refresh() {
   if (!status) return;
   const open = status.outputs.filter((o) => o.open).length;
   const b = button();
-  b.textContent = `▣ Outputs ${open}/${status.outputs.length}`;
+  b.textContent = `Output screens… (${open} of ${status.outputs.length} open)`;
   b.classList.toggle("outputs-off", open === 0);
   b.title = open ? status.outputs.map((o) => `${o.title}: ${describe(o)}`).join("\n") : "The output screens are closed. Click to open them.";
+  // With the screens closed, say so in the top bar (the button is in a menu).
+  const note = document.getElementById("screens-note");
+  if (note) note.hidden = open > 0 || app.mode === "planner";
   if (panel) draw();
 }
 
@@ -84,7 +87,8 @@ async function toggle() {
   if (panel) return close();
   panel = el("div.outputs-panel");
   document.body.append(panel);
-  const r = button().getBoundingClientRect();
+  // Opened from the ⚙ Settings menu: place it under the menu's button.
+  const r = (document.getElementById("btn-menu") ?? button()).getBoundingClientRect();
   panel.style.top = `${r.bottom + 6}px`;
   panel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 560))}px`;
   panel.append(el("p.muted", {}, "Looking for monitors…"));
@@ -94,12 +98,15 @@ async function toggle() {
 export function initOutputs() {
   const b = button();
   if (!b) return;
-  b.addEventListener("click", (e) => {
+  const openFromMenu = (e) => {
     e.stopPropagation();
+    document.getElementById("settings-menu")?.setAttribute("hidden", "");
     toggle();
-  });
+  };
+  b.addEventListener("click", openFromMenu);
+  document.getElementById("screens-note")?.addEventListener("click", openFromMenu);
   document.addEventListener("mousedown", (e) => {
-    if (panel && !panel.contains(e.target) && e.target !== b) close();
+    if (panel && !panel.contains(e.target) && e.target !== b && e.target.id !== "screens-note") close();
   });
   document.addEventListener("keydown", (e) => e.key === "Escape" && close());
   listen("episco://outputs", () => refresh());

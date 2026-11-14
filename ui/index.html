@@ -29,14 +29,35 @@
         <button id="btn-services" title="Upcoming services, scheduling, open, example">☰ Services</button>
       </div>
       <span id="service-title" class="service-title"></span>
+      <span id="service-when" class="service-when"></span>
       <button id="save-status" class="save-status" hidden></button>
-      <button id="btn-settings" class="small" title="Service title, date, season, colour, announcements deck, stream key colour">⚙ Service</button>
-      <button id="btn-library-folder" class="small" title="The shared parish library folder">📁 Library</button>
-      <button id="btn-theme" class="small planner-only" title="Day or night colours">☾</button>
       <button id="handoff-note" class="small warn-btn" hidden title="This service was changed in EpiscoPlanner after it was copied here. Click to refresh it.">⟳ Updated in the planner</button>
-      <button id="btn-outputs" class="small" title="Open the sanctuary and stream screens">▣ Outputs</button>
-      <button id="btn-layouts" class="small" title="Where text, titles and music go on each kind of slide, and their fonts">▦ Layouts</button>
-      <button id="btn-save" class="small" title="Save a copy of this service elsewhere (⇧⌥⌘S)">Save As…</button>
+      <button id="screens-note" class="small warn-btn" hidden title="The sanctuary and stream screens are closed. Click to open them.">Screens closed · Open…</button>
+      <div class="menu-wrap">
+        <button id="btn-menu" class="small" title="Service settings, screens, layouts, the parish library and this computer">⚙ Settings ▾</button>
+        <div id="settings-menu" class="settings-menu" hidden>
+          <div class="menu-group">
+            <div class="menu-head">This service</div>
+            <button id="btn-settings" title="Title, date, season and colour, rite, the announcements deck, the stream key colour">Service settings…</button>
+            <button id="btn-save" title="Save a copy of this service elsewhere (⇧⌥⌘S)">Save a copy…</button>
+          </div>
+          <div class="menu-group">
+            <div class="menu-head">Screens</div>
+            <button id="btn-outputs" title="Open the sanctuary and stream screens">Output screens…</button>
+            <button id="btn-layouts" title="Where text, titles and music go on each kind of slide, their fonts, and how much text a slide holds">Slide layouts…</button>
+            <button id="btn-connection" title="Connect the sanctuary and live-stream computers">Connection to the other computer…</button>
+          </div>
+          <div class="menu-group">
+            <div class="menu-head">Parish</div>
+            <button id="btn-library-folder" title="The shared parish library folder">Parish library folder…</button>
+            <button id="btn-parish" class="planner-only" title="Name, logo, clergy, service times and bulletin options">Parish details…</button>
+          </div>
+          <div class="menu-group planner-only">
+            <div class="menu-head">This computer</div>
+            <button id="btn-theme" title="Day or night colours">Day colours</button>
+          </div>
+        </div>
+      </div>
       <span class="spacer"></span>
       <span id="stage-banner" class="stage-banner" hidden></span>
       <span id="link" class="link">…</span>
@@ -69,7 +90,7 @@
           <button data-tab="script" class="planner-only">Script</button>
           <button data-tab="slides" class="active">Slides</button>
           <button data-tab="editor">Editor</button>
-          <button data-tab="source">Source</button>
+          <button data-tab="source" class="advanced-tab">Source</button>
           <button data-tab="library">Library</button>
           <div class="seg" id="thumb-toggle" title="Which output the slide thumbnails show">
             <button data-thumbs="sanctuary" class="active">Sanctuary</button>
@@ -89,6 +110,8 @@
         </div>
         <div id="tab-source" class="tab">
           <div class="editor-toolbar">
+            <button id="btn-source-back" title="Back to the Editor">← Editor</button>
+            <strong>Advanced: the item's file (.ewm)</strong>
             <button id="btn-source-apply" class="primary">Apply</button>
             <button id="btn-source-reload">Revert</button>
             <span id="source-status" class="muted"></span>

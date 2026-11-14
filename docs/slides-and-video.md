@@ -34,7 +34,7 @@ The information is **Text** (a blank line starts a new paragraph) or a
 | Full screen | filling the screen (the title is not shown) |
 
 **+ Add a slide** adds a card; ↑ ↓ move it, ⧉ copies it, ✕ deletes it. The
-background and text colour are set in **Slides** at the top of the Editor,
+background and text colour are set in **Appearance** in the Editor,
 as for any item (they start as the dark glass with light text, on both
 screens). Text shrinks to fit its box.
 

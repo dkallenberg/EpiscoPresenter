@@ -91,6 +91,7 @@ export function initEditor() {
   sourceStatus = document.getElementById("source-status");
 
   document.getElementById("btn-source-apply").addEventListener("click", applySource);
+  document.getElementById("btn-source-back")?.addEventListener("click", () => document.querySelector('.tabs button[data-tab="editor"]')?.click());
   document.getElementById("btn-source-reload").addEventListener("click", showSource);
   document.querySelector('.tabs button[data-tab="source"]').addEventListener("click", showSource);
 
@@ -249,7 +250,7 @@ function header(c) {
             "Hold on-air edits",
           ),
           c.content.kind === "liturgy" ? el("button", { onclick: () => save(false), title: "⌘S" }, "Save") : null,
-          c.content.kind === "liturgy" ? el("button", { onclick: () => save(true), title: "⇧⌘S" }, "Save As…") : null,
+          c.content.kind === "liturgy" ? el("button", { onclick: () => save(true), title: "⇧⌘S" }, "Save a copy…") : null,
           c.content.kind === "liturgy"
             ? el("button", {
                 title: "Keep a copy of this item in your library to reuse in other services",
@@ -309,12 +310,18 @@ function select(options, value, onchange) {
   );
 }
 
+/** The form's More… section stays as the operator left it. */
+let metaMoreOpen = false;
+
 function metaForm(c) {
   const m = ed.doc.meta;
   const v = app.vocab;
   const type = m.type ?? "prayer";
-  const fields = [
-    field("Title", textInput("title", "Title"), ".wide"),
+  const fields = [field("Title", textInput("title", "Title"), ".wide")];
+  if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
+  if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
+  // Less used: the kind of item, its season and colour, the file itself.
+  const more = [
     field(
       "Type",
       select(
@@ -343,8 +350,6 @@ function metaForm(c) {
       }),
     ),
   ];
-  if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
-  if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
 
   // Plan-level overrides live on the cue, not in the .ewm file.
   const o = c.overrides ?? {};
@@ -353,10 +358,10 @@ function metaForm(c) {
     "div.plan-row",
     {},
     field(
-      "Timeline label",
+      "Name in the service list",
       el("input", {
         value: o.title ?? "",
-        placeholder: "Same as title",
+        placeholder: "Same as the title",
         disabled: app.readonly,
         oninput: (e) => setOverride({ title: e.target.value.trim() || undefined }),
       }),
@@ -369,9 +374,24 @@ function metaForm(c) {
           el("button.link", { disabled: app.readonly, onclick: () => setOverride.flush({ category: undefined }) }, "use file’s type"),
         )
       : null,
-    el("span.note.muted", {}, `Lower third: “${c.caption}”`),
   );
-  return el("div.meta-form", {}, el("div.meta-grid", {}, fields), planRow);
+  const advanced = el(
+    "details.meta-more",
+    { open: metaMoreOpen, ontoggle: (e) => (metaMoreOpen = e.target.open) },
+    el("summary", {}, "More…", el("span.muted.small", {}, ` · type (${titleCase(type)}), season, colour, the file`)),
+    el("div.meta-grid", {}, more),
+    el(
+      "div.plan-row",
+      {},
+      el("span.note.muted", {}, `Live-stream caption: “${c.caption}”`),
+      el(
+        "button.small",
+        { title: "Edit the item's .ewm file directly (for experienced users)", onclick: () => document.querySelector('.tabs button[data-tab="source"]')?.click() },
+        "Edit the file (.ewm)…",
+      ),
+    ),
+  );
+  return el("div.meta-form", {}, el("div.meta-grid", {}, fields), planRow, advanced);
 }
 
 // ----- psalm layout -----
@@ -1089,7 +1109,7 @@ function announcementsPanel(c) {
       "p.muted",
       {},
       !deck
-        ? "No announcements deck is set for this service. Add its Google Slides link in ⚙ Service."
+        ? "No announcements deck is set for this service. Add its Google Slides link in ⚙ Settings → Service settings."
         : c.content.mode === "loop"
           ? "The deck loops on its own, a slide every 9 seconds, until you move on."
           : (c.content.slides ?? 1) > 1

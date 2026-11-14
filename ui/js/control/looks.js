@@ -37,6 +37,33 @@ const LAYOUT_BACKGROUND = {
   info_bar: "builtin:window",
 };
 const TONE_LABELS = { dark: "Dark text", light: "Light text" };
+
+/** The usual looks, by name: one choice instead of background, layout,
+ *  text colour and fit (those stay under More…). */
+const PRESETS = {
+  sanctuary: [
+    ["glass-light", "Stained glass, light (dark text)", { layout: "centered", background: "builtin:glass-light", tone: "dark" }],
+    ["glass-colour", "Stained glass, colour (light text)", { layout: "centered", background: "builtin:glass-dark", tone: "light" }],
+    ["glass-charcoal", "Stained glass, charcoal (light text)", { layout: "centered", background: "builtin:glass-charcoal", tone: "light" }],
+    ["lyrics", "Black, as hymn lyrics", { layout: "lyrics", background: "#000000", tone: "light" }],
+    ["blank", "Blank: a black screen", { blank: true }],
+  ],
+  stream: [
+    ["left", "Text on the left, camera on the right", { layout: "left_panel", background: "builtin:panel-dark", tone: "light" }],
+    ["left-wide", "Wide text on the left (hymns)", { layout: "left_panel_wide", background: "builtin:panel-light", tone: "dark" }],
+    ["bar", "Bar across the bottom", { layout: "bottom_bar", background: "builtin:bar-bottom", tone: "light" }],
+    ["lower-third", "Lower third over the camera", { layout: "lower_third", background: "key", tone: "light" }],
+    ["full", "Full screen, as the sanctuary", { layout: "centered", background: "builtin:glass-dark", tone: "light" }],
+    ["camera", "Camera only: nothing shown", { blank: true }],
+  ],
+};
+
+/** The preset an item's own look is, "" for none (the usual), or "custom". */
+function presetOf(output, own) {
+  if (!Object.keys(own).length) return "";
+  const same = (a, b) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
+  return PRESETS[output].find(([, , look]) => same(look, own))?.[0] ?? "custom";
+}
 const FIT_LABELS = { fill: "Fill (crop)", fit: "Fit (letterbox)", stretch: "Stretch" };
 
 // ---------- layering (mirrors Look::layered / ResolvedLook::complete) ----------
@@ -87,9 +114,9 @@ async function setCueLook(cue, output, look) {
 
 // ---------- the editor panel ----------
 
-/** Two cards (sanctuary, stream) for the selected cue. */
-/** Open or closed as last left; at first, closed in the planner, open in the presenter. */
-let panelOpen = null;
+/** Two cards (sanctuary, stream) for the selected cue, in a section that
+ *  starts closed (the words come first) and stays as the operator left it. */
+let panelOpen = false;
 
 /** The cards inside the Slides section (to refresh it in place). */
 export function lookCards(cue) {
@@ -98,7 +125,7 @@ export function lookCards(cue) {
 
 export function lookPanel(cue) {
   // Closed, the cards (and their slide previews) are only made when opened.
-  const open = panelOpen ?? app.mode !== "planner";
+  const open = panelOpen;
   const panel = el("div.look-panel", {}, open ? OUTPUTS.map(([output, label]) => lookCard(cue, output, label)) : []);
   return el(
     "details.section.slides-card",
@@ -112,9 +139,29 @@ export function lookPanel(cue) {
         if (panelOpen && !panel.children.length) panel.replaceChildren(...lookCards(now));
       },
     },
-    el("summary", {}, "Slides", el("span.muted.small", {}, ` · backgrounds and layout · ${titleCase(cue.category)}`)),
+    el(
+      "summary",
+      {},
+      "Appearance",
+      // A glance at both screens' backgrounds while closed.
+      OUTPUTS.map(([output, label]) =>
+        el("span.look-chip", { title: `${label}: ${lookName(cue, output)}`, style: { background: backgroundCss(app.service, cue, cue[output].background, "fill") } }),
+      ),
+      el("span.muted.small", {}, ` Sanctuary: ${lookName(cue, "sanctuary")} · Live stream: ${lookName(cue, "stream")}`),
+    ),
     panel,
   );
+}
+
+/** Each card's More… stays open once opened (the cards redraw on changes). */
+const moreOpen = { sanctuary: false, stream: false };
+
+/** The name of the look an item has on a screen. */
+function lookName(cue, output) {
+  const own = override(cue, output);
+  const p = presetOf(output, own);
+  if (p === "") return "as usual";
+  return PRESETS[output].find(([k]) => k === p)?.[1].replace(/ \(.*\)$/, "").replace(/:.*$/, "") ?? "custom";
 }
 
 function lookCard(cue, output, label) {
@@ -156,6 +203,22 @@ function lookCard(cue, output, label) {
 
   const anyOwn = Object.keys(own).length > 0;
   const typeName = titleCase(cue.category);
+  const current = presetOf(output, own);
+  const look = el(
+    "select.look-select",
+    {
+      disabled: ro,
+      onchange: (e) => {
+        const v = e.target.value;
+        if (v === "custom") return;
+        const preset = PRESETS[output].find(([k]) => k === v)?.[2] ?? {};
+        setCueLook(cue, output, { ...preset });
+      },
+    },
+    el("option", { value: "", selected: current === "" }, `As usual for ${typeName} items`),
+    PRESETS[output].map(([k, l]) => el("option", { value: k, selected: current === k }, l)),
+    current === "custom" ? el("option", { value: "custom", selected: true }, "Your own (see More…)") : null,
+  );
   return el(
     "div.look-card",
     {},
@@ -163,9 +226,14 @@ function lookCard(cue, output, label) {
       "div.look-head",
       {},
       el("strong", {}, label),
-      anyOwn ? el("span.badge.own", { title: "This item has its own look" }, "custom") : el("span.muted.small", {}, `${typeName} default`),
+      anyOwn ? el("span.badge.own", { title: "This item has its own look" }, "changed") : null,
     ),
     preview,
+    el("label.field", {}, el("span", {}, "Look"), look),
+    el(
+      "details.look-more",
+      { open: moreOpen[output] || current === "custom", ontoggle: (e) => (moreOpen[output] = e.target.open) },
+      el("summary", {}, "More…"),
     el("label.field", {}, el("span", {}, "Background"), bgButton),
     el("div.look-row", {},
       el("label.field", {}, el("span", {}, "Layout"), select("layout", LAYOUT_LABELS)),
@@ -199,6 +267,7 @@ function lookCard(cue, output, label) {
           ),
           el("button.small", { disabled: !anyOwn, onclick: () => setCueLook(cue, output, {}) }, "Reset"),
         ),
+    ),
   );
 }
 
