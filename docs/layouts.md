@@ -87,6 +87,13 @@ once (the bold text already marks the people's parts; the text keeps its
 place beside the other speakers'). Tick it again to bring it back. In the
 layout file this is `hidden = true` on each type's `people` element.
 
+## Hymn spacing
+
+On the live stream's **Hymn** slide, a hymn with fewer lines gets more space
+between them: the line spacing opens up (to at most double) until the verses
+fill the text box. A long hymn whose verses had to be made smaller to fit
+keeps the usual spacing.
+
 ## Hymn credits
 
 On the Hymn slide the Words / Music credits keep their size and grow
