@@ -7,7 +7,7 @@ bulletin; the script lists them by title.
 ## Events
 
 For a gathering that is not a service (a meeting, a concert, a parish
-dinner), choose **Service → Event (not a service)** under **New service**.
+dinner), choose **Schedule services… → One service**, then **Service → Event (not a service)**.
 It has no Prayer Book order, readings or options: it starts with one blank
 item of slides. Make the slides in the **Editor**, or add more items with
 **+ Add**.

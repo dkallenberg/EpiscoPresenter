@@ -7,7 +7,7 @@ The control window has three panes: the **service timeline** (left), the
 
 | Shows | Does |
 | --- | --- |
-| ☰ Services | The Services screen: upcoming services, New service, Schedule upcoming Sundays, Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
+| ☰ Services | The Services screen: upcoming services, **Schedule services…** (one service, or the coming Sundays), Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
 | The service | Its title, date and time. |
 | Save state | **Saved ✓** or **Saving…**, since services save themselves. For the example (or a copy), **Not saved yet · Keep this service** adds it to your services. |
 | Screens closed · Open… | Shown while the output screens are closed; opens them. |

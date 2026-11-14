@@ -124,8 +124,8 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   details (or someone else); the bulletin prints *The Sermon — The Very Rev.
   Jane Doe, Rector*, and the slide shows the same.
 * **Service times**: Parish details holds the Sunday service times (e.g.
-  8:00, 10:30). New Service offers them, Schedule upcoming Sundays makes a
-  service for each time that is ticked, and every service card shows its
+  8:00, 10:30). Schedule services offers them for one service, and makes a
+  service at each time that is ticked for the coming Sundays, and every service card shows its
   time.
 * **Day and night**: ☀ / ☾ in the top bar switches the planner's colours
   (at first it follows the computer's setting). EpiscoPresenter is always

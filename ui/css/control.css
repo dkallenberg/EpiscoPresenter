@@ -594,3 +594,10 @@ body.planner .settings-menu .menu-group.planner-only { display: flex; }
 /* Hints where something is empty */
 .cue-hint { padding: 10px 8px; font-size: 13px; list-style: none; }
 .empty-hint { margin: 0 0 8px; padding: 8px 10px; border-radius: 6px; background: rgba(217, 164, 58, 0.12); border-left: 3px solid var(--accent, #d9a43a); font-size: 13px; }
+
+/* Services screen: the Schedule services popup */
+.scheduler { display: flex; flex-direction: column; gap: 10px; }
+.scheduler .sched-tabs { align-self: flex-start; margin-left: 0; }
+.scheduler .sched-one, .scheduler .sched-sundays { display: flex; flex-direction: column; gap: 8px; }
+.scheduler [hidden] { display: none !important; }
+.home-head .schedule-btn { margin-right: 4px; }

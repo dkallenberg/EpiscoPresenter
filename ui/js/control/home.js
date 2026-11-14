@@ -150,13 +150,9 @@ function setupCard() {
           ],
           [
             "Plan the coming Sundays",
-            "“Schedule upcoming Sundays” below makes a service for each.",
+            "“Schedule services…” makes a service for each.",
             services.length > 0,
-            () => {
-              const card = [...document.querySelectorAll(".home-card")].find((c) => c.querySelector("h3")?.textContent.startsWith("Schedule"));
-              card?.scrollIntoView({ block: "center" });
-              card?.querySelector("button.primary")?.focus();
-            },
+            () => openScheduler("sundays"),
           ],
         ]),
   ];
@@ -460,6 +456,7 @@ function occasionOptions(onKind) {
       note,
     ),
     load,
+    deacon,
     kind: () => kind.value || "eucharist",
     value: () => ({
       occasion: kind.value || "eucharist",
@@ -476,83 +473,7 @@ function render() {
   const now = today();
   const upcoming = services.filter((s) => !s.date || s.date >= now);
   const past = services.filter((s) => s.date && s.date < now).reverse();
-  const dates = new Set(services.map((s) => s.date).filter(Boolean));
 
-  // ---- New service ----
-  const date = el("input", { type: "date", value: nextSundayWithout(dates) });
-  const title = el("input", { placeholder: "Title" });
-  const info = el("div.muted.small.day-info");
-  let autoTitle = "";
-  let dayName = "";
-  let kindTitle = null;
-  const setTitle = () => {
-    // Keep a title the operator typed; otherwise follow the date and kind.
-    const want = kindTitle ?? dayName;
-    if (!title.value || title.value === autoTitle) title.value = autoTitle = want;
-  };
-  const newTemplate = templateSelect();
-  const newOpts = serviceOptions();
-  const occasion = occasionOptions((k, label) => {
-    // Holy Week and ordinations use their own order, not a template.
-    const own = !["eucharist", "maundy_thursday"].includes(k);
-    newTemplate.disabled = own;
-    newTemplate.title = own ? "This service uses its own Prayer Book order" : "";
-    kindTitle = ["eucharist", "palm_sunday"].includes(k) ? null : k === "event" ? "Event" : label;
-    // An event has no rite, readings or prayers to choose.
-    newOpts.row.hidden = k === "event";
-    setTitle();
-  });
-  const updateDay = async () => {
-    const day = date.value ? await invoke("liturgical_info", { date: date.value }).catch(() => null) : null;
-    info.textContent = day ? `${day.season} · ${day.color} · Year ${day.year}${day.proper ? ` · Proper ${day.proper}` : ""}` : "";
-    dayName = day?.name ?? "";
-    await occasion.load(date.value);
-    setTitle();
-  };
-  date.addEventListener("change", updateDay);
-  updateDay();
-  // The time: one of the parish's service times, another, or none.
-  const time = el(
-    "select",
-    { onchange: () => (otherTime.hidden = time.value !== "other") },
-    el("option", { value: "" }, "No time"),
-    parishTimes.map((t, i) => el("option", { value: t, selected: i === 0 }, timeLabel(t))),
-    el("option", { value: "other" }, "Other…"),
-  );
-  const otherTime = el("input", { type: "time", hidden: true });
-  const create = async () => {
-    if (!date.value) return toast("Choose a date", "warn");
-    const plan = await call("service_create", {
-      date: date.value,
-      title: title.value || null,
-      time: (time.value === "other" ? otherTime.value : time.value) || null,
-      ...startFrom(newTemplate, { ...newOpts.value(), ...occasion.value() }),
-    });
-    if (plan) {
-      hideHome();
-      toast("Service created. It saves automatically as you work.");
-    }
-  };
-
-  // ---- Schedule ----
-  const weeks = el("select", {}, [2, 3, 4, 5, 6, 8].map((n) => el("option", { value: n, selected: n === 4 }, `${n} Sundays`)));
-  const schedTemplate = templateSelect();
-  const schedOpts = serviceOptions();
-  // One service for each parish time that is ticked.
-  const schedTimes = parishTimes.map((t) => ({ t, box: el("input", { type: "checkbox", checked: true }) }));
-  const schedule = async () => {
-    const made = await call("services_schedule", {
-      from: now,
-      weeks: Number(weeks.value),
-      times: schedTimes.filter((x) => x.box.checked).map((x) => x.t),
-      ...startFrom(schedTemplate, schedOpts.value()),
-    });
-    if (made === undefined) return;
-    toast(made.length ? `Scheduled ${made.length} service${made.length === 1 ? "" : "s"}` : "Those Sundays already have services");
-    showHome();
-  };
-
-  const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
   home.replaceChildren(
     el(
       "div.home-inner",
@@ -562,58 +483,197 @@ function render() {
         {},
         el("h1", {}, "Services"),
         el("span.spacer"),
+        app.readonly ? null : el("button.primary.schedule-btn", { onclick: () => openScheduler(), title: "One service, or the coming Sundays" }, "Schedule services…"),
         el("button", { onclick: openFile, title: "Open a service plan (.toml) from anywhere" }, "Open file…"),
         el("button", { onclick: openExample, title: "The built-in example service" }, "Example"),
         app.service ? el("button", { onclick: hideHome, title: "Back to the open service" }, "✕ Close") : null,
       ),
       setupCard(),
-      el(
-        "div.home-cards",
-        {},
-        el(
-          "div.home-card",
-          {},
-          el("h3", {}, "New service"),
-          el("div.home-row.date-time", {}, field("Date", date), field("Time", el("div.time-pick", {}, time, otherTime)), field("Title", title)),
-          info,
-          occasion.row,
-          field("Start from", newTemplate),
-          newOpts.row,
-          el("div.home-card-actions", {}, el("button.primary", { onclick: create }, "Create & open")),
-        ),
-        el(
-          "div.home-card",
-          {},
-          el("h3", {}, "Schedule upcoming Sundays"),
-          el(
-            "p.muted.small",
-            {},
-            "Creates a service for each coming Sunday that does not have one yet, named for the day in the church year, with its Collect, readings and psalm from the lectionary.",
-          ),
-          el("div.home-row", {}, field("How far ahead", weeks), field("Start from", schedTemplate)),
-          schedTimes.length
-            ? el(
-                "div.home-row.checks.sched-times",
-                {},
-                el("span.muted.small", {}, "A service at"),
-                schedTimes.map(({ t, box }) => el("label.field.inline.check", {}, box, el("span", {}, timeLabel(t)))),
-              )
-            : el("p.muted.small", {}, "Add the parish's service times in ⚙ Settings → Parish details to schedule a service for each."),
-          schedOpts.row,
-          el("div.home-card-actions", {}, el("button.primary", { onclick: schedule }, "Schedule")),
-        ),
-      ),
       templatesCard(),
       app.mode === "presenter" ? readyCard() : null,
       el("h2", {}, "Upcoming"),
       upcoming.length
         ? el("div.svc-list", {}, upcoming.map(row))
-        : el("p.muted", {}, "No upcoming services yet. Use “Schedule upcoming Sundays” to plan about a month ahead."),
+        : el("p.muted", {}, "No upcoming services yet. Use “Schedule services…” to plan the coming Sundays."),
       past.length
         ? el("details.past", {}, el("summary", {}, `Past services (${past.length})`), el("div.svc-list", {}, past.map(row)))
         : null,
     ),
   );
+}
+
+/** How the scheduler opened last: one service or the coming Sundays. */
+const lastMode = () => {
+  try {
+    return localStorage.getItem("schedule.mode") === "one" ? "one" : "sundays";
+  } catch {
+    return "sundays";
+  }
+};
+
+/**
+ * Schedule services: one service on a date (any kind: the Eucharist, Holy
+ * Week, an ordination, an event), or a service for each coming Sunday at
+ * the parish's service times. The settings they share appear once.
+ */
+export function openScheduler(mode = lastMode()) {
+  const now = today();
+  const dates = new Set(services.map((s) => s.date).filter(Boolean));
+  const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
+
+  // ---- one service ----
+  const date = el("input", { type: "date", value: nextSundayWithout(dates) });
+  const title = el("input", { placeholder: "Title" });
+  const info = el("div.muted.small.day-info");
+  let autoTitle = "";
+  let dayName = "";
+  let kindTitle = null;
+  let kind = "eucharist";
+  const setTitle = () => {
+    // Keep a title the operator typed; otherwise follow the date and kind.
+    const want = kindTitle ?? dayName;
+    if (!title.value || title.value === autoTitle) title.value = autoTitle = want;
+  };
+  const template = templateSelect();
+  const opts = serviceOptions();
+  const occasion = occasionOptions((k, label) => {
+    kind = k;
+    kindTitle = ["eucharist", "palm_sunday"].includes(k) ? null : k === "event" ? "Event" : label;
+    applyKind();
+    setTitle();
+  });
+  const time = el(
+    "select",
+    { onchange: () => (otherTime.hidden = time.value !== "other") },
+    el("option", { value: "" }, "No time"),
+    parishTimes.map((t, i) => el("option", { value: t, selected: i === 0 }, timeLabel(t))),
+    el("option", { value: "other" }, "Other…"),
+  );
+  const otherTime = el("input", { type: "time", hidden: true });
+  const updateDay = async () => {
+    const day = date.value ? await invoke("liturgical_info", { date: date.value }).catch(() => null) : null;
+    info.textContent = day ? `${day.season} · ${day.color} · Year ${day.year}${day.proper ? ` · Proper ${day.proper}` : ""}` : "";
+    dayName = day?.name ?? "";
+    await occasion.load(date.value);
+    setTitle();
+  };
+  date.addEventListener("change", updateDay);
+
+  // ---- the coming Sundays ----
+  const weeks = el("select", {}, [1, 2, 3, 4, 5, 6, 8].map((n) => el("option", { value: n, selected: n === 4 }, `${n} Sunday${n === 1 ? "" : "s"}`)));
+  // One service for each parish time that is ticked.
+  const schedTimes = parishTimes.map((t) => ({ t, box: el("input", { type: "checkbox", checked: true }) }));
+  // "A deacon is serving" applies to the Sundays too: the same setting.
+  const deacon = el("input", {
+    type: "checkbox",
+    checked: occasion.deacon.checked,
+    onchange: () => {
+      occasion.deacon.checked = deacon.checked;
+      occasion.deacon.dispatchEvent(new Event("change"));
+    },
+  });
+  occasion.deacon.addEventListener("change", () => (deacon.checked = occasion.deacon.checked));
+
+  const one = el(
+    "div.sched-one",
+    {},
+    el("div.home-row.date-time", {}, field("Date", date), field("Time", el("div.time-pick", {}, time, otherTime)), field("Title", title)),
+    info,
+    occasion.row,
+  );
+  const sundays = el(
+    "div.sched-sundays",
+    {},
+    el(
+      "p.muted.small",
+      {},
+      "A service for each coming Sunday that does not have one yet, named for the day in the church year, with its Collect, readings and psalm from the lectionary.",
+    ),
+    el("div.home-row", {}, field("How far ahead", weeks)),
+    schedTimes.length
+      ? el(
+          "div.home-row.checks.sched-times",
+          {},
+          el("span.muted.small", {}, "A service at"),
+          schedTimes.map(({ t, box }) => el("label.field.inline.check", {}, box, el("span", {}, timeLabel(t)))),
+        )
+      : el("p.muted.small", {}, "Add the parish's service times in ⚙ Settings → Parish details to schedule a service for each."),
+    el("div.home-row.checks.sched-deacon", {}, el("label.field.inline.check", { title: "With no deacon, the Deacon's parts are labelled Priest" }, deacon, el("span", {}, "A deacon is serving"))),
+  );
+  const go = el("button.primary", { onclick: () => (mode === "one" ? create() : schedule()) });
+  const tabs = el("div.seg.sched-tabs");
+
+  // Holy Week and ordinations use their own order, not a template; an
+  // event has no rite, readings or prayers to choose.
+  function applyKind() {
+    const own = mode === "one" && !["eucharist", "maundy_thursday"].includes(kind);
+    template.disabled = own;
+    template.title = own ? "This service uses its own Prayer Book order" : "";
+    opts.row.hidden = mode === "one" && kind === "event";
+  }
+  const show = (m) => {
+    mode = m;
+    try {
+      localStorage.setItem("schedule.mode", m);
+    } catch {}
+    one.hidden = m !== "one";
+    sundays.hidden = m === "one";
+    go.textContent = m === "one" ? "Create & open" : "Schedule";
+    tabs.replaceChildren(
+      ...[["one", "One service"], ["sundays", "The coming Sundays"]].map(([k, l]) =>
+        el(`button${k === m ? ".active" : ""}`, { onclick: () => show(k) }, l),
+      ),
+    );
+    applyKind();
+  };
+
+  const close = () => overlay.remove();
+  const create = async () => {
+    if (!date.value) return toast("Choose a date", "warn");
+    const plan = await call("service_create", {
+      date: date.value,
+      title: title.value || null,
+      time: (time.value === "other" ? otherTime.value : time.value) || null,
+      ...startFrom(template, { ...opts.value(), ...occasion.value() }),
+    });
+    if (plan) {
+      close();
+      hideHome();
+      toast("Service created. It saves automatically as you work.");
+    }
+  };
+  const schedule = async () => {
+    const made = await call("services_schedule", {
+      from: now,
+      weeks: Number(weeks.value),
+      times: schedTimes.filter((x) => x.box.checked).map((x) => x.t),
+      // The deacon setting applies to every Sunday too.
+      ...startFrom(template, { ...opts.value(), no_deacon: occasion.value().no_deacon }),
+    });
+    if (made === undefined) return;
+    toast(made.length ? `Scheduled ${made.length} service${made.length === 1 ? "" : "s"}` : "Those Sundays already have services");
+    close();
+    showHome();
+  };
+
+  const overlay = el(
+    "div.modal-overlay",
+    { onmousedown: (e) => e.target === overlay && close() },
+    el(
+      "div.modal.wide.scheduler",
+      {},
+      el("h3", {}, "Schedule services"),
+      tabs,
+      one,
+      sundays,
+      field("Start from", template),
+      opts.row,
+      el("div.modal-actions", {}, el("button", { onclick: close }, "Cancel"), go),
+    ),
+  );
+  document.body.append(overlay);
+  show(mode);
+  updateDay();
 }
 
 function row(s) {

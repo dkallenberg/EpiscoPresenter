@@ -11,17 +11,24 @@ When the app opens, it shows **Services**. Open it again any time with
   added yet. Click a row to open that service, or hover it and click ✕ to
   delete it.
 * **Past services** are folded away below.
-* **New service** creates one service for a date. The title fills in from the
-  church year (for example, *The Twenty-Fifth Sunday after Pentecost*). You can
-  change it.
-* **Schedule upcoming Sundays** creates a service for each of the next 2–8
-  Sundays (4 by default, about a month) that doesn't have one yet.
+* **Schedule services…** opens one window with two choices (it opens on the
+  one used last):
+  * **One service**: a service for a date and time, of any kind (the
+    Eucharist, Holy Week, an ordination, an event). The title fills in from
+    the church year (for example, *The Twenty-Fifth Sunday after Pentecost*);
+    you can change it. **Create & open**.
+  * **The coming Sundays**: a service for each of the next 1–8 Sundays (4 by
+    default, about a month) that doesn't have one yet, at each of the
+    parish's service times that is ticked. **Schedule**.
+
+  The settings both share (whether a deacon is serving, what to start from,
+  rite, readings, Bible and Prayers of the People) appear once.
 * **Open file…** opens a service plan from anywhere, and **Example** loads the
   built-in example.
 
 ### Rite, readings and Bible
 
-Both cards have three choices, remembered for next time:
+Schedule services has these choices, remembered for next time:
 
 | Choice | Options | What it does |
 | --- | --- | --- |
