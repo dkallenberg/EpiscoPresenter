@@ -46,6 +46,8 @@ closing hymn the next. To use one, select the hymn slot in the service
 (e.g. *Closing Hymn*), select the hymn in the Library and click **Use for
 Closing Hymn**.
 
+![The Library: a saved hymn selected while the Offertory Hymn slot is selected in the service, with Use for Offertory Hymn](images/library.png)
+
 Only use hymn words the parish is licensed to project.
 
 ## Pasting a text

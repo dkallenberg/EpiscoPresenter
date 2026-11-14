@@ -14,6 +14,8 @@ Both apps share one **parish library folder** (for example a shared Google
 Drive folder), so a service planned in EpiscoPlanner is ready on the
 presentation computer on Sunday morning.
 
+![EpiscoPresenter during a service: the service list, the slides, and what the sanctuary screen and the live stream are showing](images/presenter.png)
+
 ## Where to start
 
 | If you want to… | Read |

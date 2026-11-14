@@ -180,7 +180,8 @@ async function showPreview(rowId) {
         el(`button${slotFor(cue) ? "" : ".primary"}`, { disabled: app.readonly || !app.service, onclick: () => add([id]) }, "Add to service"),
       ),
     ),
-    baseName(entry ?? {}) ? versionBar(versions, entry) : null,
+    // (replaceChildren would print a null as "null".)
+    baseName(entry ?? {}) ? versionBar(versions, entry) : "",
     el("div.picker-sub", {}, "Sanctuary · Live Stream"),
     grid,
   );

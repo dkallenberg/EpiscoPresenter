@@ -68,6 +68,8 @@ A hymn item in the service is named for its **place**: *Entrance Hymn*,
 named in the Editor's **Hymn title** and **Hymn #**. Naming the hymn never
 renames its place.
 
+![The Editor on the Entrance Hymn: its stanzas, with the hymn's own title and number below](images/editor-hymn.png)
+
 **From the library** (the quickest way, once the parish's hymns are there):
 
 1. Select the hymn slot in the service list, e.g. *Entrance Hymn*.

@@ -7,6 +7,8 @@ EpiscoPresenter's window has three parts:
   **Editor** and the **Library**.
 * **Right:** what's on each screen now, and the controls.
 
+![EpiscoPresenter during the Entrance Hymn](images/presenter.png)
+
 ## Before you start
 
 1. Open the service from **☰ Services** (services sent from the planner are
@@ -56,6 +58,8 @@ Click **🔓** beside Blackout to lock it (**🔒**). While it's locked, the
 Blackout button is greyed out and **B** can't change
 it, on every computer. Use it, for example, to keep the sanctuary screen
 dark through the sermon and the Peace. Click **🔒** to unlock.
+
+![Blackout on and locked: the sanctuary preview is black while the live stream carries on](images/blackout-locked.png)
 
 ## Stage messages
 

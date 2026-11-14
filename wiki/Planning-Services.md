@@ -2,6 +2,8 @@
 
 ## The Services screen
 
+![The Services screen in EpiscoPlanner: the coming services, two of them marked Ready](images/services-screen.png)
+
 Both apps open on **Services**. Open it again any time with **☰ Services**
 in the top bar.
 

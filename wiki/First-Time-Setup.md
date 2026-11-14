@@ -49,6 +49,8 @@ Click the **monitor icon** at the right end of the top bar (beside the
 * **Window** for an ordinary window, or
 * **Close**.
 
+![The Output screens card, opened from the monitor icon](images/output-screens.png)
+
 The screens don't open by themselves. While they're closed the monitor
 icon is gold and the top bar also shows **Screens closed · Open…**; once one
 is open the icon fills in green. Hover the icon to see which screens are

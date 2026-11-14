@@ -4,6 +4,8 @@ EpiscoPlanner opens on the **Bulletin** tab: a live preview of the printed
 bulletin, updated as the service changes. The **Script** tab is the
 officiant's copy.
 
+![The Bulletin tab: the service on the left, the bulletin in the middle with the bar for choosing how an item prints, and the To do list on the right](images/bulletin.png)
+
 ## To do
 
 Beside the bulletin, **To do** lists what the service still needs: the
