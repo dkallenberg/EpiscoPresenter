@@ -562,7 +562,7 @@ function textOptions(type, T) {
     max: 30,
     step: 1,
     value: t.max_lines ?? "",
-    placeholder: stream ? `${holds} (fills the box)` : "As written",
+    placeholder: stream ? `${holds} (fills the box)` : "9 (the Confession's size)",
     disabled: app.readonly,
     onchange: (e) => setTypeOption("max_lines", Number(e.target.value) > 0 ? Math.round(Number(e.target.value)) : null),
   });
@@ -590,7 +590,7 @@ function textOptions(type, T) {
       {},
       stream
         ? "The live stream runs written slides together while they fit and splits longer ones, at the end of a line or the nearest punctuation, keeping a response with the words it answers."
-        : "Empty: the slides stay as written. A number splits longer slides the same way the live stream does.",
+        : "A slide that would need its text more than about 10% smaller than this many lines allows is split, at the end of a line or the nearest punctuation, keeping a response with the words it answers. Shorter slides keep their larger type.",
     ),
     el("label.field", {}, el("span", {}, "Line breaks"), breaks),
     check("hanging", o.hanging, "Hanging indent for long lines", "A line too long for the box carries on indented under itself, as in the Prayer Book (the Creed, the Lord's Prayer, psalm verses)"),

@@ -45,7 +45,7 @@ with a text box:
 
 | Setting | What it does |
 | --- | --- |
-| Lines per slide | How many lines of text a slide holds. Empty on the live stream: what the text box holds at its type size (Left side 14, Bottom Bar 6, Lower Third 2, Hymn 13); moving or resizing the text box, or changing its size, changes it. Empty on the sanctuary: the slides stay as written. |
+| Lines per slide | How many lines of text a slide holds. Empty on the live stream: what the text box holds at its type size (Left side 14, Bottom Bar 6, Lower Third 2, Hymn 13); moving or resizing the text box, or changing its size, changes it. Empty on the sanctuary: 9, the size of the Confession's slides. |
 | Line breaks | *Each line on its own line* (the Prayer Book's sense lines) or *Run a paragraph's lines together* (the default for the stream's hymn verses). |
 | Hanging indent for long lines | A line too long for the box carries on indented under itself, as the Prayer Book prints the Creed, the Lord's Prayer and the psalms. Text written as one long paragraph wraps as usual. |
 | Indent every other psalm verse | Even-numbered verses are indented a step (on for the stream, off for the sanctuary; always on in the bulletin and script). Both halves of a verse start at the same indent; a half that runs onto another line carries on a step in. |
@@ -53,7 +53,10 @@ with a text box:
 The slides of each item are made to fit:
 
 * **The sanctuary** keeps the slides as written (the `---` breaks in the
-  item). With **Lines per slide** set, a longer slide is split.
+  item) while they fit nine lines (or **Lines per slide**) at the type size
+  of the Confession's slides. Text shrinks a little to fit, but a slide that
+  would need it more than about 10% smaller is split; shorter slides keep
+  their larger type.
 * **The live stream** runs the written slides together while they fit, two
   verses of a hymn or more of a prayer to a slide, and splits a slide that is
   clearly too long (one only a little long shrinks to fit, as before). A new

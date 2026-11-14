@@ -89,6 +89,10 @@ pub fn slide_type(output: Output, layout: Layout, category: ElementCategory) -> 
     }
 }
 
+/// Lines of text a sanctuary slide holds: the Confession's slides, whose
+/// type size is about right.
+pub const SANCTUARY_LINES: f32 = 9.0;
+
 /// The slide types whose text can be fitted.
 pub fn fits(key: &str) -> bool {
     TEXT_BOXES.iter().any(|t| t.0 == key)
@@ -107,15 +111,26 @@ pub fn capacity(key: Option<&str>, templates: &Templates) -> Capacity {
     let size = text.and_then(|e| e.size).unwrap_or(size).max(8.0);
     let stream = key.starts_with("stream.");
     let set = custom.and_then(|t| t.max_lines);
-    // The sanctuary keeps its slides as written unless told how many lines
-    // they hold; the stream fills its boxes (line height 1.25).
-    let lines = match set {
-        Some(n) => n as f32,
-        None if stream => (h / (size * 1.25)).round(),
-        None => f32::INFINITY,
-    }
-    .max(1.0);
     let join = custom.and_then(|t| t.line_breaks.as_deref()).map(|b| b == "join").unwrap_or(join);
+    if !stream {
+        // The sanctuary: nine lines a slide, the size of the Confession's
+        // slides; a slide that would need text more than about 10% smaller
+        // is split. Shorter slides keep their larger type.
+        let lines = set.map(|n| n as f32).unwrap_or(SANCTUARY_LINES).max(1.0);
+        // The type size at which that many lines (and the room between
+        // paragraphs) fill the box (line height 1.25).
+        let fill = (h / (lines * 1.25 + 0.6)).min(size);
+        return Capacity {
+            lines,
+            chars: ((w / (fill * 0.5)) as usize).max(10),
+            join,
+            rubrics: false,
+            pack: false,
+            slack: 1.1,
+        };
+    }
+    // The stream fills its boxes.
+    let lines = set.map(|n| n as f32).unwrap_or_else(|| (h / (size * 1.25)).round()).max(1.0);
     Capacity {
         lines,
         chars: ((w / (size * 0.46)) as usize).max(10),
@@ -703,7 +718,8 @@ mod tests {
         let mut t = Templates::new();
         assert_eq!(capacity(Some("stream.lower_third"), &t).lines, 2.0);
         assert_eq!(capacity(Some("sanctuary.title"), &t), Capacity::AS_WRITTEN);
-        assert!(capacity(Some("sanctuary.prayer"), &t).lines.is_infinite(), "the sanctuary as written");
+        let sanctuary = capacity(Some("sanctuary.prayer"), &t);
+        assert_eq!((sanctuary.lines, sanctuary.slack), (9.0, 1.1), "nine lines, at most about 10% smaller");
         assert_eq!(capacity(Some("stream.left_panel"), &t).lines, 14.0);
         t.insert(
             "stream.lower_third".into(),
