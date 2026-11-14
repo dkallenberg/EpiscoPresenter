@@ -51,8 +51,13 @@ paths.
 | Gospel | Glass · colour, centered, light text | Stream bottom bar |
 | Reading, sermon, anthem, announcements | Glass · colour, centered, light text | Key colour, lower third |
 
-Before the first cue, the stream shows the **Welcome window** design with the
-service title and date in its info bar. Any cue can use it with the `info_bar`
+Before the first cue, the stream shows the **Welcome window** design. Its
+info bar has three lines: the service, date and time ("The Holy Eucharist
+on the Twenty-Fourth Sunday after Pentecost, November 8, 2026, 10:30
+a.m."; an event or a service with its own title goes by that title), the
+welcome with the parish's name from Parish details ("Welcome to the
+Cathedral of St. James"), and the prelude from Service settings
+("Prelude: *Adagio,* Johann Sebastian Bach, arr. by Homer Whitfield"). Any cue can use it with the `info_bar`
 layout, for example for the postlude.
 
 Every built-in design (sanctuary glass light / colour / charcoal, stream

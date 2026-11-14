@@ -256,6 +256,8 @@ pub fn copy(app: &AppHandle, folder: &str) -> CmdResult<PathBuf> {
     if layouts {
         crate::templates::init(app);
     }
+    // The parish details come too (the welcome slide names the parish).
+    crate::bulletin::init(app);
     Ok(plan)
 }
 

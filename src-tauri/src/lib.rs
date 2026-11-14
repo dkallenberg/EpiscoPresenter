@@ -70,6 +70,7 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
         .setup(|app| {
             storage::init(app.handle());
             templates::init(app.handle());
+            bulletin::init(app.handle());
             tracing::info!("starting EpiscoPlanner");
             // The window title comes from the config the app was built with,
             // which may be the presenter's (see `start`).
@@ -116,6 +117,7 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             storage::init(app.handle());
             app.manage(AppMode::Presenter);
             templates::init(app.handle());
+            bulletin::init(app.handle());
             tracing::info!("starting as {:?} node `{}`", config.role, config.node_name);
 
             let handle = app.handle().clone();
@@ -211,6 +213,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::library_add,
         library::library_save_cue,
         library::library_fill_cue,
+        library::anthem_add,
+        library::anthem_set,
         library::library_delete,
         library::library_copy,
         library::cue_make_version,

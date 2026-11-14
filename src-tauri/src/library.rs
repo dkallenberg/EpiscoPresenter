@@ -804,6 +804,47 @@ pub fn hymn_set_text(
     })
 }
 
+// ---- anthems -----------------------------------------------------------------
+
+/// Adds a choir anthem after cue index `after`: an item named for its place
+/// ("Offertory Anthem") with the piece's title and composer, shown as a
+/// lower third on the stream and listed in the bulletin.
+#[tauri::command]
+pub fn anthem_add(
+    engine: State<'_, Engine>,
+    after: Option<usize>,
+    name: String,
+    title: String,
+    composer: String,
+) -> CmdResult<String> {
+    let name = match name.trim() {
+        "" => "Anthem".to_string(),
+        n => n.to_string(),
+    };
+    let doc = episco_core::music::anthem_document(&title, &composer);
+    engine.edit_service(|s| {
+        let at = after.map(|a| a + 1).unwrap_or(s.cues.len());
+        let overrides = CueOverrides { title: Some(name.clone()), ..Default::default() };
+        let mut cue = Cue::liturgy(s.unique_id(&name), doc, None, overrides);
+        cue.modified = true;
+        Ok(s.insert_cue(at, cue))
+    })
+}
+
+/// Changes an anthem's title and composer; the item keeps its name.
+#[tauri::command]
+pub fn anthem_set(engine: State<'_, Engine>, id: String, title: String, composer: String) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let cue = s.cue(&id).ok_or("no such item")?;
+        let doc = cue.document().ok_or("not an anthem")?;
+        let new = episco_core::music::set_anthem(doc, &title, &composer);
+        let mut overrides = cue.overrides.clone();
+        overrides.title.get_or_insert_with(|| cue.title.clone());
+        s.set_document(&id, new).map_err(|e| e.to_string())?;
+        s.set_overrides(&id, overrides).map_err(|e| e.to_string())
+    })
+}
+
 #[derive(Serialize)]
 pub struct HymnImport {
     added: usize,

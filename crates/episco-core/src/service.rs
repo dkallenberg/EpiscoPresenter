@@ -90,6 +90,13 @@ pub struct Service {
     /// service is loaded, never written to the plan).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub templates: crate::template::Templates,
+    /// The prelude: on the stream's welcome slide and the bulletin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prelude: Option<crate::music::Music>,
+    /// The stream's welcome slide, from the service and the parish details
+    /// (runtime only, not saved in the plan).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub welcome: Option<crate::bulletin::Welcome>,
     /// The plan file this service was loaded from / last saved to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan_path: Option<PathBuf>,
@@ -654,6 +661,7 @@ impl Service {
             rite: plan.rite.as_deref().and_then(crate::bcp::Rite::parse),
             track: plan.track.filter(|t| matches!(t, 1 | 2)),
             bible: plan.bible.as_deref().and_then(crate::bible::BibleVersion::parse),
+            prelude: plan.prelude.filter(|m| !m.is_empty()),
             ..Default::default()
         };
 
@@ -814,6 +822,7 @@ impl Service {
             rite: self.rite.filter(|r| *r == crate::bcp::Rite::One).map(|_| "I".into()),
             track: self.track.filter(|t| *t == 2),
             bible: self.bible.map(|b| b.initials().into()),
+            prelude: self.prelude.clone().filter(|m| !m.is_empty()),
             looks: self.looks.clone(),
             cues,
         };
@@ -875,6 +884,8 @@ struct ServicePlan {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     bible: Option<String>,
     // Tables must follow plain values in TOML.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    prelude: Option<crate::music::Music>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     looks: BTreeMap<ElementCategory, CueLooks>,
     #[serde(default, rename = "cue")]
@@ -937,6 +948,22 @@ mod tests {
         changed.meta.title = "Collect (parish)".into();
         assert!(s.set_document(&id, changed).is_ok());
         assert_eq!(s.cues[0].document().unwrap().meta.title, "Collect (parish)");
+    }
+
+    #[test]
+    fn the_prelude_is_saved_with_the_service() {
+        let mut s = Service { title: "T".into(), ..Default::default() };
+        s.prelude = Some(crate::music::Music::new("Adagio", "Johann Sebastian Bach, arr. by Homer Whitfield"));
+        s.insert_cue(0, Cue::liturgy("c", "---\ntitle: C\n---\nWords\n".parse().unwrap(), None, CueOverrides::default()));
+        let dir = std::env::temp_dir().join(format!("episco-prelude-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let plan = dir.join("service.toml");
+        s.save_to(&plan).unwrap();
+        assert!(std::fs::read_to_string(&plan).unwrap().contains("[prelude]"));
+        let back = Service::load_plan(&plan).map(|l| l.service);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(back.unwrap().prelude, s.prelude);
     }
 
     #[test]

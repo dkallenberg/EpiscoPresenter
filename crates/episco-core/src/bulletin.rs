@@ -398,6 +398,73 @@ fn long_date(d: Date) -> String {
     format!("{} {}, {}", MONTHS[(d.month - 1) as usize], d.day, d.year)
 }
 
+/// A clock time as on a sign: "10:30 a.m.", "8:00 a.m.", "12:00 p.m.".
+pub fn clock_time(time: &str) -> Option<String> {
+    let (h, m) = time.trim().split_once(':')?;
+    let (h, m): (u32, u32) = (h.trim().parse().ok()?, m.trim().get(..2)?.parse().ok()?);
+    if h > 23 || m > 59 {
+        return None;
+    }
+    let h12 = match h % 12 {
+        0 => 12,
+        x => x,
+    };
+    Some(format!("{h12}:{m:02} {}", if h < 12 { "a.m." } else { "p.m." }))
+}
+
+/// The stream's welcome slide (before the service).
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub struct Welcome {
+    /// "The Holy Eucharist on the Twenty-Fourth Sunday after Pentecost,
+    /// November 8, 2026, 10:30 a.m."
+    pub line: String,
+    /// "Welcome to the Cathedral of St. James" (or just "Welcome").
+    pub greeting: String,
+}
+
+/// The welcome slide's words for a service and parish.
+pub fn welcome(service: &Service, parish: &ParishInfo) -> Welcome {
+    let c = cover(service, parish);
+    let date = service.date.as_deref().and_then(|d| d.parse::<Date>().ok()).map(long_date);
+    let time = service.time.as_deref().and_then(clock_time);
+    // A service named for its day reads like the bulletin's cover; an
+    // event (or a service given its own title) goes by that title.
+    let day_name = service.date.as_deref().and_then(|d| d.parse::<Date>().ok()).map(|d| liturgical_day(d).name);
+    let title = service.title.trim();
+    let own_title = service.liturgy.is_none() && !title.is_empty() && day_name.as_deref() != Some(title);
+    let head = match c.day {
+        _ if own_title => title.to_string(),
+        Some(day) => format!("{} {day}", c.title),
+        None => c.title,
+    };
+    let line = [Some(head), date, time].into_iter().flatten().collect::<Vec<_>>().join(", ");
+    let name = parish.name.trim();
+    let greeting = match name {
+        "" => "Welcome".to_string(),
+        // "The Cathedral of St. James" → "Welcome to the Cathedral of St. James".
+        n => match n.strip_prefix("The ") {
+            Some(rest) => format!("Welcome to the {rest}"),
+            None => format!("Welcome to {n}"),
+        },
+    };
+    Welcome { line, greeting }
+}
+
+/// The prelude's line at the head of the bulletin and script.
+fn prelude_entry(service: &Service) -> Option<Entry> {
+    let m = service.prelude.as_ref().filter(|m| !m.is_empty())?;
+    Some(Entry {
+        cue: None,
+        style: BulletinStyle::Reference,
+        pieces: vec![Piece::Line {
+            title: "Prelude".into(),
+            detail: None,
+            incipit: (!m.title.trim().is_empty()).then(|| m.title.trim().to_string()),
+            reference: (!m.composer.trim().is_empty()).then(|| m.composer.trim().to_string()),
+        }],
+    })
+}
+
 fn cover(service: &Service, parish: &ParishInfo) -> Cover {
     let date = service.date.as_deref().and_then(|d| d.parse::<Date>().ok());
     // A special service names itself ("Good Friday"); else the parish's
@@ -733,16 +800,20 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool, root: Option<&Path>) -> 
 
 /// The congregation's bulletin for a service.
 pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
-    let entries = service
-        .cues
-        .iter()
-        .map(|cue| {
-            let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
-            presider_labels(&mut e.pieces, service);
-            speaker_labels(&mut e.pieces, parish.speaker_labels);
-            e
-        })
-        .filter(|e| e.style != BulletinStyle::Hidden)
+    let entries = prelude_entry(service)
+        .into_iter()
+        .chain(
+            service
+                .cues
+                .iter()
+                .map(|cue| {
+                    let mut e = entry(cue, style_of(cue), false, service.library_root.as_deref());
+                    presider_labels(&mut e.pieces, service);
+                    speaker_labels(&mut e.pieces, parish.speaker_labels);
+                    e
+                })
+                .filter(|e| e.style != BulletinStyle::Hidden),
+        )
         .collect();
     Doc { kind: DocKind::Bulletin, cover: cover(service, parish), entries, back: Some(parish.clone()) }
 }
@@ -750,7 +821,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
 /// The officiant's script: every word of every item, rubrics included, the
 /// Great Thanksgiving starting a new page.
 pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
-    let mut entries = Vec::new();
+    let mut entries: Vec<Entry> = prelude_entry(service).into_iter().collect();
     for cue in &service.cues {
         let doc = cue.document();
         let media = doc.is_some_and(|d| d.meta.screen_only());
@@ -1427,5 +1498,41 @@ mod tests {
         assert!(html.contains("<span class=\"ref\">BCP 323</span>") || html.contains("Collect of the Day"));
         assert!(html.contains("data-cue=\"collect-of-the-day\""));
         assert!(html.contains("St. Example"));
+    }
+
+    #[test]
+    fn the_welcome_slide_names_the_service_parish_and_time() {
+        let mut s = Service { date: Some("2026-11-08".into()), time: Some("10:30".into()), ..Default::default() };
+        s.title = crate::calendar::liturgical_day("2026-11-08".parse().unwrap()).name;
+        let parish = ParishInfo { name: "The Cathedral of St. James".into(), ..Default::default() };
+        let w = welcome(&s, &parish);
+        assert_eq!(
+            w.line,
+            "The Holy Eucharist on the Twenty-Fourth Sunday after Pentecost, November 8, 2026, 10:30 a.m."
+        );
+        assert_eq!(w.greeting, "Welcome to the Cathedral of St. James");
+        assert_eq!(welcome(&s, &ParishInfo::default()).greeting, "Welcome");
+        s.title = "Parish Dinner".into();
+        s.time = Some("18:00".into());
+        assert_eq!(welcome(&s, &parish).line, "Parish Dinner, November 8, 2026, 6:00 p.m.");
+    }
+
+    #[test]
+    fn the_prelude_heads_the_bulletin() {
+        let s = Service {
+            prelude: Some(crate::music::Music::new("Adagio", "Johann Sebastian Bach, arr. by Homer Whitfield")),
+            ..Default::default()
+        };
+        let b = bulletin(&s, &ParishInfo::default());
+        assert_eq!(
+            b.entries[0].pieces[0],
+            Piece::Line {
+                title: "Prelude".into(),
+                detail: None,
+                incipit: Some("Adagio".into()),
+                reference: Some("Johann Sebastian Bach, arr. by Homer Whitfield".into()),
+            }
+        );
+        assert!(matches!(script(&s, &ParishInfo::default()).entries[0].pieces[0], Piece::Line { .. }));
     }
 }

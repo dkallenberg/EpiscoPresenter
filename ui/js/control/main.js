@@ -71,7 +71,7 @@ listen("episco://autosave", (s) => {
   saveError = s.ok ? null : s.error;
   renderTopbar();
 });
-$("btn-settings").addEventListener("click", openServiceSettings);
+$("btn-settings").addEventListener("click", () => openServiceSettings());
 $("btn-layouts").addEventListener("click", openLayouts);
 $("btn-connection").addEventListener("click", () => openConnection());
 $("btn-parish").addEventListener("click", () => openParish());

@@ -343,6 +343,21 @@ function select(options, value, onchange) {
   );
 }
 
+/** An anthem's own title and composer (its slide is made from them); the
+ *  item keeps its name in the service ("Offertory Anthem"). */
+function anthemFields(c) {
+  const composer = extraOf(ed.doc, "composer") ?? "";
+  const title = el("input", { value: ed.doc.meta.title ?? "", placeholder: "e.g. Ave verum corpus", disabled: app.readonly });
+  const by = el("input", { value: composer, placeholder: "e.g. W. A. Mozart, arr. by …", disabled: app.readonly });
+  const save = async () => {
+    await flush(true);
+    await call("anthem_set", { id: c.id, title: title.value, composer: by.value });
+  };
+  title.addEventListener("change", save);
+  by.addEventListener("change", save);
+  return [field(`Anthem title${c.title !== ed.doc.meta.title ? ` · ${c.title}` : ""}`, title, ".wide"), field("Composer (and arranger)", by, ".wide")];
+}
+
 /** The form's More… section stays as the operator left it. */
 let metaMoreOpen = false;
 
@@ -352,9 +367,12 @@ function metaForm(c) {
   const type = m.type ?? "prayer";
   // A hymn's title is the hymn's own ("Lift Up Your Heads"); the cue keeps
   // its place in the service ("Entrance Hymn").
-  const fields = type === "hymn"
-    ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, textInput("title", "e.g. Lift Up Your Heads"), ".wide")]
-    : [field("Title", textInput("title", "Title"), ".wide")];
+  const fields =
+    type === "hymn"
+      ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, textInput("title", "e.g. Lift Up Your Heads"), ".wide")]
+      : type === "anthem"
+        ? anthemFields(c)
+        : [field("Title", textInput("title", "Title"), ".wide")];
   if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
   if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
   // Less used: the kind of item, its season and colour, the file itself.

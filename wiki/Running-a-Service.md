@@ -19,7 +19,16 @@ EpiscoPresenter's window has three parts:
 
 Until the first item is shown, **Before the service** runs: the
 announcements slides loop on the sanctuary screen, and the live stream
-shows its welcome design with the service's title and date.
+shows its welcome: the service, date and time, "Welcome to" the parish (its
+name from **Parish details**), and the prelude (from **⚙ Settings →
+Service settings → Prelude**).
+
+## The choir anthem
+
+**+ Add → Choir anthem…** adds the anthem where the choir sings it (it is
+named *Offertory Anthem* to start with; change the name for another place).
+Give it its title and composer. When you reach it, the live stream shows a
+lower third: the name above, and the title and composer in the bar.
 
 ## Moving through the service
 

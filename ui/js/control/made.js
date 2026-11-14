@@ -266,6 +266,22 @@ export function webVideoPanel(link, onLink) {
 
 // ---------- + Add ----------
 
+/** + Add → Choir anthem: its place in the service, title and composer. */
+export async function addAnthem(after) {
+  const r = await ask(
+    "Choir anthem",
+    [
+      ["Name in the service", "e.g. Offertory Anthem", "Offertory Anthem"],
+      ["Title", "e.g. Ave verum corpus"],
+      ["Composer (and arranger)", "e.g. W. A. Mozart"],
+    ],
+    "Add",
+    "Shown as a lower third on the live stream while the choir sings, and listed in the bulletin.",
+  );
+  if (!r) return;
+  await added(await call("anthem_add", { after, name: r[0], title: r[1], composer: r[2] }));
+}
+
 /** A small dialog with text fields; resolves to their values, or null. */
 export function ask(title, fields, okLabel = "Add", note = null) {
   return new Promise((resolve) => {

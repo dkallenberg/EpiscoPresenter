@@ -129,6 +129,18 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
 * **Prayers split across slides** print as one paragraph: when the same
   speaker carries on after a slide break, the bulletin and script run the
   text on (the slides keep their own breaks).
+* **The prelude**: **⚙ Settings → Service settings → Prelude** takes its
+  title and composer (with any arranger: *Johann Sebastian Bach, arr. by
+  Homer Whitfield*). It heads the bulletin and script (*Prelude — Adagio —
+  Johann Sebastian Bach…*; click it there to change it) and shows on the
+  live stream's welcome before the service.
+* **Choir anthems**: **+ Add → Choir anthem…** asks for its name in the
+  service (*Offertory Anthem* to start with), its title and composer. The
+  bulletin lists it like a hymn (*Offertory Anthem — Ave verum corpus — W.
+  A. Mozart*), and on the live stream it is a lower third with the name
+  above and the title and composer in the bar. Change the title and
+  composer in the Editor (**Anthem title**, **Composer**); until it has
+  them, To do says *Name the anthem*.
 * **The sermon**: in the Editor, the sermon item has the preacher's title
   (*The Rev.*, *The Very Rev.*, *The Rt. Rev.* … or your own), name and
   position. **Preacher** offers the Rector, Assistant and Bishop from Parish

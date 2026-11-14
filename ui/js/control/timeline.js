@@ -2,7 +2,7 @@
 
 import { send } from "/js/bridge.js";
 import { openPropers } from "/js/control/library.js";
-import { addGoogleSlides, addPdfSlides, addSlides, addWebVideo } from "/js/control/made.js";
+import { addAnthem, addGoogleSlides, addPdfSlides, addSlides, addWebVideo } from "/js/control/made.js";
 import { backgroundName } from "/js/control/looks.js";
 import { onDeckChange, pageCount } from "/js/deckpdf.js";
 import { app, call, el, reportWarnings, slideCount, titleCase } from "/js/control/util.js";
@@ -42,6 +42,7 @@ export function initTimeline() {
     el("button", { onclick: () => openPropers() }, "Propers (Collect, readings, psalm)…"),
     el("button", { onclick: () => addFiles() }, "Add .ewm files…"),
     el("button", { onclick: () => addBlank(), title: "The sanctuary screen goes black; the stream shows the camera" }, "Blank (sanctuary only)"),
+    el("button", { onclick: () => addAnthem(insertionPoint()), title: "The choir's anthem: a lower third on the stream with its title and composer" }, "Choir anthem…"),
     el("hr"),
     el("button", { onclick: () => addSlides(insertionPoint()), title: "Title and information slides, with text or pictures" }, "New slides (slide maker)"),
     el("button", { onclick: () => addPdfSlides(insertionPoint()), title: "A PowerPoint, Keynote or Google Slides presentation saved as PDF" }, "Slides from a PDF (PowerPoint, Keynote)…"),

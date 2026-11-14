@@ -24,6 +24,7 @@ pub mod fit;
 pub mod hymn;
 pub mod lectionary;
 pub mod look;
+pub mod music;
 pub mod paste;
 pub mod portable;
 pub mod propers;

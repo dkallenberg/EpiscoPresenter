@@ -170,6 +170,7 @@ pub fn storage_set(
     if old.folder != new.folder && !is_presenter() {
         // Slide layouts come from the new folder too.
         crate::templates::init(&app);
+        crate::bulletin::init(&app);
         let _ = engine.load_service(None);
     }
     let _ = app.emit(EVENT, ());

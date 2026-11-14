@@ -29,6 +29,21 @@ fn load_parish(app: &AppHandle) -> ParishInfo {
         .unwrap_or_default()
 }
 
+/// The parish details as last read, for the stream's welcome slide.
+static PARISH: std::sync::RwLock<Option<ParishInfo>> = std::sync::RwLock::new(None);
+
+/// Reads the parish details (at start-up, and when they or the library
+/// folder change).
+pub fn init(app: &AppHandle) {
+    *PARISH.write().unwrap_or_else(|e| e.into_inner()) = Some(load_parish(app));
+}
+
+/// The welcome slide for a service, with this parish's name.
+pub fn welcome_for(service: &episco_core::Service) -> episco_core::bulletin::Welcome {
+    let parish = PARISH.read().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_default();
+    episco_core::bulletin::welcome(service, &parish)
+}
+
 /// The parish details with the logo as a full path (if the file is there).
 fn parish_resolved(app: &AppHandle) -> ParishInfo {
     let mut p = load_parish(app);
@@ -48,7 +63,7 @@ pub fn parish_get(app: AppHandle) -> ParishInfo {
 /// Saves the parish details. A logo outside the library folder is copied in
 /// (as `parish-logo.png` or `.jpg`) so every computer can find it.
 #[tauri::command]
-pub fn parish_set(app: AppHandle, mut info: ParishInfo) -> CmdResult<ParishInfo> {
+pub fn parish_set(app: AppHandle, engine: State<'_, Engine>, mut info: ParishInfo) -> CmdResult<ParishInfo> {
     let root = crate::storage::data_root(&app)?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     if let Some(logo) = info.logo.take() {
@@ -68,6 +83,11 @@ pub fn parish_set(app: AppHandle, mut info: ParishInfo) -> CmdResult<ParishInfo>
     std::fs::write(&path, serde_json::to_string_pretty(&info).map_err(|e| e.to_string())?)
         .map_err(|e| format!("could not save {}: {e}", path.display()))?;
     let _ = app.emit(EVENT, ());
+    init(&app);
+    // The open service's welcome slide names the parish.
+    if engine.service().is_some() {
+        let _ = engine.edit_service(|_| Ok(()));
+    }
     Ok(parish_resolved(&app))
 }
 
@@ -214,6 +234,10 @@ pub fn todo(c: &episco_core::Cue) -> Option<String> {
         }
         ElementCategory::Homily => {
             doc.meta.extra("preacher").is_none_or(|p| p.trim().is_empty()).then(|| "Name the preacher".into())
+        }
+        // An anthem added with no title yet (its title is the piece's own).
+        ElementCategory::Anthem => {
+            (doc.meta.title.trim().is_empty() && doc.meta.extra("composer").is_none()).then(|| "Name the anthem".into())
         }
         _ => None,
     }

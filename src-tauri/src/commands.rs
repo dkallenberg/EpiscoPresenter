@@ -465,6 +465,9 @@ pub struct ServiceDetails {
     track: Option<u8>,
     #[serde(default)]
     bible: Option<episco_core::bible::BibleVersion>,
+    /// The prelude (title and composer); none clears it.
+    #[serde(default)]
+    prelude: Option<episco_core::music::Music>,
 }
 
 /// Edits the service's own settings.
@@ -482,6 +485,8 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
         s.rite = details.rite;
         s.track = details.track.filter(|t| matches!(t, 1 | 2));
         s.bible = details.bible;
+        s.prelude =
+            details.prelude.map(|m| episco_core::music::Music::new(&m.title, &m.composer)).filter(|m| !m.is_empty());
         s.modified = true;
         s.rebuild_all();
         Ok(())

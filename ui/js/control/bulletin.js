@@ -9,6 +9,7 @@
 
 import { assetUrl, listen } from "/js/bridge.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
+import { openServiceSettings } from "/js/control/looks.js";
 
 const STYLES = [
   ["reference", "Reference line", "Title, opening words and page or hymn number"],
@@ -66,6 +67,9 @@ function makeView(kind) {
     el("button.primary", { onclick: () => exportDoc(kind) }, `⤓ ${exportLabel}`),
   );
   page.addEventListener("click", (e) => {
+    // The Prelude's line: its title and composer are in Service settings.
+    const lone = e.target.closest(".entry:not([data-cue])");
+    if (lone && /^\s*Prelude\b/.test(lone.textContent)) return openServiceSettings("prelude");
     const missing = e.target.closest(".missing");
     const entry = e.target.closest("[data-cue]");
     if (entry) app.select(entry.dataset.cue);
@@ -116,6 +120,8 @@ async function refresh(v) {
   for (const img of v.page.querySelectorAll("img[data-path]")) img.src = assetUrl(null, img.dataset.path);
   if (!app.readonly) {
     for (const n of v.page.querySelectorAll(".ed, .entry[data-cue] .ed-title")) {
+      // The Prelude (no item of its own) is set in Service settings.
+      if (!n.closest("[data-cue]")) continue;
       // The Prayer Book's own text is not edited here (make a parish version).
       if (styles.get(n.closest("[data-cue]")?.dataset.cue)?.protected) {
         n.title = "The Prayer Book's text: to change it, make a parish version in the Editor.";

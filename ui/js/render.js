@@ -450,6 +450,12 @@ function pieces(key, cue, slide) {
       if (who.name) p.big = who.name;
       return p;
     }
+    if (cue.category === "anthem" && slide) {
+      // "Offertory Anthem" above; the piece and its composer in the bar.
+      p.title = heading ?? cue.title;
+      p.text = slide.blocks.filter((b) => b.kind !== "image");
+      return p;
+    }
     if (titleSlide) {
       if (cue.content.kind === "announcements" || !slide) p.big = cue.title;
       else {
@@ -890,9 +896,19 @@ function renderPreService(stage, service, output, opts = {}, st = {}) {
     const layer = el("div", "bg");
     layer.style.background = backgroundCss(service, null, "builtin:window");
     stage.append(layer);
+    // "The Holy Eucharist on …, November 8, 2026, 10:30 a.m." / "Welcome to
+    // the Cathedral of St. James" / "Prelude: Adagio, Johann Sebastian Bach".
     const box = el("div", "box ib");
-    const line = [service.title, formatDate(service.date)].filter(Boolean).join(", ");
-    box.append(el("div", "ib-small", line), el("div", "ib-big", "Welcome"));
+    const w = service.welcome;
+    const line = w?.line ?? [service.title, formatDate(service.date)].filter(Boolean).join(", ");
+    box.append(el("div", "ib-small", line), el("div", "ib-big", w?.greeting ?? "Welcome"));
+    const prelude = service.prelude;
+    if (prelude && (prelude.title || prelude.composer)) {
+      const p = el("div", "ib-small ib-prelude", "Prelude: ");
+      if (prelude.title) p.append(el("i", null, prelude.composer ? `${prelude.title},` : prelude.title));
+      if (prelude.composer) p.append(`${prelude.title ? " " : ""}${prelude.composer}`);
+      box.append(p);
+    }
     stage.append(box);
     autoFit(box, 0.6);
     return;

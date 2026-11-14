@@ -14,6 +14,17 @@ a reading's text, a hymn not yet chosen, the preacher's name. Click a line
 to go to the place to fix it. It reads **Nothing left to do ✓** when the
 service is ready.
 
+## The prelude and anthems
+
+* **The prelude** heads the bulletin: *Prelude — Adagio — Johann Sebastian
+  Bach, arr. by Homer Whitfield*. Set it in **⚙ Settings → Service
+  settings → Prelude** (or click the Prelude line in the bulletin). It's
+  also on the live stream's welcome before the service.
+* **A choir anthem** is an item of its own: **+ Add → Choir anthem…**, with
+  its name in the service (e.g. *Offertory Anthem*), title and composer. It
+  prints like a hymn: *Offertory Anthem — Ave verum corpus — W. A.
+  Mozart*.
+
 ## How each item is printed
 
 Click an item in the preview (or in the service list) and choose how it

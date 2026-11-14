@@ -350,7 +350,8 @@ const KEYS = [
   ["transparent", "Transparent (alpha)"],
 ];
 
-export function openServiceSettings() {
+/** Service settings; `focus` "prelude" starts at the Prelude. */
+export function openServiceSettings(focus) {
   const s = app.service;
   if (!s) return;
   const v = app.vocab;
@@ -358,6 +359,8 @@ export function openServiceSettings() {
   const known = KEYS.some(([k]) => k === key);
   const f = {
     title: el("input", { value: s.title ?? "" }),
+    preludeTitle: el("input", { value: s.prelude?.title ?? "", placeholder: "e.g. Adagio" }),
+    preludeComposer: el("input", { value: s.prelude?.composer ?? "", placeholder: "e.g. Johann Sebastian Bach, arr. by Homer Whitfield" }),
     date: el("input", { type: "date", value: s.date ?? "" }),
     season: el("select", {}, el("option", { value: "" }, "—"), v.seasons.map((x) => el("option", { value: x.key, selected: s.season === x.key }, x.label))),
     color: el("select", {}, el("option", { value: "" }, "Auto (from season)"), v.colors.map((x) => el("option", { value: x.key, selected: s.color === x.key && s.color !== seasonColor(s.season) }, x.key))),
@@ -425,6 +428,7 @@ export function openServiceSettings() {
         rite: f.rite.value,
         track: Number(f.track.value),
         bible: f.bible.value,
+        prelude: { title: f.preludeTitle.value, composer: f.preludeComposer.value },
       },
     });
     if (ok === undefined) return;
@@ -447,6 +451,8 @@ export function openServiceSettings() {
       el("div.look-row", {}, row("Date", f.date), row("Season", f.season), row("Colour", f.color)),
       el("div.look-row", {}, row("Rite", f.rite), row("Readings (after Pentecost)", f.track), row("Bible for reading texts", f.bible)),
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
+      el("div.look-row", {}, row("Prelude", f.preludeTitle), row("Composer (and arranger)", f.preludeComposer)),
+      el("p.muted.small", {}, "Shown on the live stream's welcome before the service, and at the top of the bulletin."),
       el(
         "label.field.check",
         { title: "The Celebrant's and Priest's parts are labelled Bishop on the slides, bulletin and script" },
@@ -486,7 +492,7 @@ export function openServiceSettings() {
     ),
   );
   document.body.append(overlay);
-  f.title.focus();
+  (focus === "prelude" ? f.preludeTitle : f.title).focus();
 }
 
 function seasonColor(season) {

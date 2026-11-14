@@ -252,6 +252,7 @@ impl Engine {
                     s.templates = crate::templates::current();
                     s.library_root = crate::storage::root();
                     s.rebuild_all();
+                    s.welcome = Some(crate::bulletin::welcome_for(&s));
                     s
                 });
                 hub.load_service(service);
@@ -264,7 +265,12 @@ impl Engine {
     /// Edits the live service (master / standalone only).
     pub fn edit_service<T>(&self, edit: impl FnOnce(&mut Service) -> Result<T, String>) -> Result<T, String> {
         match self {
-            Engine::Host { hub, .. } => hub.edit_service(edit),
+            // The welcome slide follows the service's title, date and time.
+            Engine::Host { hub, .. } => hub.edit_service(|s| {
+                let out = edit(s)?;
+                s.welcome = Some(crate::bulletin::welcome_for(s));
+                Ok(out)
+            }),
             Engine::Follower { .. } => Err(FOLLOWER_EDIT.into()),
         }
     }
