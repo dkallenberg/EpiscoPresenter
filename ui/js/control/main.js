@@ -5,6 +5,7 @@ import { initBulletin, openParish } from "/js/control/bulletin.js";
 import { initStorage } from "/js/control/storage.js";
 import { initEditor } from "/js/control/editor.js";
 import { initHandoff, initHome, showHome } from "/js/control/home.js";
+import { initInUse, viewOnly } from "/js/control/inuse.js";
 import { openLayouts } from "/js/control/layouts.js";
 import { initOutputs } from "/js/control/outputs.js";
 import { load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
@@ -166,7 +167,8 @@ function renderTopbar() {
     status.className = `save-status ${cls}`;
     status.title = title;
   }
-  $("btn-services").disabled = app.readonly;
+  // View only because it is open elsewhere still leaves the other services.
+  $("btn-services").disabled = app.snap.link?.role === "slave";
   $("btn-settings").disabled = app.readonly || !s;
   $("btn-save").disabled = app.readonly || !s;
 
@@ -242,11 +244,12 @@ if (!inTauri) {
   }
   initStorage();
   initHandoff();
+  initInUse();
   app.vocab = await invoke("vocabulary");
   let last = { service: undefined, state: undefined, link: undefined };
   connectStore((snap) => {
     app.snap = snap;
-    app.readonly = snap.link?.role === "slave";
+    app.readonly = snap.link?.role === "slave" || viewOnly();
     document.body.classList.toggle("readonly", app.readonly);
     // Keep a valid selection: default to the on-air cue, else the first.
     const cues = snap.service?.cues ?? [];

@@ -50,6 +50,8 @@ pub fn spawn(app: AppHandle, hub: Arc<SyncHub>) {
                 }
             }
             let result = hub.edit_service(|s| match s.plan_path.clone() {
+                // Open on another computer (inuse.rs): theirs to save.
+                Some(_) if crate::inuse::is_view_only() => Err(None),
                 Some(path) if s.has_unsaved_changes() => s.save_to(&path).map_err(|e| Some(e.to_string())),
                 // Nothing to do: return an error so no update is broadcast.
                 _ => Err(None),

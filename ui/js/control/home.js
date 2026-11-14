@@ -715,6 +715,13 @@ function row(s) {
       "div.svc-badges",
       {},
       current ? el("span.badge.live-open", {}, "Open") : null,
+      s.in_use && !current
+        ? el(
+            "span.badge.in-use",
+            { title: `${s.in_use.name || "Someone"} has had it open since ${new Date(s.in_use.since * 1000).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}. Opening it here gives view only until you take it over.` },
+            `Open on ${s.in_use.name ? `${s.in_use.name}'s computer` : "another computer"}`,
+          )
+        : null,
       app.mode === "planner" ? readyToggle(s) : null,
       s.needs_propers ? el("span.badge.needs", { title: "No readings yet: open it and use Library → Propers…" }, "Readings needed") : null,
     ),

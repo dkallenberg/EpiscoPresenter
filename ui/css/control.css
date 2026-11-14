@@ -631,3 +631,6 @@ body.planner .settings-menu .menu-group.planner-only { display: flex; }
 .bcp-notice span { flex: 1; }
 .ed-locked #blocks .divider, .ed-locked #blocks .brow-tools { display: none; }
 .ed-locked #blocks { opacity: 0.92; }
+
+/* Open on another computer (EpiscoPlanner). */
+.badge.in-use { background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent); border: 1px solid var(--accent); }

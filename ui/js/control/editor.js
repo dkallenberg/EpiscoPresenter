@@ -265,7 +265,7 @@ function header(c) {
     el("div.ed-title", {}, el("strong#ed-title", {}, c.title), el("div#ed-file.muted.small")),
     el("span.spacer"),
     app.readonly
-      ? el("span.muted", {}, "Read-only: this computer follows the sanctuary computer")
+      ? el("span.muted", {}, readonlyReason())
       : el(
           "div.ed-actions",
           {},
@@ -356,6 +356,13 @@ function anthemFields(c) {
   title.addEventListener("change", save);
   by.addEventListener("change", save);
   return [field(`Anthem title${c.title !== ed.doc.meta.title ? ` · ${c.title}` : ""}`, title, ".wide"), field("Composer (and arranger)", by, ".wide")];
+}
+
+/** Why the Editor is read-only: the live-stream computer follows the
+ *  sanctuary computer; in the planner, the service is open elsewhere. */
+function readonlyReason() {
+  if (app.snap?.link?.role === "slave") return "Read-only: this computer follows the sanctuary computer";
+  return "View only: this service is open on another computer (Take over, at the top, to change it)";
 }
 
 /** The form's More… section stays as the operator left it. */
@@ -945,7 +952,8 @@ function divider(index) {
 }
 
 function rowTools(i) {
-  if (app.readonly) return null;
+  // (Appended directly: an empty string, not null, which would print "null".)
+  if (app.readonly) return "";
   const n = ed.doc.blocks.length;
   const move = (to) => {
     const [b] = ed.doc.blocks.splice(i, 1);

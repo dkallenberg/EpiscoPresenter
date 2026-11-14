@@ -15,6 +15,7 @@ mod commands;
 mod deck;
 mod engine;
 mod handoff;
+mod inuse;
 mod library;
 mod made;
 mod media;
@@ -84,10 +85,17 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
             // Commands that read the node config get a plain one (no outputs are opened).
             app.manage(NodeConfig::default());
             sync::spawn(app.handle().clone());
+            inuse::spawn(app.handle().clone());
             Ok(())
         })
-        .run(context)
-        .expect("error while running EpiscoPlanner");
+        .build(context)
+        .expect("error while building EpiscoPlanner")
+        .run(|_, event| {
+            // The open service is no longer open here.
+            if let tauri::RunEvent::Exit = event {
+                inuse::close();
+            }
+        });
 }
 
 /// EpiscoPlanner's app identity (`src-tauri/planner/bundle.json`).
@@ -219,6 +227,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::anthem_add,
         library::anthem_set,
         sync::library_sync,
+        inuse::in_use_status,
+        inuse::in_use_take_over,
         library::library_delete,
         library::library_copy,
         library::cue_make_version,

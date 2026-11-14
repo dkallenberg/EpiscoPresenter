@@ -241,7 +241,7 @@ function build() {
       el("h1", {}, "Slide layouts"),
       el("span.muted", {}, "Drag the boxes to place each piece; set fonts on the right. Changes apply to every service."),
       el("span.spacer"),
-      app.readonly ? el("span.warn-note", {}, "Read-only: this computer follows the sanctuary computer. Change layouts there.") : null,
+      app.readonly && app.snap?.link?.role === "slave" ? el("span.warn-note", {}, "Read-only: this computer follows the sanctuary computer. Change layouts there.") : null,
       el("button.primary", { onclick: close }, "Done"),
     ),
     el(

@@ -67,6 +67,9 @@ pub struct ServiceSummary {
     /// Marked Ready for the presentation computer (EpiscoPlanner).
     #[serde(skip_serializing_if = "Option::is_none")]
     ready: Option<crate::handoff::ReadyMark>,
+    /// Open on another computer (EpiscoPlanner).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    in_use: Option<crate::inuse::Mark>,
 }
 
 fn summary(path: PathBuf, service: &Service) -> ServiceSummary {
@@ -82,6 +85,7 @@ fn summary(path: PathBuf, service: &Service) -> ServiceSummary {
             .iter()
             .any(|c| matches!(c.category, ElementCategory::Reading | ElementCategory::Gospel)),
         ready: crate::handoff::ready_mark(&path),
+        in_use: None,
         path,
     }
 }
@@ -114,7 +118,9 @@ pub fn list_services(app: &AppHandle) -> CmdResult<Vec<ServiceSummary>> {
                 None
             }
         };
-        if let Some(s) = cache.get(&folder, &stamp, read) {
+        if let Some(mut s) = cache.get(&folder, &stamp, read) {
+            // Who has it open changes by the minute: never remembered.
+            s.in_use = crate::inuse::holder(&plan);
             out.push(s);
         }
     }

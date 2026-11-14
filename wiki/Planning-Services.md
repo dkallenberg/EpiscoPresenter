@@ -101,6 +101,23 @@ To use a holy day's readings, a Lesser Feast or different readings:
 alternatives) and click **Add to service**. The items go after the selected
 item in the service list.
 
+## When someone else has a service open
+
+Each planner marks the service it has open in the shared folder. On the
+**Services** screen a service someone else has open says **Open on
+Rector's computer** (the name set with the parish library folder). If you
+open it, it's **view only** and the top bar says **Open on Rector's
+computer · Take over**:
+
+* To look, or to print the bulletin, just carry on.
+* To change it, click **Take over**. It reloads as last saved and is yours;
+  on the Rector's computer it turns view only within about half a minute,
+  with a note saying who took it over. What they changed before that is
+  saved.
+
+A computer that crashes or goes to sleep stops counting after about 3
+minutes.
+
 ## Saving
 
 Services save themselves about a second and a half after each change. The

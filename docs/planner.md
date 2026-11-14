@@ -236,10 +236,30 @@ computer stays.
   (builds "EpiscoPlanner" with its own app identity, so it installs beside
   the presentation app).
 
+## Open on another computer
+
+When a planner opens a service (or a template) from the shared folder, the
+app marks it as open, with the name set with the library folder, in the
+shared folder's `in-use/` folder (one small file per service, kept apart
+from the service so the presentation computer does not see a change). The
+mark is confirmed every 20 seconds and removed on closing; one not
+confirmed for 3 minutes (a computer that crashed or went to sleep) no
+longer counts.
+
+* The **Services** screen shows **Open on Rector's computer** on a service
+  someone else has open.
+* Opening it gives **view only**: everything can be read, nothing can be
+  changed (and nothing is saved). The top bar says **Open on Rector's
+  computer · Take over**.
+* **Take over** reloads the service as last saved and makes it yours. On
+  the other computer it turns view only within about 20 seconds (plus
+  however long Google Drive takes), with a note of who took it over; what
+  they changed before that is saved.
+
 ## Coming next
 
-1. Working together safely: live refresh when someone else saves, who is
-   editing what, and a side-by-side choice instead of conflict copies.
+1. Working together safely: live refresh when someone else saves, and a
+   side-by-side choice instead of conflict copies.
 2. Bulletin styles per item type (Prelude, Anthem with composer, Homily
    with preacher, one-line instructions) and the two psalm styles.
 3. A Sunday with two services (8:00 Rite I, 10:30 Rite II) sharing propers.

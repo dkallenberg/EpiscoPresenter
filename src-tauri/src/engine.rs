@@ -255,7 +255,10 @@ impl Engine {
                     s.welcome = Some(crate::bulletin::welcome_for(&s));
                     s
                 });
+                let plan = service.as_ref().and_then(|s| s.plan_path.clone());
                 hub.load_service(service);
+                // Mark it open here (EpiscoPlanner, shared folder).
+                crate::inuse::opened(plan.as_deref());
                 Ok(())
             }
             Engine::Follower { .. } => Err(FOLLOWER_EDIT.into()),
@@ -265,6 +268,14 @@ impl Engine {
     /// Edits the live service (master / standalone only).
     pub fn edit_service<T>(&self, edit: impl FnOnce(&mut Service) -> Result<T, String>) -> Result<T, String> {
         match self {
+            // Someone else has it open (inuse.rs): look, don't touch.
+            Engine::Host { .. } if crate::inuse::is_view_only() => {
+                let who = crate::inuse::in_use_status().holder.map(|m| m.name).filter(|n| !n.is_empty());
+                Err(format!(
+                    "This service is open on {}. Take it over to change it.",
+                    who.map(|n| format!("{n}'s computer")).unwrap_or_else(|| "another computer".into())
+                ))
+            }
             // The welcome slide follows the service's title, date and time.
             Engine::Host { hub, .. } => hub.edit_service(|s| {
                 let out = edit(s)?;
