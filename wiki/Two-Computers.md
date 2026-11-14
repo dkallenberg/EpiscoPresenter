@@ -18,8 +18,8 @@ service, and the other follows it, so every slide changes on both at once.
 3. On the **live-stream computer**, open the same window, choose
    **Live-stream computer**, type the sanctuary computer's address, and
    click **Save**.
-4. On each computer, open the screen it drives with **⚙ Settings → Output
-   screens…**: the sanctuary screen on the sanctuary computer, the stream on
+4. On each computer, open the screen it drives with the **monitor icon**
+   at the right end of the top bar: the sanctuary screen on the sanctuary computer, the stream on
    the live-stream computer.
 
 The first time, macOS asks whether EpiscoPresenter may find devices on the

@@ -21,6 +21,13 @@ async function refresh() {
   b.textContent = `Output screens… (${open} of ${status.outputs.length} open)`;
   b.classList.toggle("outputs-off", open === 0);
   b.title = open ? status.outputs.map((o) => `${o.title}: ${describe(o)}`).join("\n") : "The output screens are closed. Click to open them.";
+  // The monitor icon at the right of the top bar says the same.
+  const icon = document.getElementById("btn-screens");
+  if (icon) {
+    icon.classList.toggle("outputs-off", open === 0);
+    icon.classList.toggle("outputs-on", open > 0);
+    icon.title = `Output screens (${open} of ${status.outputs.length} open)\n${status.outputs.map((o) => `${o.title}: ${describe(o)}`).join("\n")}`;
+  }
   // Once screens have been opened, "Choose the screens" is done (Getting started).
   if (open > 0) {
     try {
@@ -93,10 +100,10 @@ async function toggle() {
   if (panel) return close();
   panel = el("div.outputs-panel");
   document.body.append(panel);
-  // Opened from the ⚙ Settings menu: place it under the menu's button.
-  const r = (document.getElementById("btn-menu") ?? button()).getBoundingClientRect();
+  // Under the monitor icon at the right of the top bar, kept on screen.
+  const r = (document.getElementById("btn-screens") ?? document.getElementById("btn-menu") ?? button()).getBoundingClientRect();
   panel.style.top = `${r.bottom + 6}px`;
-  panel.style.left = `${Math.max(8, Math.min(r.left, innerWidth - 560))}px`;
+  panel.style.left = `${Math.max(8, Math.min(r.right - 540, innerWidth - 560))}px`;
   panel.append(el("p.muted", {}, "Looking for monitors…"));
   await refresh();
 }
@@ -111,8 +118,9 @@ export function initOutputs() {
   };
   b.addEventListener("click", openFromMenu);
   document.getElementById("screens-note")?.addEventListener("click", openFromMenu);
+  document.getElementById("btn-screens")?.addEventListener("click", openFromMenu);
   document.addEventListener("mousedown", (e) => {
-    if (panel && !panel.contains(e.target) && e.target !== b && e.target.id !== "screens-note") close();
+    if (panel && !panel.contains(e.target) && !e.target.closest?.("#btn-outputs, #screens-note, #btn-screens")) close();
   });
   document.addEventListener("keydown", (e) => e.key === "Escape" && close());
   listen("episco://outputs", () => refresh());

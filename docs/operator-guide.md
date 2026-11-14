@@ -11,9 +11,10 @@ The control window has three panes: the **service timeline** (left), the
 | The service | Its title, date and time. |
 | Save state | **Saved ✓** or **Saving…**, since services save themselves. For the example (or a copy), **Not saved yet · Keep this service** adds it to your services. |
 | Screens closed · Open… | Shown while the output screens are closed; opens them. |
-| ⚙ Settings | Everything not needed every week, in one menu (below). |
+| 🖥 (monitor icon, right end) | The **Output screens** card: open, close or move the sanctuary and stream screens. Gold while the screens are closed, filled green while one is open; hover it to see each screen. (EpiscoPresenter only.) |
+| ⚙ (gear icon, right end) | Settings: everything not needed every week, in one menu (below). |
 
-**⚙ Settings**:
+**⚙ Settings** (the gear at the right end of the top bar):
 
 | Group | Entry | Does |
 | --- | --- | --- |
@@ -234,7 +235,7 @@ live-stream overlay and follows it, so every slide changes on both at once.
 3. On the **live-stream computer**, open **Connection**, choose
    **Live-stream computer**, type that address and **Save**. The status then
    reads "Following <the sanctuary computer's name> ✓".
-4. On each, open the screen it drives with **⚙ Settings → Output screens…**: the sanctuary
+4. On each, open the screen it drives with the monitor icon (🖥): the sanctuary
    screen on the sanctuary computer, the stream on the live-stream computer.
 
 The first time, macOS asks whether EpiscoPresenter may find devices on the

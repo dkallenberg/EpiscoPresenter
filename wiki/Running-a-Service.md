@@ -11,8 +11,8 @@ EpiscoPresenter's window has three parts:
 
 1. Open the service from **☰ Services** (services sent from the planner are
    under **From the planner**).
-2. Open the screens: **Screens closed · Open…** in the top bar, or
-   **⚙ Settings → Output screens…**.
+2. Open the screens with the **monitor icon** at the right end of the top
+   bar, beside the **⚙** gear.
 3. Check the two previews on the right: **Sanctuary** and **Live Stream**.
 
 Until the first item is shown, **Before the service** runs: the

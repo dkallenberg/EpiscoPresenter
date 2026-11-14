@@ -34,8 +34,8 @@ A typical week for a parish with an 8:00 and a 10:30 service.
 
 7. Open EpiscoPresenter. The service is listed under **From the planner**.
    Open it.
-8. Open the screens (**⚙ Settings → Output screens…**, or **Screens closed ·
-   Open…** in the top bar).
+8. Open the screens with the **monitor icon** at the right end of the top
+   bar.
 9. Before the service, the announcements loop runs on the screens.
 10. Press **→** (or **Next**) to step through the service. See
     [Running a service](Running-a-Service).

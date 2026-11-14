@@ -40,7 +40,8 @@ Everyone using the parish library sees the same details.
 
 ## 3. The screens (EpiscoPresenter)
 
-Open **⚙ Settings → Output screens…**. For the **Sanctuary** (and the
+Click the **monitor icon** at the right end of the top bar (beside the
+**⚙** gear, which holds the settings). For the **Sanctuary** (and the
 **Live Stream**, if this computer drives it) choose:
 
 * **Full screen** on a monitor (the second monitor unless you choose
@@ -48,8 +49,10 @@ Open **⚙ Settings → Output screens…**. For the **Sanctuary** (and the
 * **Window** for an ordinary window, or
 * **Close**.
 
-The screens don't open by themselves. While they're closed the top bar
-shows **Screens closed · Open…**. In an output window, **Esc** leaves full
+The screens don't open by themselves. While they're closed the monitor
+icon is gold and the top bar also shows **Screens closed · Open…**; once one
+is open the icon fills in green. Hover the icon to see which screens are
+open and where. In an output window, **Esc** leaves full
 screen and a double-click switches it back.
 
 On a Mac a full-screen output stays on every desktop (Space) of its

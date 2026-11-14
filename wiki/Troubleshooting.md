@@ -7,9 +7,9 @@ developer. See [Installing](Installing#the-app-is-damaged-and-cant-be-opened).
 
 ### The screens don't appear
 
-The output screens don't open by themselves. Click **Screens closed ·
-Open…** in the top bar, or **⚙ Settings → Output screens…**, and choose
-**Full screen** on the right monitor.
+The output screens don't open by themselves. Click the **monitor icon** at
+the right end of the top bar (it's gold while the screens are closed) and
+choose **Full screen** on the right monitor.
 
 ### Swiping between desktops on the Mac
 
