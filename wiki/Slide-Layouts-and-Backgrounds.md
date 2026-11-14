@@ -34,7 +34,9 @@ with the day:
 | White (Christmas, Easter, feasts) | the white and gold set |
 | Blue, or Violet in Advent | the Advent set (purple and blue) |
 | Violet in Lent | the Lent set (muted purple) |
-| Red, Black | drawn by the app in the colour |
+| Red in Holy Week (Palm Sunday, Maundy Thursday) | the Blood Red set |
+| Black (Good Friday, Holy Saturday) | the Black set |
+| Red on other days (Pentecost, martyrs) | the Bright Red set |
 
 The colour comes from the service (**⚙ Settings → Service settings**), or an
 item's own colour in the Editor (**More… → Colour**).

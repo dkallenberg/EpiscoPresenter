@@ -78,6 +78,10 @@ function panel(out, id, x, y, w, h, color) {
 }
 
 const DESIGNS = {
+  // Sanctuary hymn words: black (a season's artwork may have its own).
+  lyrics: (o) => {
+    o.push(`<rect width="${W}" height="${H}" fill="#000"/>`);
+  },
   // Sanctuary: glass bands top and bottom, light centre (prayers).
   "glass-light": (o, r, c) => {
     glass(o, r, c.glass, 0, 0, W, 92, 170);
@@ -135,6 +139,7 @@ const DESIGNS = {
 };
 
 export const BUILTIN_LABELS = {
+  "builtin:lyrics": "Hymn background (black, or the season's)",
   "builtin:glass-light": "Glass · light",
   "builtin:glass-dark": "Glass · colour",
   "builtin:glass-charcoal": "Glass · charcoal",
@@ -174,15 +179,27 @@ const ARTWORK = {
   advent: set("advent", { "glass-charcoal": "/backgrounds/advent/glass-dark.webp" }),
   // Lent (violet); its dark glass serves for title cards and psalms alike.
   lent: set("lent", { "glass-charcoal": "/backgrounds/lent/glass-dark.webp" }),
+  // Palm Sunday and Maundy Thursday (red in Holy Week), with its own hymn
+  // background; its dark glass serves for psalms too.
+  bloodRed: set("blood-red", { "glass-charcoal": "/backgrounds/blood-red/glass-dark.webp", lyrics: "/backgrounds/blood-red/lyrics.webp" }),
+  // Good Friday and Holy Saturday (black), with its own hymn background; it
+  // has no welcome window (the drawn one is used).
+  black: set("black", { window: null, lyrics: "/backgrounds/black/lyrics.webp" }),
+  // Pentecost and the other red days.
+  brightRed: set("bright-red"),
 };
 
 /** Which set of artwork a colour uses in a season: Advent's for blue (and
- *  for violet in Advent), Lent's for violet. Red and black have none. */
+ *  for violet in Advent), Lent's for violet; Blood Red for red in Holy Week
+ *  (Palm Sunday, Maundy Thursday), Bright Red for the other red days; Black
+ *  for black (Good Friday, Holy Saturday). */
 function artworkSet(color, season) {
   if (color === "Green") return ARTWORK.green;
   if (color === "White") return ARTWORK.white;
   if (color === "Blue" || (color === "Violet" && season === "Advent")) return ARTWORK.advent;
   if (color === "Violet") return ARTWORK.lent;
+  if (color === "Red") return season === "HolyWeek" ? ARTWORK.bloodRed : ARTWORK.brightRed;
+  if (color === "Black") return ARTWORK.black;
   return null;
 }
 

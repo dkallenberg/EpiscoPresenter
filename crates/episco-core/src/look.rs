@@ -194,7 +194,8 @@ impl ResolvedLook {
 }
 
 /// Built-in backgrounds, drawn by the renderer in the cue's liturgical colour.
-pub const BUILTIN_BACKGROUNDS: [&str; 7] = [
+pub const BUILTIN_BACKGROUNDS: [&str; 8] = [
+    "builtin:lyrics",
     "builtin:glass-light",
     "builtin:glass-dark",
     "builtin:glass-charcoal",
@@ -211,7 +212,8 @@ pub const DEFAULT_KEY_COLOR: &str = "#0000ff";
 fn builtin_for(layout: Layout) -> &'static str {
     match layout {
         Layout::Centered => "builtin:glass-light",
-        Layout::Lyrics => "#000000",
+        // Black, or the season's own hymn background (ui/js/backgrounds.js).
+        Layout::Lyrics => "builtin:lyrics",
         Layout::LeftPanel => "builtin:panel-dark",
         Layout::LeftPanelWide => "builtin:panel-light",
         Layout::BottomBar => "builtin:bar-bottom",
@@ -237,7 +239,7 @@ pub fn default_look(category: ElementCategory, output: Output) -> Look {
     use TextTone as T;
     match output {
         Output::Sanctuary => match category {
-            C::Hymn => look("#000000", L::Lyrics, T::Light),
+            C::Hymn => look("builtin:lyrics", L::Lyrics, T::Light),
             C::Reading | C::Gospel | C::Homily | C::Anthem | C::Announcements => {
                 look("builtin:glass-dark", L::Centered, T::Light)
             }

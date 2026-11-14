@@ -29,7 +29,7 @@ const LAYOUT_LABELS = {
 };
 const LAYOUT_BACKGROUND = {
   centered: "builtin:glass-light",
-  lyrics: "#000000",
+  lyrics: "builtin:lyrics",
   left_panel: "builtin:panel-dark",
   left_panel_wide: "builtin:panel-light",
   bottom_bar: "builtin:bar-bottom",
@@ -45,7 +45,7 @@ const PRESETS = {
     ["glass-light", "Stained glass, light (dark text)", { layout: "centered", background: "builtin:glass-light", tone: "dark" }],
     ["glass-colour", "Stained glass, colour (light text)", { layout: "centered", background: "builtin:glass-dark", tone: "light" }],
     ["glass-charcoal", "Stained glass, charcoal (light text)", { layout: "centered", background: "builtin:glass-charcoal", tone: "light" }],
-    ["lyrics", "Black, as hymn lyrics", { layout: "lyrics", background: "#000000", tone: "light" }],
+    ["lyrics", "As hymn lyrics", { layout: "lyrics", background: "builtin:lyrics", tone: "light" }],
     ["blank", "Blank: a black screen", { blank: true }],
   ],
   stream: [

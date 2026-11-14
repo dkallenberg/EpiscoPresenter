@@ -70,11 +70,17 @@ artwork in these seasons, bundled with the app in `ui/backgrounds/`:
 | White (Christmas, Easter, feasts) | `white/` | The lower-third box is light, so its words are drawn dark. |
 | Blue, or Violet in Advent | `advent/` | Its *Title* glass also serves for the psalms (charcoal). |
 | Violet (Lent) | `lent/` | Its dark glass serves for title cards and psalms; the psalm bar's gold title box is the Advent set's. |
+| Red in Holy Week (Palm Sunday, Maundy Thursday) | `blood-red/` | Has its own hymn background; its dark glass serves for psalms; the psalm bar's title box is the Advent set's. |
+| Black (Good Friday, Holy Saturday) | `black/` | Has its own hymn background; no welcome window (the drawn one is used); the psalm bar's title box is the Advent set's, in grey. |
+| Red on other days (Pentecost, martyrs, ordinations) | `bright-red/` | Its lower-third box was on a blue key; the psalm bar's title box is the Advent set's. |
 
-The season decides which purple set a violet item uses: Advent's in Advent,
-Lent's otherwise. Red and Black (Holy Week, Pentecost, martyrs, funerals)
-have no artwork yet, so the app draws those designs in the liturgical
-colour with the same geometry. To add a set, put images named like those in
+The season decides which purple set a violet item uses (Advent's in
+Advent, Lent's otherwise) and which red (Blood Red in Holy Week, Bright Red
+otherwise). Every colour now has the parish's artwork; a design a set lacks
+is drawn in the liturgical colour with the same geometry.
+
+Hymn words on the sanctuary screen (`builtin:lyrics`) are on black, or on
+the season's own hymn background where its set has one (Blood Red, Black). To add a set, put images named like those in
 `green/` (1920×1080) into a new folder under `ui/backgrounds/` and add it to
 `ARTWORK` and `artworkSet` in `ui/js/backgrounds.js`.
 
