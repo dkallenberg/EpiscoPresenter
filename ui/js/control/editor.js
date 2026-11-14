@@ -625,7 +625,7 @@ function gospelMusicPanel(c) {
     "details.section.reading-panel.gospel-music",
     { open: true },
     el("summary", {}, "Music before the Gospel", el("span.muted.small", {}, img ? " · on the first slide" : " · none")),
-    imageField("Music line", img?.src ?? null, set, "A picture of the Alleluia or Gospel acclamation, from the media library."),
+    imageField("Music line", img?.src ?? null, set, "A picture of the Alleluia or Gospel acclamation, from the media library. The one you choose is used for new services too."),
     el(
       "div.reading-row",
       {},

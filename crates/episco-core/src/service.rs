@@ -663,10 +663,20 @@ impl Service {
                     let stem = file.file_stem().and_then(|s| s.to_str()).unwrap_or("item");
                     let mut document = parsed.document;
                     // The translation's initials no longer end a reading.
-                    let tidied = matches!(
-                        document.meta.effective_category(),
-                        ElementCategory::Reading | ElementCategory::Gospel
-                    ) && crate::bible::strip_version_note(&mut document);
+                    let category = document.meta.effective_category();
+                    let mut tidied = matches!(category, ElementCategory::Reading | ElementCategory::Gospel)
+                        && crate::bible::strip_version_note(&mut document);
+                    // A Gospel made before its slides were in the order they
+                    // are used (music, announcement, title, response).
+                    let announced =
+                        document.blocks.iter().any(|b| b.plain_text().starts_with("The Holy Gospel of our Lord"));
+                    if category == ElementCategory::Gospel && announced {
+                        let ordered = crate::propers::arrange_gospel(&document, None);
+                        if ordered != document {
+                            document = ordered;
+                            tidied = true;
+                        }
+                    }
                     let mut cue = Cue::liturgy(service.unique_id(stem), document, resolved, overrides);
                     cue.modified = tidied;
                     cue
@@ -887,6 +897,31 @@ fn slug(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn older_gospels_open_in_the_order_they_are_used() {
+        let dir = std::env::temp_dir().join(format!("episco-gospel-order-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let old = "---\ntitle: The Holy Gospel\ntype: gospel\ncitation: Matthew 25:14-30\n---\n# The Holy Gospel\n---\n[Deacon] The Holy Gospel of our Lord Jesus Christ according to Matthew.\n[People] **Glory to you, Lord Christ.**\n\n---\n\n[Deacon] The Gospel of the Lord.\n[People] **Praise to you, Lord Christ.**\n";
+        std::fs::write(dir.join("gospel.ewm"), old).unwrap();
+        std::fs::write(dir.join("service.toml"), "title = \"T\"\n[[cue]]\nfile = \"gospel.ewm\"\n").unwrap();
+        let s = Service::load_plan(dir.join("service.toml")).unwrap().service;
+        let firsts: Vec<String> = (0..s.cues[0].slide_count())
+            .map(|i| {
+                s.cues[0].slide(i).unwrap().blocks.first().map(Block::plain_text).unwrap_or_else(|| "[title]".into())
+            })
+            .collect();
+        assert_eq!(
+            firsts,
+            ["The Holy Gospel of our Lord Jesus Christ according to Matthew.", "[title]", "The Gospel of the Lord."]
+        );
+        assert!(s.cues[0].modified);
+        // In order already: left alone.
+        std::fs::write(dir.join("gospel.ewm"), crate::ewm::to_string(s.cues[0].document().unwrap())).unwrap();
+        let again = Service::load_plan(dir.join("service.toml")).unwrap().service;
+        assert!(!again.cues[0].modified);
+        let _ = std::fs::remove_dir_all(dir);
+    }
 
     #[test]
     fn older_readings_lose_the_version_at_their_end() {

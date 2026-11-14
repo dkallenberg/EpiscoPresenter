@@ -406,6 +406,28 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
     service
 }
 
+/// Puts `music` before each Gospel that has none yet.
+fn with_gospel_music(service: &mut Service, music: &(String, String)) {
+    let ids: Vec<String> = service
+        .cues
+        .iter()
+        .filter(|c| c.category == episco_core::ElementCategory::Gospel)
+        .filter(|c| {
+            c.document().is_some_and(|d| {
+                !d.blocks
+                    .iter()
+                    .any(|b| matches!(b, Block::Heading { text, .. } if text == episco_core::propers::GOSPEL_MUSIC))
+            })
+        })
+        .map(|c| c.id.clone())
+        .collect();
+    for id in ids {
+        let Some(doc) = service.cue(&id).and_then(|c| c.document()) else { continue };
+        let new = episco_core::propers::arrange_gospel(doc, Some(Some(music.clone())));
+        let _ = service.set_document(&id, new);
+    }
+}
+
 /// Builds and saves a service for `date` in the app's folder.
 fn create(
     app: &AppHandle,
@@ -428,6 +450,10 @@ fn create(
     service.library_root = crate::storage::root();
     // Reading texts from the parish's Bible file, if it has one.
     crate::scripture::fill_service(app, &mut service);
+    // The parish's usual music line before the Gospel.
+    if let Some(music) = crate::library::usual_gospel_music(app) {
+        with_gospel_music(&mut service, &music);
+    }
 
     let dir = services_dir(app)?;
     // "2026-11-15-0800-the-twenty-fifth-sunday…": two services a day stay apart.
@@ -845,6 +871,23 @@ mod tests {
         let again = Service::load_plan(dir.join("service.toml")).unwrap().service;
         assert!(again.bishop);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn new_services_get_the_usual_gospel_music() {
+        let mut s = build("2026-11-15".parse().unwrap(), None, None, Default::default());
+        with_gospel_music(&mut s, &("library:media/alleluia.png".into(), "Alleluia".into()));
+        let g = s.cues.iter().find(|c| c.category == episco_core::ElementCategory::Gospel).unwrap();
+        let first = g.slide(0).unwrap();
+        assert_eq!(first.heading.as_deref(), Some(episco_core::propers::GOSPEL_MUSIC));
+        assert!(matches!(&first.blocks[0], Block::Image { src, .. } if src == "library:media/alleluia.png"));
+        assert!(g.slide(1).unwrap().blocks[0].plain_text().starts_with("The Holy Gospel of our Lord"));
+        assert!(g.slide(2).unwrap().is_title());
+        // Not twice.
+        let before = g.document().unwrap().clone();
+        with_gospel_music(&mut s, &("library:media/other.png".into(), String::new()));
+        let g = s.cues.iter().find(|c| c.category == episco_core::ElementCategory::Gospel).unwrap();
+        assert_eq!(g.document().unwrap(), &before);
     }
 
     #[test]

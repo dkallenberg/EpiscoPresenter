@@ -176,8 +176,12 @@ and "The Gospel of the Lord." / "Praise to you, Lord Christ."
 Select the Gospel and open the **Editor**. In **Music before the Gospel**,
 **Choose…** a picture of the Alleluia or Gospel acclamation from the media
 library; it goes on the first slide, laid out like the psalm's antiphon
-music. **Remove** takes it off. **Put the slides in order** rearranges a
-Gospel made before this order (or edited by hand).
+music (centred in the live stream's bar, as is the citation on the Gospel's
+title slide). **Remove** takes it off. The music you choose becomes the
+parish's usual one: new services start with it before the Gospel (choose
+another to change it). Gospels in services made before this order are put
+in order when the service opens; **Put the slides in order** does it again
+after editing by hand.
 
 ### Psalm layout (after importing)
 

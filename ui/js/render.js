@@ -524,8 +524,13 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     } else textPiece(stage, name, spec, value);
   }
   if (!T.text || T.text.hidden) return;
+  // A title card, or a line of music alone, sits in the middle of its box.
+  const centre = (box) => {
+    box.style.textAlign = "center";
+    box.style.alignItems = "center";
+  };
   if (p.big) {
-    textBox(stage, T, shown, el("div", key === "stream.lower_third" ? "lt-main" : "title-big", p.big), "title-card");
+    centre(textBox(stage, T, shown, el("div", key === "stream.lower_third" ? "lt-main" : "title-big", p.big), "title-card"));
   } else if (p.text) {
     const hymn = key === "stream.hymn";
     const stream = key.startsWith("stream.");
@@ -534,6 +539,10 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     const lines = { reflow: o.join, hanging: o.hanging, psalm: cue.category === "psalm", alternate: o.alternate };
     const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
+    if (blocks.length && blocks.every((b) => b.kind === "image")) {
+      centre(box);
+      box.classList.add("music-only");
+    }
   }
 }
 

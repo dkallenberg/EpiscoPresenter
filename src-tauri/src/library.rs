@@ -576,17 +576,51 @@ pub fn add_propers(
 /// music, the announcement, the title, the text, the response.
 #[tauri::command]
 pub fn gospel_set_music(
+    app: AppHandle,
     engine: State<'_, Engine>,
     id: String,
     src: Option<String>,
     alt: Option<String>,
 ) -> CmdResult<()> {
+    let music = src.filter(|p| !p.trim().is_empty()).map(|p| (p, alt.unwrap_or_default()));
+    // The music chosen becomes the usual one: new services start with it.
+    if let Some(m) = &music {
+        remember_gospel_music(&app, m);
+    }
     engine.edit_service(|s| {
         let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
-        let music = src.filter(|p| !p.trim().is_empty()).map(|p| (p, alt.unwrap_or_default()));
         let new = propers::arrange_gospel(doc, Some(music));
         s.set_document(&id, new).map_err(|e| e.to_string())
     })
+}
+
+/// The parish's usual music line before the Gospel (the last one chosen),
+/// kept in the library folder as `gospel-music.json`.
+fn gospel_music_file(app: &AppHandle) -> CmdResult<PathBuf> {
+    crate::storage::data_dir(app, "gospel-music.json")
+}
+
+fn remember_gospel_music(app: &AppHandle, (src, alt): &(String, String)) {
+    // Inside the library folder it is saved as `library:…`, which every
+    // computer can find.
+    let src = crate::storage::root()
+        .and_then(|root| episco_core::portable::to_portable(src, &root))
+        .unwrap_or_else(|| src.clone());
+    if let Ok(path) = gospel_music_file(app) {
+        let json = serde_json::json!({ "src": src, "alt": alt });
+        if let Err(e) = std::fs::write(&path, json.to_string()) {
+            tracing::warn!("could not save {}: {e}", path.display());
+        }
+    }
+}
+
+/// The music line new services put before the Gospel, if the parish has one.
+pub fn usual_gospel_music(app: &AppHandle) -> Option<(String, String)> {
+    let text = std::fs::read_to_string(gospel_music_file(app).ok()?).ok()?;
+    let v: serde_json::Value = serde_json::from_str(&text).ok()?;
+    let src = v.get("src")?.as_str()?.to_string();
+    let alt = v.get("alt").and_then(|a| a.as_str()).unwrap_or_default().to_string();
+    (!src.is_empty()).then_some((src, alt))
 }
 
 /// Rebuilds a psalm cue's slides: antiphon (start, end, every N verses),
