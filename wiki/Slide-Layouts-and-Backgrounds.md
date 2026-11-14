@@ -1,0 +1,68 @@
+# Slide layouts and backgrounds
+
+## An item's look
+
+In the Editor, **Appearance** has a card for each screen with a preview and
+one **Look**:
+
+| Sanctuary | Live stream |
+| --- | --- |
+| As usual for the item's type | As usual for the item's type |
+| Stained glass: light, colour or charcoal | Text on the left, camera on the right |
+| Black, as for hymn lyrics | Wide text on the left (hymns) |
+| Blank: a black screen | Bar across the bottom |
+| | Lower third over the camera |
+| | Full screen, like the sanctuary |
+| | Camera only: nothing shown |
+
+**More…** in each card has the details: the **Background** (built-in
+designs in the season's colour, black, the stream's key colour, or a
+picture from the media library), the **Layout**, light or dark **Text**,
+and how the picture **Fits**.
+
+* **Use for all … items** makes this look the default for every item of the
+  same kind in the service (for example every Collect), so you set it once.
+* **Reset** goes back to the usual look. A **changed** badge marks an item
+  with its own look.
+
+The built-in stained-glass designs change with the liturgical colour of the
+day.
+
+## Slide layouts
+
+**⚙ Settings → Slide layouts…** sets, for each kind of slide, where every
+piece goes and how its text looks. Changes apply to every service and are
+shared through the parish library folder.
+
+1. Pick a slide type on the left (Prayer, Title, Sermon, Psalm on the
+   sanctuary; Left side, Bottom Bar, Lower Third, Hymn on the stream). The
+   preview uses a slide from the open service.
+2. **Click** a box to select it, **drag** it to move it, drag its **corner**
+   to resize it. Arrow keys nudge it.
+3. On the right set the font, size, colour, bold, italic and alignment, or
+   untick **Show this element**.
+4. **Reset element** or **Reset <type>** goes back to the built-in layout.
+
+### How much text a slide holds
+
+Under the settings, **Text on … slides** sets:
+
+* **Lines per slide.** The sanctuary holds 9 lines (the size of the
+  Confession's slides) unless you change it. The stream fits what its text
+  box holds.
+* **Line breaks:** keep the Prayer Book's lines, or run a paragraph's lines
+  together.
+* **Hanging indent for long lines,** as the Prayer Book prints the Creed
+  and the psalms.
+* **Indent every other psalm verse.**
+
+Slides are fitted for you. A slide that's a little long shrinks slightly;
+one that would need to shrink more than about 10% is split at the end of a
+line or at punctuation, and a short response stays with the words it
+answers.
+
+## Your own background pictures
+
+Import pictures in **Library → Media**, then choose them in an item's
+**Appearance → More… → Background**, or select a picture in Media and use
+it as the background of the selected item.
