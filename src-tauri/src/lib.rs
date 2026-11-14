@@ -10,6 +10,7 @@
 
 mod autosave;
 mod bulletin;
+mod cache;
 mod commands;
 mod deck;
 mod engine;

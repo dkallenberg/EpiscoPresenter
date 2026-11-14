@@ -41,6 +41,17 @@ gold and the planner works from this computer's folder until it is back.
 On the presentation computer, set the shared folder to **Available offline**
 in Google Drive, so services are on the computer before Sunday.
 
+**Speed.** Google Drive for desktop normally *streams* files: it downloads a
+file's contents the first time it is read, which makes a folder of many
+small files slow to open. On every computer that uses the shared folder,
+right-click the folder in Finder (or Explorer) and choose **Google Drive →
+Available offline** (or set Drive to *Mirror files* in its preferences), so
+the files are already on the computer. The apps also remember the list of
+services, templates and library items on each computer (in the app's cache
+folder, never in the shared folder) and read a file again only when its
+date or size has changed, so after the first start the Services screen and
+the Library open without reading the files' contents.
+
 The choice is kept per computer in `library.json` in the app's settings
 folder (on macOS `~/Library/Application Support/org.episcopresenter.planner/`).
 

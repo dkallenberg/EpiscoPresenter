@@ -151,7 +151,7 @@ const BUILTIN: &[(&str, &str)] = builtin![
     "occasions/vigil-service-of-light",
 ];
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, serde::Deserialize)]
 pub struct LibraryEntry {
     /// `builtin:<name>` or `user:<file name>`.
     id: String,
@@ -373,21 +373,37 @@ fn load(app: &AppHandle, id: &str) -> CmdResult<LiturgyDocument> {
 }
 
 /// Every library item: built-in first (service order), then the user's.
+/// Run apart from the window, so it opens at once from a slow shared folder.
 #[tauri::command]
-pub fn library_list(app: AppHandle) -> Vec<LibraryEntry> {
+pub async fn library_list(app: AppHandle) -> Vec<LibraryEntry> {
+    tauri::async_runtime::spawn_blocking(move || list_library(&app)).await.unwrap_or_default()
+}
+
+/// [`library_list`]. The parish's items are read again only when their
+/// file has changed since last time (see [`crate::cache`]).
+fn list_library(app: &AppHandle) -> Vec<LibraryEntry> {
     let mut out: Vec<LibraryEntry> = BUILTIN
         .iter()
         .filter_map(|(name, src)| ewm::parse(src).ok().map(|p| entry(format!("builtin:{name}"), &p.document, true)))
         .collect();
-    for path in user_files(&app) {
+    let mut cache = crate::cache::Cache::open(app, "library");
+    for path in user_files(app) {
         let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else { continue };
-        match ewm::load_file(&path) {
-            Ok(p) => out.push(entry(format!("user:{name}"), &p.document, false)),
-            Err(e) => tracing::warn!("skipping library file: {e}"),
+        let Some(stamp) = crate::cache::file_stamp(&path) else { continue };
+        let read = || match ewm::load_file(&path) {
+            Ok(p) => Some(entry(format!("user:{name}"), &p.document, false)),
+            Err(e) => {
+                tracing::warn!("skipping library file: {e}");
+                None
+            }
+        };
+        if let Some(e) = cache.get(&path, &stamp, read) {
+            out.push(e);
         }
     }
+    cache.save();
     // Which version of each built-in item services use.
-    let defaults = user_dir(&app).map(|d| read_defaults(&d)).unwrap_or_default();
+    let defaults = user_dir(app).map(|d| read_defaults(&d)).unwrap_or_default();
     let ids: Vec<(String, bool)> = out.iter().map(|e| (e.id.clone(), e.builtin)).collect();
     for e in &mut out {
         e.default = match (&e.base, e.builtin) {

@@ -50,7 +50,7 @@ pub fn liturgical_info(date: String) -> CmdResult<LiturgicalDay> {
 
 // ---- listing -------------------------------------------------------------
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ServiceSummary {
     path: PathBuf,
     title: String,
@@ -86,22 +86,39 @@ fn summary(path: PathBuf, service: &Service) -> ServiceSummary {
     }
 }
 
-/// Every service in the app's folder, by date (undated last).
+/// Every service in the app's folder, by date (undated last). Run apart
+/// from the window, so it opens at once even while a shared folder is slow.
 #[tauri::command]
-pub fn services_list(app: AppHandle) -> CmdResult<Vec<ServiceSummary>> {
-    let dir = services_dir(&app)?;
+pub async fn services_list(app: AppHandle) -> CmdResult<Vec<ServiceSummary>> {
+    tauri::async_runtime::spawn_blocking(move || list_services(&app)).await.map_err(|e| e.to_string())?
+}
+
+/// [`services_list`]. A service is read again only when a file in its
+/// folder has changed since last time (see [`crate::cache`]).
+pub fn list_services(app: &AppHandle) -> CmdResult<Vec<ServiceSummary>> {
+    let dir = services_dir(app)?;
     let mut out = Vec::new();
     let Ok(entries) = std::fs::read_dir(&dir) else { return Ok(out) };
+    let mut cache = crate::cache::Cache::open(app, "services");
     for entry in entries.flatten() {
-        let plan = entry.path().join(PLAN_FILE);
+        let folder = entry.path();
+        let plan = folder.join(PLAN_FILE);
         if !plan.is_file() {
             continue;
         }
-        match Service::load_plan(&plan) {
-            Ok(Loaded { service, .. }) => out.push(summary(plan, &service)),
-            Err(e) => tracing::warn!("skipping service {}: {e}", plan.display()),
+        let stamp = crate::cache::folder_stamp(&folder);
+        let read = || match Service::load_plan(&plan) {
+            Ok(Loaded { service, .. }) => Some(summary(plan.clone(), &service)),
+            Err(e) => {
+                tracing::warn!("skipping service {}: {e}", plan.display());
+                None
+            }
+        };
+        if let Some(s) = cache.get(&folder, &stamp, read) {
+            out.push(s);
         }
     }
+    cache.save();
     out.sort_by(|a, b| match (&a.date, &b.date) {
         (Some(x), Some(y)) => x.cmp(y).then(a.time.cmp(&b.time)).then(a.title.cmp(&b.title)),
         (Some(_), None) => std::cmp::Ordering::Less,
@@ -507,7 +524,7 @@ pub fn services_schedule(
 ) -> CmdResult<Vec<PathBuf>> {
     let options = options.unwrap_or_default();
     let existing: Vec<(String, Option<String>)> =
-        services_list(app.clone())?.into_iter().filter_map(|s| s.date.map(|d| (d, s.time))).collect();
+        list_services(&app)?.into_iter().filter_map(|s| s.date.map(|d| (d, s.time))).collect();
     let times: Vec<Option<String>> = match times.filter(|t| !t.is_empty()) {
         Some(t) => t.into_iter().map(Some).collect(),
         None => vec![None],
@@ -548,7 +565,7 @@ struct TemplateMeta {
     seasons: Vec<Season>,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct TemplateInfo {
     /// The template's plan file.
     path: PathBuf,
@@ -578,33 +595,52 @@ fn template_folder(app: &AppHandle, plan: &Path) -> CmdResult<PathBuf> {
     Ok(folder)
 }
 
-/// The saved templates, by name.
+/// The saved templates, by name (apart from the window; see [`services_list`]).
 #[tauri::command]
-pub fn templates_list(app: AppHandle) -> CmdResult<Vec<TemplateInfo>> {
+pub async fn templates_list(app: AppHandle) -> CmdResult<Vec<TemplateInfo>> {
+    tauri::async_runtime::spawn_blocking(move || list_templates(&app)).await.map_err(|e| e.to_string())?
+}
+
+/// [`templates_list`], read again only where a template has changed.
+fn list_templates(app: &AppHandle) -> CmdResult<Vec<TemplateInfo>> {
     let mut out = Vec::new();
-    let Ok(entries) = std::fs::read_dir(templates_dir(&app)?) else { return Ok(out) };
+    let Ok(entries) = std::fs::read_dir(templates_dir(app)?) else { return Ok(out) };
+    let mut cache = crate::cache::Cache::open(app, "templates");
     for entry in entries.flatten() {
         let folder = entry.path();
         let plan = folder.join(PLAN_FILE);
-        let (Some(meta), true) = (read_meta(&folder), plan.is_file()) else { continue };
-        match Service::load_plan(&plan) {
-            Ok(Loaded { service, .. }) => out.push(TemplateInfo {
-                path: plan,
-                name: meta.name,
-                seasons: meta.seasons,
-                cues: service.cues.len(),
-                rite: service.rite,
-            }),
-            Err(e) => tracing::warn!("skipping template {}: {e}", plan.display()),
+        if !plan.is_file() {
+            continue;
+        }
+        let stamp = crate::cache::folder_stamp(&folder);
+        let read = || {
+            let meta = read_meta(&folder)?;
+            match Service::load_plan(&plan) {
+                Ok(Loaded { service, .. }) => Some(TemplateInfo {
+                    path: plan.clone(),
+                    name: meta.name,
+                    seasons: meta.seasons,
+                    cues: service.cues.len(),
+                    rite: service.rite,
+                }),
+                Err(e) => {
+                    tracing::warn!("skipping template {}: {e}", plan.display());
+                    None
+                }
+            }
+        };
+        if let Some(t) = cache.get(&folder, &stamp, read) {
+            out.push(t);
         }
     }
+    cache.save();
     out.sort_by_key(|t| t.name.to_lowercase());
     Ok(out)
 }
 
 /// The first template (by name) kept for `season`.
 fn season_template(app: &AppHandle, season: Season) -> Option<PathBuf> {
-    templates_list(app.clone()).ok()?.into_iter().find(|t| t.seasons.contains(&season)).map(|t| t.path)
+    list_templates(app).ok()?.into_iter().find(|t| t.seasons.contains(&season)).map(|t| t.path)
 }
 
 /// A service turned into a template: its order and texts without the day's

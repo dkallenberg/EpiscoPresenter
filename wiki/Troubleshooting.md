@@ -57,6 +57,16 @@ The parish library folder can't be reached, usually because Google Drive
 isn't running or isn't signed in. Start it; the app picks the folder up
 again by itself.
 
+### The app takes a long time to start with a Google Drive folder
+
+Google Drive for desktop normally downloads a file only when it's opened,
+so a folder of many small files is slow the first time. On each computer,
+right-click the parish library folder in Finder (or Explorer) and choose
+**Google Drive → Available offline**, or set Google Drive to **Mirror
+files** in its preferences. The apps also remember the list of services and
+library items on each computer and re-read only what has changed, so the
+first start after an update is the slowest.
+
 ### The two computers won't connect
 
 See [Two computers](Two-Computers#if-it-wont-connect).

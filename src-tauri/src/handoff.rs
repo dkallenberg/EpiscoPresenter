@@ -139,6 +139,19 @@ pub fn status(app: &AppHandle) -> CmdResult<Vec<ReadyService>> {
     Ok(status_in(&shared, &local_services(app)?))
 }
 
+/// A plan's title and date, from its own file only (not its texts, which a
+/// shared folder may have to download first).
+fn plan_header(plan: &Path) -> Option<(String, Option<String>)> {
+    #[derive(serde::Deserialize)]
+    struct Header {
+        #[serde(default)]
+        title: String,
+        date: Option<String>,
+    }
+    let h: Header = toml::from_str(&std::fs::read_to_string(plan).ok()?).ok()?;
+    Some((h.title, h.date))
+}
+
 /// [`status`] for a shared library folder and a local services folder.
 fn status_in(shared: &Path, local: &Path) -> Vec<ReadyService> {
     let mut out = Vec::new();
@@ -151,10 +164,7 @@ fn status_in(shared: &Path, local: &Path) -> Vec<ReadyService> {
             continue;
         }
         let folder = e.file_name().to_string_lossy().to_string();
-        let (title, date) = match episco_core::Service::load_plan(&plan) {
-            Ok(l) => (l.service.title, l.service.date),
-            Err(_) => (folder.clone(), None),
-        };
+        let (title, date) = plan_header(&plan).unwrap_or_else(|| (folder.clone(), None));
         let here = local.join(&folder);
         let src: Option<Source> =
             std::fs::read_to_string(here.join(SOURCE_FILE)).ok().and_then(|s| serde_json::from_str(&s).ok());
@@ -315,11 +325,16 @@ pub fn spawn(app: AppHandle) {
     });
 }
 
-/// The Ready services and their state (checks now).
+/// The Ready services and their state (checks now). Run apart from the
+/// window: copying from a slow shared folder can take a while.
 #[tauri::command]
-pub fn handoff_status(app: AppHandle) -> CmdResult<Vec<ReadyService>> {
-    check(&app);
-    status(&app)
+pub async fn handoff_status(app: AppHandle) -> CmdResult<Vec<ReadyService>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        check(&app);
+        status(&app)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Copies a Ready service again (Refresh), and reopens it if it is open.

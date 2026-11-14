@@ -92,8 +92,13 @@ export async function showHome() {
   node = app.mode === "presenter" ? await call("node_info") : null;
   services ??= [];
   templates ??= [];
-  if (app.mode === "presenter") ready = (await call("handoff_status")) ?? [];
   render();
+  // Services marked Ready in the planner: checking (and copying) them can
+  // take a while from a shared folder, so the list is shown first.
+  if (app.mode === "presenter") {
+    ready = (await call("handoff_status")) ?? [];
+    if (!home.hidden) render();
+  }
 }
 
 let parishInfo = {};
