@@ -259,7 +259,7 @@ export function webVideoPanel(link, onLink) {
     el(
       "p.muted.small",
       {},
-      "It plays full screen when the item goes on air: with sound from the sanctuary screen, muted on the live stream (stream it from its own source if the stream needs the sound). It needs the internet, and the video must allow embedding. Going to the next item stops it.",
+      "It plays full screen when the item is shown: with sound from the sanctuary screen, muted on the live stream (stream it from its own source if the stream needs the sound). It needs the internet, and the video must allow embedding. Going to the next item stops it.",
     ),
   );
 }
@@ -352,7 +352,7 @@ export async function addWebVideo(after) {
     "Web video",
     [["Link (YouTube, Facebook or Instagram)", "https://www.youtube.com/watch?v=…"], ["Title", "e.g. Bishop's message"]],
     "Add",
-    "The video plays full screen when the item goes on air. It needs the internet, and its owner must allow it to be embedded.",
+    "The video plays full screen when the item is shown. It needs the internet, and its owner must allow it to be embedded.",
   );
   if (!r?.[0]) return;
   await added(await call("web_video_add", { after, url: r[0], title: r[1] || null }));

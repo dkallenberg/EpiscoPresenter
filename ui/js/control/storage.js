@@ -9,6 +9,9 @@ let info = null;
 
 const folderName = (p) => (p ? String(p).split(/[\\/]/).filter(Boolean).pop() : "");
 
+/** The library folder as last read (for the Getting started list). */
+export const storageInfo = () => info;
+
 async function load() {
   info = (await call("storage_get")) ?? info;
   render();

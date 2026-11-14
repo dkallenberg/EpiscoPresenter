@@ -69,7 +69,7 @@ function deckCards(cue, ci, pages, go, jobs, label) {
 /** A stand-in cue to render Pre-Service slides like an announcements item. */
 function preCue() {
   const any = app.service?.cues.find((c) => c.content.kind === "announcements");
-  return any ?? { id: "pre", title: "Pre-Service", category: "announcements", sanctuary: { background: "#000000", layout: "centered", tone: "light", fit: "fill" }, stream: { background: "key", layout: "centered", tone: "light", fit: "fill" } };
+  return any ?? { id: "pre", title: "Before the service", category: "announcements", sanctuary: { background: "#000000", layout: "centered", tone: "light", fit: "fill" }, stream: { background: "key", layout: "centered", tone: "light", fit: "fill" } };
 }
 
 /** Pre-Service: the deck looping before the service; click to go back to it. */
@@ -83,7 +83,7 @@ function preServiceSection(jobs) {
   return el(
     "section.slide-group.pre-group",
     {},
-    el("h3.group-head", { onclick: back, title: "Go back to the pre-service loop" }, el("span.cue-num", {}, "–"), "Before the service", el("span.muted", {}, " · the announcements, repeating every 9 seconds")),
+    el("h3.group-head", { onclick: back, title: "Go back to the announcements shown before the service" }, el("span.cue-num", {}, "–"), "Before the service", el("span.muted", {}, " · the announcements, repeating every 9 seconds")),
     el("div.slide-cards", {}, cards),
   );
 }

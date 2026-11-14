@@ -64,7 +64,7 @@ function presetOf(output, own) {
   const same = (a, b) => Object.keys(a).length === Object.keys(b).length && Object.entries(a).every(([k, v]) => b[k] === v);
   return PRESETS[output].find(([, , look]) => same(look, own))?.[0] ?? "custom";
 }
-const FIT_LABELS = { fill: "Fill (crop)", fit: "Fit (letterbox)", stretch: "Stretch" };
+const FIT_LABELS = { fill: "Fill the screen (edges trimmed)", fit: "Whole picture (bars at the sides)", stretch: "Stretch to the screen" };
 
 // ---------- layering (mirrors Look::layered / ResolvedLook::complete) ----------
 
@@ -236,9 +236,9 @@ function lookCard(cue, output, label) {
       el("summary", {}, "More…"),
     el("label.field", {}, el("span", {}, "Background"), bgButton),
     el("div.look-row", {},
-      el("label.field", {}, el("span", {}, "Layout"), select("layout", LAYOUT_LABELS)),
-      el("label.field", {}, el("span", {}, "Text"), select("tone", TONE_LABELS)),
-      el("label.field", {}, el("span", {}, "Fit"), select("fit", FIT_LABELS)),
+      el("label.field", {}, el("span", {}, "Where the text goes"), select("layout", LAYOUT_LABELS)),
+      el("label.field", {}, el("span", {}, "Text colour"), select("tone", TONE_LABELS)),
+      el("label.field", {}, el("span", {}, "Picture size"), select("fit", FIT_LABELS)),
     ),
     el(
       "label.toggle.blank-toggle",

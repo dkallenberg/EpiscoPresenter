@@ -167,6 +167,9 @@ function render(list) {
   const rows = [];
   if (service) rows.push(preServiceRow(service, active));
   cues.forEach((cue, i) => rows.push(cueRow(cue, i, active, cues.length)));
+  if (service && !cues.length) {
+    rows.push(el("li.cue-hint.muted", {}, "This service is empty. Use + Add above for prayers, hymns, readings and slides, or the Library tab."));
+  }
   list.replaceChildren(...rows);
   list.querySelector(".cue.on-air")?.scrollIntoView({ block: "nearest" });
 }

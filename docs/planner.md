@@ -47,12 +47,18 @@ folder (on macOS `~/Library/Application Support/org.episcopresenter.planner/`).
 ## Bulletin and script
 
 The planner opens on the **Bulletin** tab: a live preview of the printed
-bulletin in Garamond, updated as the service changes. **Parish details →
-Bulletin paper** chooses the sheet: **11 × 17, folded** into 8½ × 11 pages
-(the default) or 8½ × 11, folded into 5½ × 8½ pages.
+bulletin in Garamond, updated as the service changes. The bar above it has
+the **Service time**, the **Paper** (**11 × 17, folded** into 8½ × 11 pages,
+the default, or 8½ × 11, folded into 5½ × 8½ pages; also in Parish details),
+**B** / **I**, **Reading texts…**, **Parish details…** and **Export to Word**.
 
-* **Click an item** in the preview (or the timeline) and choose how it
-  appears with the bar above:
+**To do**, beside the page, lists what the service still needs, and each
+line opens the place to do it: the parish's name and details, the service
+time, the announcements' Google Slides link, a reading's text, a hymn not
+yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
+
+* **Click an item** in the preview (or the service list) and choose how it
+  appears in the bar that appears just above it:
   * **Reference line**: title, opening words and the page or hymn number,
     e.g. *Collect for Purity — Almighty God, to you all hearts are open… BCP 355*.
   * **Full text**: every word, speaker labels, the people's parts in bold.

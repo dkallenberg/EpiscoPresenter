@@ -188,6 +188,32 @@ pub struct CueBulletin {
     /// The Bible version of the text it has ("NRSVue").
     #[serde(skip_serializing_if = "Option::is_none")]
     bible: Option<String>,
+    /// What the item still needs before Sunday, in plain words.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    todo: Option<String>,
+}
+
+/// What an item still needs: a reading's text, a hymn chosen, the preacher.
+pub fn todo(c: &episco_core::Cue) -> Option<String> {
+    use episco_core::{Block, ElementCategory};
+    let doc = c.document()?;
+    if bulletin::needs_text(c) {
+        return Some("Add the reading's text".into());
+    }
+    match c.category {
+        ElementCategory::Hymn => {
+            // Only the "Choose this hymn" note: no title, number or verses yet.
+            let words = doc
+                .blocks
+                .iter()
+                .any(|b| matches!(b, Block::Paragraph { role, .. } if role.as_ref().is_none_or(|r| !r.is_rubric())));
+            (!words && doc.meta.hymn_number.is_none()).then(|| "Choose the hymn".into())
+        }
+        ElementCategory::Homily => {
+            doc.meta.extra("preacher").is_none_or(|p| p.trim().is_empty()).then(|| "Name the preacher".into())
+        }
+        _ => None,
+    }
 }
 
 #[tauri::command]
@@ -208,6 +234,7 @@ pub fn bulletin_styles(engine: State<'_, Engine>) -> Vec<CueBulletin> {
                     needs_text: bulletin::needs_text(c),
                     citation: c.document().and_then(|d| d.meta.citation.clone()).filter(|x| !x.trim().is_empty()),
                     bible: c.document().and_then(|d| d.meta.extra("bible")).map(String::from),
+                    todo: todo(c),
                 })
                 .collect()
         })
@@ -248,4 +275,27 @@ pub fn bulletin_set_title(engine: State<'_, Engine>, id: String, title: String) 
         }
         Ok(())
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn what_is_left_to_do() {
+        let hymn = crate::services::hymn_cue("Entrance Hymn").unwrap();
+        assert_eq!(todo(&hymn).as_deref(), Some("Choose the hymn"));
+        let mut sermon = crate::services::sermon_cue();
+        assert_eq!(todo(&sermon).as_deref(), Some("Name the preacher"));
+        if let episco_core::CueContent::Liturgy { document, .. } = &mut sermon.content {
+            document.meta.extra.push(("preacher".into(), "Jane Doe".into()));
+        }
+        assert_eq!(todo(&sermon), None);
+        let chosen: episco_core::LiturgyDocument =
+            "---\ntitle: Lift Up Your Heads\ntype: hymn\nhymn_number: 436\n---\n[1] Lift up your heads\n"
+                .parse()
+                .unwrap();
+        let chosen = episco_core::Cue::liturgy("h", chosen, None, Default::default());
+        assert_eq!(todo(&chosen), None);
+    }
 }

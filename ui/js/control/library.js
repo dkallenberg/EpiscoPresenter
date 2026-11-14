@@ -130,7 +130,7 @@ function render() {
             el("div.lib-summary", {}, e.summary),
           ),
         )
-      : el("p.muted", {}, "Nothing matches."),
+      : el("p.muted", {}, lib.query || lib.category !== "all" || lib.mine || lib.rite !== "all" ? "Nothing matches: try fewer words, or click All." : "The library is empty."),
   );
   const preview = el("div.lib-preview#lib-preview");
   root.replaceChildren(

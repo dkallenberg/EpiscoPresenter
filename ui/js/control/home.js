@@ -3,6 +3,9 @@
 
 import { invoke, listen } from "/js/bridge.js";
 import { app, call, el, reportWarnings, toast } from "/js/control/util.js";
+import { openParish } from "/js/control/bulletin.js";
+import { openConnection } from "/js/control/connection.js";
+import { openLibrarySettings, storageInfo } from "/js/control/storage.js";
 
 const SWATCH = {
   Green: "#2e7d32",
@@ -84,11 +87,107 @@ export async function showHome() {
   home.replaceChildren(el("p.muted.home-loading", {}, "Loading services…"));
   let parish;
   [services, templates, parish] = await Promise.all([call("services_list"), call("templates_list"), call("parish_get")]);
+  parishInfo = parish ?? {};
   parishTimes = parish?.service_times ?? [];
+  node = app.mode === "presenter" ? await call("node_info") : null;
   services ??= [];
   templates ??= [];
   if (app.mode === "presenter") ready = (await call("handoff_status")) ?? [];
   render();
+}
+
+let parishInfo = {};
+let node = null;
+
+const stepDone = (k) => {
+  try {
+    return localStorage.getItem(k) === "yes";
+  } catch {
+    return false;
+  }
+};
+const markStep = (k) => {
+  try {
+    localStorage.setItem(k, "yes");
+  } catch {}
+};
+
+/** The first things to set up, each with a button to do it, ticked when
+ *  done; hidden once all are done or the operator hides it. */
+function setupCard() {
+  const presenter = app.mode === "presenter";
+  const hiddenKey = `setup.hidden.${app.mode}`;
+  const lib = storageInfo();
+  const steps = [
+    [
+      "Choose the parish library folder",
+      presenter ? "Where EpiscoPlanner puts the services (e.g. in Google Drive)." : "A shared folder (e.g. in Google Drive) for services, the library and pictures.",
+      Boolean(lib?.folder) && !lib?.missing,
+      () => openLibrarySettings(false),
+    ],
+    ...(presenter
+      ? [
+          [
+            "Choose the screens",
+            "Open the sanctuary screen (and the live stream) on their monitors once; the app remembers them.",
+            stepDone("setup.screens"),
+            () => document.getElementById("btn-outputs")?.click(),
+          ],
+          [
+            "Connect the live-stream computer",
+            "Only if a second computer runs the live stream.",
+            (node?.config?.role ?? "standalone") !== "standalone" || stepDone("setup.one-computer"),
+            () => openConnection(),
+            ["One computer is enough", () => { markStep("setup.one-computer"); render(); }],
+          ],
+        ]
+      : [
+          [
+            "Add the parish's details",
+            "Name, logo, clergy and service times, for the bulletin cover and scheduling.",
+            Boolean(parishInfo.name),
+            () => openParish(),
+          ],
+          [
+            "Plan the coming Sundays",
+            "“Schedule upcoming Sundays” below makes a service for each.",
+            services.length > 0,
+            () => {
+              const card = [...document.querySelectorAll(".home-card")].find((c) => c.querySelector("h3")?.textContent.startsWith("Schedule"));
+              card?.scrollIntoView({ block: "center" });
+              card?.querySelector("button.primary")?.focus();
+            },
+          ],
+        ]),
+  ];
+  const done = steps.filter((s) => s[2]).length;
+  if (done === steps.length || stepDone(hiddenKey)) return null;
+  return el(
+    "div.home-card.setup-card",
+    {},
+    el(
+      "div.setup-head",
+      {},
+      el("h3", {}, "Getting started"),
+      el("span.muted.small", {}, `${done} of ${steps.length} done`),
+      el("span.spacer"),
+      el("button.small", { title: "Hide this list (the settings stay in ⚙ Settings)", onclick: () => { markStep(hiddenKey); render(); } }, "Hide"),
+    ),
+    el(
+      "ol.setup-steps",
+      {},
+      steps.map(([title, help, ok, go, alt]) =>
+        el(
+          `li${ok ? ".done" : ""}`,
+          {},
+          el("span.setup-tick", {}, ok ? "✓" : ""),
+          el("div.setup-text", {}, el("strong", {}, title), el("span.muted.small", {}, help)),
+          ok ? null : el("button.small", { onclick: go }, "Do it…"),
+          ok || !alt ? null : el("button.small.link", { onclick: alt[1] }, alt[0]),
+        ),
+      ),
+    ),
+  );
 }
 
 export function hideHome() {
@@ -467,6 +566,7 @@ function render() {
         el("button", { onclick: openExample, title: "The built-in example service" }, "Example"),
         app.service ? el("button", { onclick: hideHome, title: "Back to the open service" }, "✕ Close") : null,
       ),
+      setupCard(),
       el(
         "div.home-cards",
         {},
@@ -498,7 +598,7 @@ function render() {
                 el("span.muted.small", {}, "A service at"),
                 schedTimes.map(({ t, box }) => el("label.field.inline.check", {}, box, el("span", {}, timeLabel(t)))),
               )
-            : el("p.muted.small", {}, "Add the parish's service times in Parish details (Bulletin tab) to schedule a service for each."),
+            : el("p.muted.small", {}, "Add the parish's service times in ⚙ Settings → Parish details to schedule a service for each."),
           schedOpts.row,
           el("div.home-card-actions", {}, el("button.primary", { onclick: schedule }, "Schedule")),
         ),

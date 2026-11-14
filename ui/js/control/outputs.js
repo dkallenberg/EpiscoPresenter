@@ -21,6 +21,12 @@ async function refresh() {
   b.textContent = `Output screens… (${open} of ${status.outputs.length} open)`;
   b.classList.toggle("outputs-off", open === 0);
   b.title = open ? status.outputs.map((o) => `${o.title}: ${describe(o)}`).join("\n") : "The output screens are closed. Click to open them.";
+  // Once screens have been opened, "Choose the screens" is done (Getting started).
+  if (open > 0) {
+    try {
+      localStorage.setItem("setup.screens", "yes");
+    } catch {}
+  }
   // With the screens closed, say so in the top bar (the button is in a menu).
   const note = document.getElementById("screens-note");
   if (note) note.hidden = open > 0 || app.mode === "planner";

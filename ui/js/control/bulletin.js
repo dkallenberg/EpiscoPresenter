@@ -29,15 +29,31 @@ function makeView(kind) {
     title: "When the service starts, for the cover",
     onchange: () => call("set_service_time", { time: time.value || null }),
   });
-  const item = el("div.doc-item");
+  // How the clicked item appears: a bar over the item itself.
+  const item = el("div.doc-item-bar", { hidden: true });
   const page = el("div.doc-page");
   const scroll = el("div.doc-scroll", {}, page);
+  const todo = el("aside.doc-todo");
   const exportLabel = "Export to Word";
+  const paper =
+    kind === "bulletin"
+      ? el(
+          "select.doc-paper",
+          {
+            title: "The sheet the bulletin is printed on, folded in half (also in Parish details)",
+            onchange: async () => {
+              const info = await call("parish_get");
+              if (info) await call("parish_set", { info: { ...info, paper: paper.value } });
+            },
+          },
+          [["tabloid", "11 × 17, folded"], ["letter", "8½ × 11, folded"]].map(([v, l]) => el("option", { value: v }, l)),
+        )
+      : null;
   const toolbar = el(
     "div.doc-toolbar",
     {},
     el("label.field.inline", {}, el("span", {}, "Service time"), time),
-    kind === "bulletin" ? item : el("span.muted.small", {}, "Every word, with rubrics in red. The Great Thanksgiving starts a new page."),
+    paper ? el("label.field.inline", {}, el("span", {}, "Paper"), paper) : el("span.muted.small", {}, "Every word, with rubrics in red."),
     el(
       "div.seg.doc-format",
       { title: "Click into any text to edit it. Changes go into the item itself, so the slides change too." },
@@ -55,8 +71,8 @@ function makeView(kind) {
     if (entry) app.select(entry.dataset.cue);
     if (missing && entry) openReadings(entry.dataset.cue);
   });
-  host.replaceChildren(toolbar, scroll);
-  const v = { kind, host, time, item, page, scroll, stale: true, editing: null, pending: false };
+  host.replaceChildren(toolbar, el("div.doc-body", {}, scroll, todo));
+  const v = { kind, host, time, paper, item, page, scroll, todo, stale: true, editing: null, pending: false };
   wireEditing(v);
   views[kind] = v;
   return v;
@@ -93,6 +109,7 @@ async function refresh(v) {
   if (list) styles = new Map(list.map((x) => [x.id, x]));
   else if (v.kind === "script") styles = new Map(((await call("bulletin_styles")) ?? []).map((x) => [x.id, x]));
   showMissing();
+  renderTodo(v);
   if (html == null) return;
   const top = v.scroll.scrollTop;
   v.page.innerHTML = html;
@@ -104,9 +121,42 @@ async function refresh(v) {
       n.dataset.orig = n.innerHTML;
     }
   }
+  if (v.kind === "bulletin") v.page.append(v.item);
   v.scroll.scrollTop = top;
   markSelected(v, false);
   renderItem();
+}
+
+/** What is still to do before Sunday, beside the page; each opens the place to do it. */
+async function renderTodo(v) {
+  const s = app.service;
+  if (!s) return v.todo.replaceChildren();
+  const parish = (await call("parish_get")) ?? {};
+  if (v.paper && document.activeElement !== v.paper) v.paper.value = parish.paper ?? "tabloid";
+  const items = [];
+  if (!parish.name) items.push(["Add the parish's name, logo and details", () => openParish()]);
+  if (!s.time) items.push(["Set the service time (for the cover)", () => v.time.focus()]);
+  if (s.cues.some((c) => c.content.kind === "announcements") && !s.announcements_deck) {
+    items.push(["Add the announcements' Google Slides link", () => document.getElementById("btn-settings")?.click()]);
+  }
+  for (const c of s.cues) {
+    const t = styles.get(c.id)?.todo;
+    if (!t) continue;
+    items.push([
+      `${c.title}: ${t.toLowerCase()}`,
+      () => {
+        app.select(c.id);
+        if (styles.get(c.id)?.needs_text) openReadings(c.id);
+        else if (c.category === "homily" || c.category === "hymn") document.querySelector('.tabs button[data-tab="editor"]')?.click();
+      },
+    ]);
+  }
+  v.todo.replaceChildren(
+    el("h4", {}, items.length ? `To do (${items.length})` : "To do"),
+    items.length
+      ? el("ul", {}, items.map(([text, go]) => el("li", {}, el("button.link", { onclick: go }, text))))
+      : el("p.muted.small", {}, "Nothing left to do ✓"),
+  );
 }
 
 // ---------- editing in place ----------
@@ -416,10 +466,9 @@ function renderItem() {
   const v = views.bulletin;
   if (!v) return;
   const cue = app.selectedCue();
-  if (!cue) {
-    v.item.replaceChildren(el("span.muted.small", {}, "Click an item to choose how it appears."));
-    return;
-  }
+  const entry = cue && v.page.querySelector(`.entry[data-cue="${CSS.escape(cue.id)}"]`);
+  v.item.hidden = !entry || app.readonly;
+  if (!entry) return;
   const info = styles.get(cue.id);
   const current = info?.style ?? "full";
   const seg = el(
@@ -439,7 +488,10 @@ function renderItem() {
       ),
     ),
   );
-  v.item.replaceChildren(el("b.doc-item-name", { title: cue.title }, cue.title), seg);
+  v.item.replaceChildren(el("span.doc-item-name", { title: cue.title }, "In the bulletin:"), seg);
+  // Just above the item, at its right.
+  if (v.item.parentNode !== v.page) v.page.append(v.item);
+  v.item.style.top = `${Math.max(0, entry.offsetTop - v.item.offsetHeight - 4)}px`;
 }
 
 async function exportDoc(kind) {

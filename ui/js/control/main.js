@@ -13,7 +13,7 @@ import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
 import { initStage } from "/js/control/stage.js";
 import { initTimeline } from "/js/control/timeline.js";
-import { app, call, reportWarnings, toast } from "/js/control/util.js";
+import { app, call, friendly, reportWarnings, toast } from "/js/control/util.js";
 import { openConnection } from "/js/control/connection.js";
 
 const $ = (id) => document.getElementById(id);
@@ -64,7 +64,7 @@ $("save-status").addEventListener("click", async () => {
     const path = await call("service_keep", { date: app.service.date ?? today });
     if (path) toast("Kept. This service now saves automatically.");
   } else if (saveError) {
-    toast(saveError, "error");
+    toast(friendly(saveError), "error");
   }
 });
 listen("episco://autosave", (s) => {
@@ -158,7 +158,7 @@ function renderTopbar() {
     const [text, cls, title] = !s.plan_path
       ? ["Not saved yet · Keep this service", "warn", "This service has no file yet (an example or a copy). Click to keep it with your services; from then on it saves by itself."]
       : saveError
-        ? ["⚠ Could not save · Details", "error", `${saveError}\nClick for details.`]
+        ? ["⚠ Could not save · Details", "error", `${friendly(saveError)}\nClick for details.`]
         : hasUnsaved()
           ? ["Saving…", "pending", "Changes save by themselves a moment after you stop editing."]
           : ["Saved ✓", "ok", `Saved by itself to ${s.plan_path}`];

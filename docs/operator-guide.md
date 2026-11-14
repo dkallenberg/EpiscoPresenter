@@ -33,6 +33,18 @@ sanctuary computer** (on the live-stream computer). Hover for the address
 and delay; click to set up the connection. A stage message, when one is
 active, is shown here on every computer.
 
+## Getting started
+
+Until it is done (or hidden), the Services screen shows **Getting started**:
+choose the parish library folder, then in EpiscoPresenter choose the screens
+and, if there are two computers, connect them (or **One computer is
+enough**); in EpiscoPlanner add the parish's details and plan the coming
+Sundays. Each step has a **Do it…** button and is ticked when done.
+
+When something goes wrong, the message says what to try next (for example,
+"Check that the folder can be reached (is Google Drive running?)"), with the
+technical detail at the end for whoever helps.
+
 ## Service timeline (left)
 
 * The first row is **Before the service**: the announcements loop that runs
@@ -128,14 +140,15 @@ link can view**.
 When a service with a deck opens, each computer downloads the deck once (as
 a PDF, from Google) and shows its slides as pictures:
 
-* **Pre-Service** is a row in the timeline like the others, with a picture of
-  the slide showing now, and a section at the top of the **Slides** tab with
-  every slide; the one on screen is outlined. It loops on the sanctuary
-  screen, a slide every 9 seconds. Click its heading or a slide (or the
-  **Pre-Service** button) to go back to it.
-* An **Announcements** item in **Single pass** mode has one card per slide:
-  **Next** / **Prev** step through them, and you can click any slide, in any
-  order, to show it. In **Loop** mode it plays like Pre-Service.
+* **Before the service** is the first row of the service list, and a
+  section at the top of the **Slides** tab with every slide; the one on
+  screen is outlined. It repeats on the sanctuary screen, a slide every 9
+  seconds. Click its heading or a slide (or the **Before the service**
+  button) to go back to it.
+* An **Announcements** item set to **One time through** has one card per
+  slide: **Next** / **Prev** step through them, and you can click any slide,
+  in any order, to show it. Set to **Repeating**, it plays like Before the
+  service.
 * The number of slides is found automatically. After changing the deck in
   Google Slides, click **↻ Refresh slides** (Service settings, or the Announcements
   item's Editor) to download it again.
@@ -188,7 +201,7 @@ the selected item; **← Editor** goes back. **Apply** parses it and applies it
   its slide while the other moves on; see
   [layouts.md](layouts.md#how-much-text-a-slide-holds).
 * Then **Clear Text**, **Blackout**, **Clear Media** and
-  **Pre-Service**. A button stays red while its effect is active. Clear Text
+  **Before the service**. A button stays red while its effect is active. Clear Text
   and Clear Media reset when you move to another slide; Blackout stays on until
   you press it again.
 * **Stage message**: type and press Enter, or use a preset. It appears on the

@@ -137,7 +137,7 @@ function load(c, force) {
   if (!c) {
     ed.id = ed.doc = null;
     ed.dirty = ed.held = false;
-    root.replaceChildren(el("p.placeholder", {}, app.service ? "Select an item in the timeline to edit it." : ""));
+    root.replaceChildren(el("p.placeholder", {}, app.service ? "Choose a part of the service in the list on the left to edit it." : "Open a service first: ☰ Services."));
     return;
   }
   const incoming = c.content.kind === "liturgy" ? c.content.document : null;
@@ -232,7 +232,7 @@ function header(c) {
     el("div.ed-title", {}, el("strong#ed-title", {}, c.title), el("div#ed-file.muted.small")),
     el("span.spacer"),
     app.readonly
-      ? el("span.muted", {}, "Read-only on a slave node")
+      ? el("span.muted", {}, "Read-only: this computer follows the sanctuary computer")
       : el(
           "div.ed-actions",
           {},
@@ -247,7 +247,7 @@ function header(c) {
                 if (!ed.hold) flush(true);
               },
             }),
-            "Hold on-air edits",
+            "Hold edits while it is on screen",
           ),
           c.content.kind === "liturgy" ? el("button", { onclick: () => save(false), title: "⌘S" }, "Save") : null,
           c.content.kind === "liturgy" ? el("button", { onclick: () => save(true), title: "⇧⌘S" }, "Save a copy…") : null,
@@ -277,7 +277,7 @@ function renderStatus() {
     banner.hidden = !ed.held;
     if (ed.held)
       banner.replaceChildren(
-        el("span", {}, "This item is on air. Your edits are held and not yet on the screens."),
+        el("span", {}, "This item is on screen now. Your edits are held and not yet on the screens."),
         el("button.primary", { onclick: () => flush(true) }, "Apply to screens"),
         el("button", { onclick: discardHeld }, "Discard"),
       );
@@ -576,6 +576,15 @@ function hymnPanel(c) {
     "details.section.reading-panel.hymn-panel",
     { open: stanzas <= 1 },
     el("summary", {}, "Hymn words", el("span.muted.small", {}, stanzas > 1 ? ` · ${stanzas} stanzas` : " · not entered yet")),
+    stanzas <= 1
+      ? el(
+          "p.empty-hint",
+          {},
+          "No hymn chosen yet. Paste its words below, or add one from your library (",
+          el("button.link", { onclick: () => document.querySelector('.tabs button[data-tab="library"]')?.click() }, "Library"),
+          " → Hymn) and remove this placeholder.",
+        )
+      : null,
     paste,
     el(
       "div.reading-row",
@@ -664,7 +673,7 @@ function sermonPanel(c) {
       honorific.value = clergy[k]?.honorific ?? "";
       name.value = clergy[k]?.name ?? "";
       job.value = clergy[k]?.title || defaults[k];
-      if (!name.value) toast(`Add the ${defaults[k].toLowerCase()}'s name in Parish details (Bulletin tab) to fill it in.`, "warn");
+      if (!name.value) toast(`Add the ${defaults[k].toLowerCase()}'s name in ⚙ Settings → Parish details to fill it in.`, "warn");
       update();
     } else if (k === "other") {
       honorific.value = name.value = job.value = "";
@@ -694,7 +703,7 @@ function sermonPanel(c) {
     el("summary", {}, "The preacher", el("span.muted.small", {}, name.value ? ` · ${[honorific.value, name.value].filter(Boolean).join(" ")}` : " · not chosen")),
     el("datalist", { id: listId }, HONORIFICS.map((h) => el("option", { value: h }))),
     el("div.reading-row.sermon-row", {}, field("Preacher", who), field("Title", honorific), field("Name", name), field("Position", job)),
-    el("p.muted.small", {}, "Title is the person's style (The Rev., The Very Rev., The Rt. Rev. …): choose one or type your own. The clergy are set once in Parish details (Bulletin tab)."),
+    el("p.muted.small", {}, "Title is the person's style (The Rev., The Very Rev., The Rt. Rev. …): choose one or type your own. The clergy are set once in ⚙ Settings → Parish details."),
   );
 }
 
@@ -871,7 +880,7 @@ function divider(index) {
       "span.add-more",
       {},
       el("button", { onclick: () => insertBlock(index, { kind: "heading", level: 2, text: "" }), title: "Section heading (starts a slide)" }, "§ Heading"),
-      el("button", { onclick: () => insertBlock(index, { kind: "slide_break" }), title: "Start a new slide here" }, "⎯ Slide break"),
+      el("button", { onclick: () => insertBlock(index, { kind: "slide_break" }), title: "Start a new slide here" }, "⎯ New slide"),
       el("button", { onclick: () => insertBlock(index, { kind: "image", alt: "", src: "" }), title: "Sheet-music snippet" }, "♪ Music"),
       isPsalm()
         ? el("button.antiphon-btn", { onclick: () => insertAntiphon(index), title: "Insert a copy of the first antiphon here" }, "♫ Antiphon")
@@ -1098,8 +1107,8 @@ function announcementsPanel(c) {
       "Mode",
       select(
         [
-          ["single_pass", "Single pass · manual advance, quick exit to the next cue"],
-          ["loop", "Loop · auto-advance every 9 seconds"],
+          ["single_pass", "One time through · Next shows each slide, then the next part of the service"],
+          ["loop", "Repeating · a new slide every 9 seconds"],
         ],
         c.content.mode,
         (mode) => call("set_announcement_mode", { id: c.id, mode }),

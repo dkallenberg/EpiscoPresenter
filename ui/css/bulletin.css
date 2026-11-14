@@ -4,8 +4,22 @@
 .doc-view { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; }
 .doc-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .doc-toolbar input[type="time"] { width: 110px; }
-.doc-item { display: flex; gap: 8px; align-items: center; min-width: 0; }
-.doc-item-name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-body { flex: 1; min-height: 0; display: flex; gap: 10px; }
+.doc-body .doc-scroll { flex: 1; }
+.doc-page { position: relative; }
+/* The clicked item's choices, floating just above it. */
+.doc-item-bar { position: absolute; right: 0.3in; z-index: 5; display: flex; gap: 8px; align-items: center;
+  padding: 4px 6px 4px 10px; background: var(--panel, #24262d); color: var(--text, #e8e8ea); border: 1px solid var(--line, #444);
+  border-radius: 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); font: 13px -apple-system, "Segoe UI", sans-serif; }
+.doc-item-bar[hidden] { display: none; }
+/* What is left to do, beside the page. */
+.doc-todo { width: 240px; flex: none; overflow: auto; padding: 4px 4px 4px 0; font-size: 13px; }
+.doc-todo h4 { margin: 4px 0 8px; font-size: 13px; }
+.doc-todo ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.doc-todo li { padding: 6px 8px; border-radius: 6px; background: rgba(217, 164, 58, 0.12); border-left: 3px solid var(--accent, #d9a43a); }
+.doc-todo button.link { text-align: left; text-decoration: none; color: inherit; white-space: normal; }
+.doc-todo button.link:hover { text-decoration: underline; }
+.doc-item-name { white-space: nowrap; color: var(--muted, #999); }
 .seg.doc-styles { margin-left: 0; }
 .seg.doc-styles button.usual:not(.active) { text-decoration: underline dotted; text-underline-offset: 3px; }
 .doc-scroll { flex: 1; min-height: 0; overflow: auto; background: #3a3c44; border-radius: 8px; padding: 24px 0; }

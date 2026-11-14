@@ -54,9 +54,30 @@ export async function call(cmd, args) {
   try {
     return await invoke(cmd, args);
   } catch (e) {
-    toast(String(e), "error");
+    toast(friendly(String(e)), "error");
     return undefined;
   }
+}
+
+/** Errors in a parish's words, with what to do next. The technical detail
+ *  stays at the end, for whoever helps. */
+const ADVICE = [
+  [/^no service is (loaded|open)/i, "Open a service first: ☰ Services."],
+  [/^no such (item|cue)/i, "That part of the service is no longer there (it may have been changed on another computer). Choose it again in the service list."],
+  [/could not (reach google slides|download the deck)/i, "Check the internet connection, and that the presentation is shared as “Anyone with the link can view”."],
+  [/^could not (save|create|write|replace|copy|delete)/i, "Check that the folder can be reached (is Google Drive running?) and that the disk is not full, then try again."],
+  [/^could not (read|open)/i, "The file may have been moved, renamed or deleted. Choose it again."],
+  [/not a bible json file/i, "Choose the Bible file prepared for EpiscoPlanner (Library → Reading texts explains it)."],
+  [/^invalid service plan/i, "The service file is damaged or from a newer version. Open another service, or make a new one."],
+  [/sync server could not listen/i, "Another copy of EpiscoPresenter may be running on this computer. Quit it and start again."],
+];
+
+export function friendly(message) {
+  const m = String(message ?? "").replace(/^Error:\s*/, "");
+  const advice = ADVICE.find(([re]) => re.test(m))?.[1];
+  const sentence = m ? m[0].toUpperCase() + m.slice(1) : "Something went wrong.";
+  if (!advice) return sentence;
+  return `${sentence.replace(/[.:]?$/, ".")} ${advice}`;
 }
 
 export function reportWarnings(warnings) {

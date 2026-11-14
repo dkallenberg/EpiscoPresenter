@@ -63,7 +63,7 @@ function renderNowNext(active) {
   const now = active ? describe(service, active.pos) : null;
   const next = describe(service, nextPosition(service, app.state.active));
   host.replaceChildren(
-    line("NOW", now, "Pre-service · announcements loop"),
+    line("NOW", now, "Before the service · the announcements"),
     line("NEXT", next, "End of service"),
   );
 }
