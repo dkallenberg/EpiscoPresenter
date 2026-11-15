@@ -9,7 +9,7 @@
 
 import { assetUrl, listen } from "/js/bridge.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
-import { openServiceSettings } from "/js/control/looks.js";
+import { editPrelude } from "/js/control/prelude.js";
 import { undoButtons } from "/js/control/undo.js";
 
 const STYLES = [
@@ -69,9 +69,9 @@ function makeView(kind) {
     el("button.primary", { onclick: () => exportDoc(kind) }, `⤓ ${exportLabel}`),
   );
   page.addEventListener("click", (e) => {
-    // The Prelude's line: its title and composer are in Service settings.
+    // The Prelude's line (or the place for it): its title and composer.
     const lone = e.target.closest(".entry:not([data-cue])");
-    if (lone && /^\s*Prelude\b/.test(lone.textContent)) return openServiceSettings("prelude");
+    if (lone && /^\s*Prelude\b/.test(lone.textContent)) return editPrelude();
     const missing = e.target.closest(".missing");
     const entry = e.target.closest("[data-cue]");
     if (entry) app.select(entry.dataset.cue);
@@ -120,6 +120,17 @@ async function refresh(v) {
   const top = v.scroll.scrollTop;
   v.page.innerHTML = html;
   for (const img of v.page.querySelectorAll("img[data-path]")) img.src = assetUrl(null, img.dataset.path);
+  // No prelude yet: its place at the top, to fill in (not in the Word file).
+  const first = v.page.querySelector("section.entry");
+  if (first && !app.service?.prelude && !app.readonly) {
+    first.before(
+      el(
+        "section.entry.reference.prelude-missing",
+        { title: "Click to add the prelude's title and composer" },
+        el("p.line", {}, el("span.lead", {}, el("b", {}, "Prelude"), " "), el("span.missing", {}, "Add the title and composer")),
+      ),
+    );
+  }
   if (!app.readonly) {
     for (const n of v.page.querySelectorAll(".ed, .entry[data-cue] .ed-title")) {
       // The Prelude (no item of its own) is set in Service settings.
@@ -506,7 +517,11 @@ function renderItem() {
   );
   v.item.replaceChildren(el("span.doc-item-name", { title: cue.title }, leftOut ? `“${cue.title}” is left out:` : "In the bulletin:"), seg);
   if (v.item.parentNode !== v.page) v.page.append(v.item);
-  // Just above the item, at its right; a left-out item's at the top of the view.
+  // Just above the item, at its right; a left-out item's at the top of the
+  // view. Above the first item, the prelude's line makes room for it.
+  for (const p of v.page.querySelectorAll(".entry:not([data-cue])")) p.style.marginBottom = "";
+  const prev = entry?.previousElementSibling;
+  if (prev?.matches?.(".entry:not([data-cue])")) prev.style.marginBottom = `${v.item.offsetHeight + 8}px`;
   const top = entry ? entry.offsetTop - v.item.offsetHeight - 4 : v.scroll.scrollTop - v.page.offsetTop + 8;
   v.item.style.top = `${Math.max(0, top)}px`;
 }

@@ -640,3 +640,7 @@ body.planner .settings-menu .menu-group.planner-only { display: flex; }
 
 /* EpiscoPresenter's service list: a picture of each item's slides. */
 body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; }
+
+/* The planner's service list: the prelude above the first item. */
+.cue.prelude-row { cursor: pointer; }
+.cue.prelude-row .cue-meta { font-size: 12px; }

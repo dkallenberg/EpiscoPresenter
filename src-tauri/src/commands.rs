@@ -500,6 +500,17 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
     })
 }
 
+/// Sets the service's prelude (title and composer); both empty clears it.
+#[tauri::command]
+pub fn set_prelude(engine: State<'_, Engine>, title: String, composer: String) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let m = episco_core::music::Music::new(&title, &composer);
+        s.prelude = (!m.is_empty()).then_some(m);
+        s.modified = true;
+        Ok(())
+    })
+}
+
 // ---- background library --------------------------------------------------
 
 const IMAGE_EXTENSIONS: [&str; 6] = ["png", "jpg", "jpeg", "gif", "svg", "webp"];

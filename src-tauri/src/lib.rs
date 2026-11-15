@@ -215,6 +215,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         commands::set_cue_look,
         commands::set_default_look,
         commands::set_service_details,
+        commands::set_prelude,
         commands::list_backgrounds,
         commands::import_backgrounds,
         commands::pick_background,

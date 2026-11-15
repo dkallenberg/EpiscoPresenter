@@ -605,7 +605,7 @@ function textOptions(type, T) {
   return el(
     "div.lyt-type-opts",
     {},
-    el("h4", {}, `Text on ${type.label} slides`),
+    el("h4", {}, `Lines, line breaks and indents on ${type.label} slides`),
     el("label.field", {}, el("span", {}, "Lines per slide"), lines),
     el(
       "p.muted.small",

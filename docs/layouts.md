@@ -45,8 +45,8 @@ The sanctuary hymn lyrics and the welcome bar keep their fixed layouts.
 
 ## How much text a slide holds
 
-Under the element settings, **Text on … slides** sets, for each slide type
-with a text box:
+Under the element settings, **Lines, line breaks and indents on … slides**
+sets, for each slide type with a text box (the live stream's included):
 
 | Setting | What it does |
 | --- | --- |

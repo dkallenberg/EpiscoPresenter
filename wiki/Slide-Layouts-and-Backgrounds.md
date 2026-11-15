@@ -62,9 +62,11 @@ shared through the parish library folder.
 On slides without a title or section heading (most prayers), the text box
 grows up into their space, even when you've left a gap between the boxes.
 
-### How much text a slide holds
+### Lines, line breaks and indents
 
-Under the settings, **Text on … slides** sets:
+Pick a slide type (for the live stream: Left side, Bottom Bar, Lower Third,
+Hymn) and, under the element settings on the right, **Lines, line breaks
+and indents on … slides** sets:
 
 * **Lines per slide.** The sanctuary holds 9 lines (the size of the
   Confession's slides) unless you change it. The stream fits what its text
