@@ -54,6 +54,8 @@ function insertionPoint() {
 
 export function initLibrary() {
   listen("episco://storage", () => refresh());
+  // Files from another computer (sync.rs): the lists only.
+  listen("episco://library", () => refresh());
   document.querySelector('.tabs button[data-tab="library"]').addEventListener("click", () => {
     refresh();
     // Fetch the other computers' changes now (the list refreshes if any came).

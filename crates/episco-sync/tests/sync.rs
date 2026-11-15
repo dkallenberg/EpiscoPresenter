@@ -58,8 +58,12 @@ async fn mirror_receives_snapshot_and_updates_and_can_command() {
         e => panic!("unexpected {e:?}"),
     }
 
-    // Client-side command is applied by the master and echoed back.
+    // Within a second of the master's change the stream computer's Next
+    // is ignored; a slide click is applied by the master and echoed back.
     client.send(Command::Next).unwrap();
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(hub.state().active, Some(CuePosition { cue: 0, slide: 0 }));
+    client.send(Command::GoTo { cue: 0, slide: 1 }).unwrap();
     match next_event(&mut events).await {
         ClientEvent::State(s) => assert_eq!(s.active, Some(CuePosition { cue: 0, slide: 1 })),
         e => panic!("unexpected {e:?}"),
@@ -201,4 +205,21 @@ async fn edits_follow_the_on_air_cue_and_reach_clients() {
     hub.edit_service(|s| s.remove_cue(&on_air).map(drop)).unwrap();
     assert_eq!(hub.state().active, None);
     server.shutdown().await;
+}
+
+#[test]
+fn another_computers_change_waits_a_second() {
+    let hub = SyncHub::new(HubConfig::default());
+    hub.load_service(Some(service()));
+    assert!(hub.apply(&Command::Next).is_some(), "this computer moves on");
+    assert!(hub.apply_from(7, &Command::Next).is_none(), "the other computer's Next is ignored");
+    assert!(hub.apply_from(7, &Command::ToggleBlackout).is_none(), "and its Blackout");
+    assert!(
+        hub.apply_from(7, &Command::StageMessage { text: "Slow down".into() }).is_some(),
+        "a stage message goes through"
+    );
+    assert!(hub.apply(&Command::Next).is_some(), "this computer may keep going");
+    assert!(hub.apply_from(7, &Command::GoTo { cue: 0, slide: 0 }).is_some(), "a click still works");
+    assert!(hub.apply(&Command::Prev).is_none(), "now this computer waits for the click");
+    assert_eq!(hub.state().active, Some(CuePosition { cue: 0, slide: 0 }));
 }

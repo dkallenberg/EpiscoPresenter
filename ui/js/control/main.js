@@ -96,19 +96,49 @@ initOutputs();
   document.addEventListener("keydown", (e) => e.key === "Escape" && close());
 }
 
-// The announcements deck: download it (once per computer) when a service has
-// one, and record its slide count so a single pass steps through every slide.
+// The announcements deck (and Google Slides pages in made slides): shown at
+// once from this computer's copy, then downloaded again once per run, so
+// both computers show the deck as it is now (an old copy numbers its slides
+// differently). The slide count is recorded so a single pass steps through
+// every slide; the stream computer downloads again when the sanctuary
+// computer counts a different number.
 let deckUrl = null;
+const refreshed = new Set();
+const refreshDeck = (url) => {
+  if (refreshed.has(url)) return;
+  refreshed.add(url);
+  invoke("deck_fetch", { url, refresh: true }).catch(() => {});
+};
 const syncDeckCount = (url) => {
   const n = pageCount(url);
   const s = app.service;
-  if (n && s && !app.readonly && s.announcements_deck === url && s.deck_slides !== n) call("deck_set_slides", { slides: n });
+  if (!n || !s || s.announcements_deck !== url || s.deck_slides === n) return;
+  if (!app.readonly) call("deck_set_slides", { slides: n });
+  else if (s.deck_slides && !refreshed.has(`${url}#${s.deck_slides}`)) {
+    refreshed.add(`${url}#${s.deck_slides}`);
+    invoke("deck_fetch", { url, refresh: true }).catch(() => {});
+  }
+};
+const madeDecks = (service) => {
+  const urls = new Set();
+  for (const cue of service?.cues ?? []) {
+    if (cue.content.kind !== "liturgy") continue;
+    for (const slide of cue.content.slides ?? []) {
+      for (const b of slide.blocks ?? []) {
+        const m = /^deck:(.*)#page=\d+$/.exec(b.src ?? "");
+        if (m) urls.add(m[1]);
+      }
+    }
+  }
+  return urls;
 };
 app.on((what) => {
   if (what !== "service") return;
   const url = app.service?.announcements_deck ?? null;
-  if (url && url !== deckUrl) loadDeck(url, true).then(() => syncDeckCount(url));
+  if (url && url !== deckUrl) loadDeck(url, true).then(() => (syncDeckCount(url), refreshDeck(url)));
   deckUrl = url;
+  madeDecks(app.service).forEach(refreshDeck);
+  if (url) syncDeckCount(url);
 });
 onDeckChange(syncDeckCount);
 document.addEventListener("keydown", (e) => {

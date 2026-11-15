@@ -373,6 +373,10 @@ fn sync_folders(local: &Path, shared: &Path, by: &str, st: &mut State) -> CmdRes
     Ok(changed)
 }
 
+/// Emitted when files of the library came from another computer (the
+/// Library's lists refresh; nothing else changes on screen).
+pub const LIBRARY_EVENT: &str = "episco://library";
+
 /// Only one sync at a time.
 static RUNNING: Mutex<()> = Mutex::new(());
 
@@ -396,12 +400,12 @@ pub fn run(app: &AppHandle) -> CmdResult<bool> {
     // The first copy is made: work from it from now on.
     if first {
         crate::storage::copy_made(app);
-        let _ = app.emit(crate::storage::EVENT, ());
+        let _ = app.emit(LIBRARY_EVENT, ());
     }
     if changed {
         crate::templates::init(app);
         crate::bulletin::init(app);
-        let _ = app.emit(crate::storage::EVENT, ());
+        let _ = app.emit(LIBRARY_EVENT, ());
     }
     Ok(changed)
 }

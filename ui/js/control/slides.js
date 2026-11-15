@@ -10,6 +10,7 @@ import { app, el, slideSummary } from "/js/control/util.js";
 let grid;
 let builtFor = null; // service object the grid was built from
 let output = "sanctuary"; // which output the thumbnails show
+let liveAt = null; // the live slide last scrolled to ("cue/slide")
 
 export function initSlides() {
   grid = document.getElementById("slide-grid");
@@ -188,6 +189,12 @@ function highlight(scrollToSelection) {
   highlightLoop();
   const group = app.selectedId && grid.querySelector(`.slide-group[data-id="${CSS.escape(app.selectedId)}"]`);
   group?.classList.add("selected");
-  if (scrollToSelection) group?.scrollIntoView({ block: "start", behavior: "smooth" });
+  // The live slide moves to the top when it changes (Next, Back, a click),
+  // so the slides coming up are in view; browsing other items scrolls to them.
+  const at = a ? `${a.cue}/${a.slide}` : null;
+  const moved = at !== liveAt;
+  liveAt = at;
+  if (scrollToSelection && !moved) group?.scrollIntoView({ block: "start", behavior: "smooth" });
+  else if (moved) live?.scrollIntoView({ block: "start", behavior: "smooth" });
   else live?.scrollIntoView({ block: "nearest" });
 }

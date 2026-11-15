@@ -147,13 +147,18 @@ Paste the deck's link in **⚙ Settings → Service settings → Announcements d
 sharing link (Share → Copy link) works. Share the deck as **Anyone with the
 link can view**.
 
-When a service with a deck opens, each computer downloads the deck once (as
-a PDF, from Google) and shows its slides as pictures:
+When a service with a deck opens, each computer shows the copy it has at
+once and then downloads the deck again (as a PDF, from Google), once each
+time the app runs, so both computers show the deck as it is now and number
+its slides alike. The live-stream computer also downloads it again when the
+sanctuary computer counts a different number of slides. The slides are shown
+as pictures:
 
 * **Before the service** is the first row of the service list, and a
   section at the top of the **Slides** tab with every slide; the one on
   screen is outlined. It repeats on the sanctuary screen, a slide every 9
-  seconds. Click its heading or a slide (or the **Before the service**
+  seconds (its picture in the service list changes with it only while it is
+  on screen). Click its heading or a slide (or the **Before the service**
   button) to go back to it.
 * An **Announcements** item set to **One time through** has one card per
   slide: **Next** / **Prev** step through them, and you can click any slide,
@@ -253,6 +258,15 @@ to allow these. If the live-stream computer stays offline, check the
 address, that both are on the same network, and that the sanctuary
 computer's firewall allows EpiscoPresenter.
 
+**Both computers have every control.** To keep the two operators from
+undoing each other, a change made on one computer (Next, Back, Blackout,
+Clear, Before the service) holds the other computer's controls for one
+second: anything it presses in that second is ignored. A click on a slide
+always goes through, and so do stage messages.
+
+In the **Slides** tab the slide on screen moves to the top whenever it
+changes, so the slides coming up are in view.
+
 Pictures, PDFs and videos from the parish library are shown from each
 computer's own copy of the library folder, so set the parish library folder
 up on the live-stream computer as well (⚙ Settings → Parish library folder); services marked ready
@@ -261,5 +275,6 @@ are copied to it with their pictures. To go back to one computer, choose
 
 ## Slave (live-stream) node
 
-The same window, read-only: it follows the master and can send Next / Prev,
-the quick actions and stage messages. Edit and save on the master.
+The same window, read-only: it follows the master and has every control
+(Next / Prev, slide clicks, the quick actions and stage messages), held for
+one second after the master changes something. Edit and save on the master.

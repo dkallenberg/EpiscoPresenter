@@ -183,8 +183,9 @@ function render(list) {
  *  (EpiscoPlanner's list is plain). */
 const pictures = () => app.mode === "presenter";
 
-/** A thumbnail of the deck: slide `n`, or the slide a loop shows now. */
-function deckThumb(n = null) {
+/** A thumbnail of the deck: slide `n`; for a loop, the slide it shows now
+ *  while it is on screen (`live`), else its first slide, still. */
+function deckThumb(n = null, live = false) {
   const url = app.service?.announcements_deck;
   const thumb = el("span.cue-thumb.deck-thumb");
   if (!url) {
@@ -197,6 +198,7 @@ function deckThumb(n = null) {
   loadDeck(url).then((pages) => {
     if (!pages) return (thumb.textContent = "▤");
     if (n) return show(Math.min(n, pages));
+    if (!live) return show(1);
     let current = 0;
     const timer = setInterval(() => {
       if (!img.isConnected) return clearInterval(timer);
@@ -212,7 +214,7 @@ function deckThumb(n = null) {
  *  stream's inset. */
 function cueThumb(cue, active, onAir) {
   if (cue.content.kind === "announcements") {
-    return deckThumb(cue.content.mode === "loop" ? null : (onAir ? active.slide : 0) + 1);
+    return deckThumb(cue.content.mode === "loop" ? null : (onAir ? active.slide : 0) + 1, onAir);
   }
   return el(
     "span.cue-thumb",
@@ -234,7 +236,7 @@ function preServiceRow(service, active) {
       ondblclick: () => send({ type: "reset" }),
     },
     el("span.cue-num", {}, "–"),
-    pictures() ? deckThumb() : null,
+    pictures() ? deckThumb(null, live) : null,
     el("div.cue-body", {}, el("div.cue-title", {}, el("span.cue-icon", {}, ICONS.announcements), "Before the service")),
     el("div.cue-icons", {}, live ? el("span.badge.live", {}, "On screen") : null),
   );

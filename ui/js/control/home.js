@@ -68,8 +68,13 @@ function formatDate(iso, opts) {
 }
 
 export function initHome() {
-  // A different library folder: show its services.
-  listen("episco://storage", () => showHome());
+  // A different library folder: show its services, but never over a
+  // service that is open (on the presentation computers above all); the
+  // screen, if it is showing, is redrawn.
+  listen("episco://storage", () => {
+    const home = document.getElementById("home");
+    if (!app.service || (home && !home.hidden)) showHome();
+  });
   app.on((what) => {
     if (what === "link") return;
     // On start (and if the open service is closed), show the Services screen.

@@ -3,7 +3,7 @@
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::State;
@@ -55,7 +55,15 @@ struct Inner {
     state: PresentationState,
     service: Option<Arc<Service>>,
     outline: Vec<usize>,
+    /// The last change: when, and from whom (0 = this computer, otherwise
+    /// the client's id). Another source's command within [`CHANGE_LOCK`] is
+    /// ignored, so two operators pressing at once make one change.
+    last_change: Option<(Instant, u64)>,
 }
+
+/// How long one computer's change locks out the others' commands (a slide
+/// click and stage messages always go through).
+pub const CHANGE_LOCK: Duration = Duration::from_secs(1);
 
 /// Owns the live [`PresentationState`] and fans changes out to every client.
 pub struct SyncHub {
@@ -89,7 +97,12 @@ impl SyncHub {
         let (tx, _) = broadcast::channel(BROADCAST_CAPACITY);
         Arc::new(SyncHub {
             config,
-            inner: RwLock::new(Inner { state: PresentationState::default(), service: None, outline: Vec::new() }),
+            inner: RwLock::new(Inner {
+                state: PresentationState::default(),
+                service: None,
+                outline: Vec::new(),
+                last_change: None,
+            }),
             tx,
             clients: Mutex::new(Vec::new()),
             next_client: AtomicU64::new(1),
@@ -118,12 +131,31 @@ impl SyncHub {
         self.tx.subscribe()
     }
 
-    /// Applies a command. Returns the new state if anything changed.
+    /// Applies a command from this computer. Returns the new state if
+    /// anything changed.
     pub fn apply(&self, command: &Command) -> Option<PresentationState> {
+        self.apply_from(0, command)
+    }
+
+    /// Applies a command from `source` (0 = this computer, otherwise a
+    /// client's id). Within [`CHANGE_LOCK`] of another source's change,
+    /// only a slide click or a stage message is taken.
+    pub fn apply_from(&self, source: u64, command: &Command) -> Option<PresentationState> {
         let mut inner = self.write();
-        let Inner { state, outline, .. } = &mut *inner;
+        let Inner { state, outline, last_change, .. } = &mut *inner;
+        let now = Instant::now();
+        let always =
+            matches!(command, Command::GoTo { .. } | Command::StageMessage { .. } | Command::ClearStageMessage);
+        if let Some((at, from)) = *last_change {
+            if !always && from != source && now.duration_since(at) < CHANGE_LOCK {
+                return None;
+            }
+        }
         if !state.apply(command, outline) {
             return None;
+        }
+        if !matches!(command, Command::StageMessage { .. } | Command::ClearStageMessage) {
+            *last_change = Some((now, source));
         }
         let state = state.clone();
         // Sent while holding the lock so subscribers see revisions in order.
@@ -335,7 +367,7 @@ async fn connection(mut socket: WebSocket, hub: Arc<SyncHub>) -> Result<(), Stri
                 None => return Ok(()),
                 Some(ClientMessage::Command { command }) => {
                     if role.may_command() {
-                        hub.apply(&command);
+                        hub.apply_from(id, &command);
                     } else {
                         send_msg(&mut socket, &ServerMessage::Error {
                             message: "monitor clients may not send commands".into(),

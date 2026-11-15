@@ -119,7 +119,7 @@ span.link.ok::before { color: var(--ok); }
 .group-head { display: flex; gap: 8px; align-items: baseline; font-size: 13px; margin: 0 0 8px; cursor: pointer;
   position: sticky; top: 50px; background: inherit; z-index: 1; }
 .slide-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
-.slide-card { padding: 6px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.slide-card { scroll-margin-top: 8px; padding: 6px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
 .slide-card.on-air { border-color: var(--live); box-shadow: 0 0 0 2px var(--live); }
 .slide-card.held .thumb { opacity: 0.5; }
 .slide-card.held .slide-label::after { content: " · holds"; color: var(--muted, #888); }
