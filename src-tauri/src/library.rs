@@ -177,6 +177,10 @@ pub struct LibraryEntry {
     /// First words of the text, for the list.
     summary: String,
     slides: usize,
+    /// The parish's other items that are the same hymn (same number) or
+    /// the same item (same kind and title): copies to merge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    dupes: Vec<String>,
 }
 
 fn user_dir(app: &AppHandle) -> CmdResult<PathBuf> {
@@ -211,6 +215,44 @@ fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
         default: false,
         summary,
         slides: doc.slides().len(),
+        dupes: Vec::new(),
+    }
+}
+
+/// What makes two of the parish's items the same: a hymn's number, else
+/// the kind and title (ignoring case, punctuation and "The"). Versions of a
+/// Prayer Book item are meant to be several, so they have none.
+fn same_key(e: &LibraryEntry) -> Option<String> {
+    if e.builtin || e.base.is_some() {
+        return None;
+    }
+    let norm = |t: &str| {
+        let t = t.trim().to_lowercase();
+        let t = t.strip_prefix("the ").unwrap_or(&t).to_string();
+        t.chars().filter(|c| c.is_alphanumeric()).collect::<String>()
+    };
+    let number = (e.category == "hymn")
+        .then(|| e.citation.as_deref()?.strip_prefix("Hymn ").map(norm))
+        .flatten()
+        .filter(|n| !n.is_empty());
+    Some(match number {
+        Some(n) => format!("hymn#{n}"),
+        None => format!("{}:{}", e.category, norm(&e.title)),
+    })
+}
+
+/// Marks the parish's items that are in the library more than once.
+fn mark_dupes(entries: &mut [LibraryEntry]) {
+    let keys: Vec<Option<String>> = entries.iter().map(same_key).collect();
+    let ids: Vec<String> = entries.iter().map(|e| e.id.clone()).collect();
+    for (i, e) in entries.iter_mut().enumerate() {
+        let Some(k) = &keys[i] else { continue };
+        e.dupes = keys
+            .iter()
+            .enumerate()
+            .filter(|(j, o)| *j != i && o.as_ref() == Some(k))
+            .map(|(j, _)| ids[j].clone())
+            .collect();
     }
 }
 
@@ -292,6 +334,7 @@ fn user_file(id: &str) -> CmdResult<&str> {
 /// parish to edit. Returns the copy's id.
 #[tauri::command]
 pub fn library_copy(app: AppHandle, id: String) -> CmdResult<String> {
+    crate::sync::soon();
     let doc = load(&app, &id)?;
     let name = doc.meta.extra(BASED_ON).map(String::from).ok_or("only Prayer Book items have versions")?;
     save_version(&user_dir(&app)?, &name, doc)
@@ -302,6 +345,7 @@ pub fn library_copy(app: AppHandle, id: String) -> CmdResult<String> {
 /// version's library id.
 #[tauri::command]
 pub fn cue_make_version(app: AppHandle, engine: State<'_, Engine>, id: String) -> CmdResult<String> {
+    crate::sync::soon();
     let service = engine.service().ok_or("no service is loaded")?;
     let doc = service.cue(&id).and_then(|c| c.document()).ok_or("no such item")?.clone();
     if !doc.meta.is_prayer_book_text() {
@@ -319,6 +363,7 @@ pub fn cue_make_version(app: AppHandle, engine: State<'_, Engine>, id: String) -
 /// built-in item itself) goes back to the Prayer Book's text.
 #[tauri::command]
 pub fn library_set_default(app: AppHandle, base: String, id: Option<String>) -> CmdResult<()> {
+    crate::sync::soon();
     if !BUILTIN.iter().any(|(n, _)| *n == base) {
         return Err("no such built-in item".into());
     }
@@ -416,6 +461,7 @@ fn list_library(app: &AppHandle) -> Vec<LibraryEntry> {
             _ => false,
         };
     }
+    mark_dupes(&mut out);
     out
 }
 
@@ -465,6 +511,7 @@ pub fn library_save_cue(
     replace: bool,
     version: Option<VersionSave>,
 ) -> CmdResult<String> {
+    crate::sync::soon();
     let service = engine.service().ok_or("no service is loaded")?;
     let cue = service.cue(&id).ok_or("no such cue")?;
     let doc = cue.document().ok_or("announcements cues cannot be saved to the library")?;
@@ -574,6 +621,7 @@ pub fn library_create_from_text(
     text: String,
     replace: bool,
 ) -> CmdResult<String> {
+    crate::sync::soon();
     if title.trim().is_empty() {
         return Err("give the item a title".into());
     }
@@ -595,6 +643,7 @@ pub fn library_create_from_text(
 /// Deletes an item from My Library (built-in items cannot be deleted).
 #[tauri::command]
 pub fn library_delete(app: AppHandle, id: String) -> CmdResult<()> {
+    crate::sync::soon();
     if id.starts_with("builtin:") {
         return Err("built-in items cannot be deleted".into());
     }
@@ -610,6 +659,23 @@ pub fn library_delete(app: AppHandle, id: String) -> CmdResult<()> {
         write_defaults(&dir, &map)?;
     }
     Ok(())
+}
+
+/// Keeps one of the parish's copies of an item and removes the others
+/// (services keep their own text, so nothing else changes).
+#[tauri::command]
+pub fn library_merge(app: AppHandle, keep: String, remove: Vec<String>) -> CmdResult<usize> {
+    crate::sync::soon();
+    let dir = user_dir(&app)?;
+    let mut removed = 0;
+    for id in remove.iter().filter(|id| **id != keep) {
+        let path = dir.join(user_file(id)?);
+        if path.is_file() {
+            std::fs::remove_file(&path).map_err(|e| format!("could not delete {}: {e}", path.display()))?;
+            removed += 1;
+        }
+    }
+    Ok(removed)
 }
 
 /// The My Library folder, so the operator can open it in Finder.
@@ -656,6 +722,7 @@ pub fn gospel_set_music(
     src: Option<String>,
     alt: Option<String>,
 ) -> CmdResult<()> {
+    crate::sync::soon();
     let music = src.filter(|p| !p.trim().is_empty()).map(|p| (p, alt.unwrap_or_default()));
     // The music chosen becomes the usual one: new services start with it.
     if let Some(m) = &music {
@@ -860,6 +927,7 @@ pub struct HymnImport {
 /// words as copied from the parish's licensed source.
 #[tauri::command]
 pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
+    crate::sync::soon();
     use tauri_plugin_dialog::DialogExt;
     let picked = app.dialog().file().add_filter("Hymn words", &["txt"]).blocking_pick_files().unwrap_or_default();
     let dir = user_dir(&app)?;
@@ -893,6 +961,35 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn copies_of_an_item_are_marked() {
+        let doc = |src: &str| -> LiturgyDocument { src.parse().unwrap() };
+        let mut list = vec![
+            entry(
+                "user:a.ewm".into(),
+                &doc("---\ntitle: Lift Up Your Heads\ntype: hymn\nhymn: \"436\"\n---\n1 Words\n"),
+                false,
+            ),
+            entry(
+                "user:b.ewm".into(),
+                &doc("---\ntitle: Lift up your heads, ye mighty gates\ntype: hymn\nhymn: \"436\"\n---\n1 Words\n"),
+                false,
+            ),
+            entry("user:c.ewm".into(), &doc("---\ntitle: The Parish Prayer\ntype: prayer\n---\nWords\n"), false),
+            entry("user:d.ewm".into(), &doc("---\ntitle: Parish prayer\ntype: prayer\n---\nOther words\n"), false),
+            entry(
+                "user:e.ewm".into(),
+                &doc("---\ntitle: Amazing Grace\ntype: hymn\nhymn: \"671\"\n---\n1 Words\n"),
+                false,
+            ),
+        ];
+        mark_dupes(&mut list);
+        assert_eq!(list[0].dupes, vec!["user:b.ewm"]);
+        assert_eq!(list[1].dupes, vec!["user:a.ewm"]);
+        assert_eq!(list[2].dupes, vec!["user:d.ewm"]);
+        assert!(list[4].dupes.is_empty());
+    }
 
     #[test]
     fn hymns_are_saved_by_their_own_name() {

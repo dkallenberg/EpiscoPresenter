@@ -84,12 +84,14 @@ edition, a OneLicense or CCLI reprint licence, …):
   `S 280 Gloria.txt`), and saves each as a hymn in **Mine**. Search the
   Library by number ("Hymn 436") or title, then select the
   hymn slot in the service and click **Use for Entrance Hymn** (or whichever
-  slot it is).
+  slot it is). Double-clicking the hymn does the same when the selected
+  slot is still empty; otherwise a double-click adds the hymn after it.
 
 **A hymn and its place are kept apart.** The item in the service is named
 for its place (*Entrance Hymn*, *Closing Hymn*); the hymn's own name goes in
 **Hymn title** and **Hymn #** in the Editor. Naming the hymn, or filling the
-slot from the Library, leaves the slot's name as it was. **Save to Library**
+slot from the Library, leaves the slot's name as it was: the Editor's
+**Name in the service list** shows it. **Save to Library**
 keeps a hymn under its number and title ("hymn-436-lift-up-your-heads"),
 never under its place, so the same hymn can open the service one week and
 close it the next. A hymn with neither a number nor its own title cannot be

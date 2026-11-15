@@ -8,6 +8,10 @@
   --accent: #c9a646;
   --live: #e0393e;
   --ok: #3cbf5a;
+  /* Dark scroll bars and form controls, whatever the Mac's own settings
+     (scroll bars always shown, light appearance). */
+  color-scheme: dark;
+  accent-color: var(--accent);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   color: var(--text);
@@ -15,6 +19,10 @@
 }
 
 * { box-sizing: border-box; }
+::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { background: #4a4d57; border-radius: 6px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #5f636f; border: 2px solid transparent; background-clip: padding-box; }
 body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 14px 0 6px; }
 .muted { color: var(--muted); }
@@ -644,3 +652,10 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 /* The planner's service list: the prelude above the first item. */
 .cue.prelude-row { cursor: pointer; }
 .cue.prelude-row .cue-meta { font-size: 12px; }
+
+/* Library: copies of an item, and the sync line. */
+.badge.dupe { background: #5a3d12; color: #f3c46b; }
+.lib-dupes { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; padding: 8px 10px; border: 1px solid #6b4e1c; border-radius: 6px; background: #2b2316; font-size: 13px; }
+.lib-sync { margin: 6px 0 0; }
+.lib-sync.warn { color: #f3c46b; }
+.lib-dupes button { flex: none; white-space: nowrap; }

@@ -8,7 +8,8 @@
 //!
 //! The shared folder holds a change log per computer
 //! (`change-log/<computer>.jsonl`): one line for each file it added,
-//! changed or removed. Every half minute (and at start-up) the app:
+//! changed or removed. Every 15 seconds, soon after a save here, and at
+//! start-up the app:
 //!
 //! 1. reads the lines the other computers have added since it last looked,
 //!    and copies those files here (or removes them);
@@ -20,13 +21,16 @@
 //! file by file instead: a file on one side only is copied to the other,
 //! and where both have one the newer wins.
 //!
+//! Google Drive's conflict copies (`name (1).ewm` beside `name.ewm`) are
+//! left alone.
+//!
 //! Services and templates are not copied: they stay in the shared folder
 //! (EpiscoPresenter takes its services from there when they are Ready).
 
 use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Condvar, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -133,7 +137,32 @@ fn walk(root: &Path) -> BTreeMap<String, Stamp> {
             }
         }
     }
+    let copies: Vec<String> = out.keys().filter(|k| conflict_copy(k, &out)).cloned().collect();
+    for k in copies {
+        out.remove(&k);
+    }
     out
+}
+
+/// Google Drive's (and Dropbox's) copy of a file two computers changed at
+/// once: `name (1).ewm` beside `name.ewm`. Not kept in step: the library
+/// would show the item twice.
+fn conflict_copy(rel: &str, all: &BTreeMap<String, Stamp>) -> bool {
+    let (dir, name) = rel.rsplit_once('/').map(|(d, n)| (Some(d), n)).unwrap_or((None, rel));
+    let (stem, ext) = name.rsplit_once('.').map(|(s, e)| (s, Some(e))).unwrap_or((name, None));
+    let Some(open) = stem.rfind(" (") else { return false };
+    let n = &stem[open + 2..];
+    if !n.ends_with(')') || n.len() < 2 || !n[..n.len() - 1].chars().all(|c| c.is_ascii_digit()) {
+        return false;
+    }
+    let base = &stem[..open];
+    let original = match (dir, ext) {
+        (Some(d), Some(e)) => format!("{d}/{base}.{e}"),
+        (Some(d), None) => format!("{d}/{base}"),
+        (None, Some(e)) => format!("{base}.{e}"),
+        (None, None) => base.to_string(),
+    };
+    all.contains_key(&original)
 }
 
 /// A relative path from a log, if it is a kept file and stays inside.
@@ -255,9 +284,10 @@ impl Sides<'_> {
     }
 
     /// The other computers' changes since last time. Returns whether any
-    /// file here changed.
-    fn pull(&self, st: &mut State) -> bool {
+    /// file here changed, and how many files are still on their way.
+    fn pull(&self, st: &mut State) -> (bool, usize) {
         let mut changed = false;
+        let mut waiting = 0;
         for (log, lines) in self.other_logs(&st.id) {
             let mut done = st.read.get(&log).copied().unwrap_or(0).min(lines.len());
             for line in &lines[done..] {
@@ -284,6 +314,7 @@ impl Sides<'_> {
                         // wait for it, and for the rest of this log after it.
                         let arrived = std::fs::metadata(&s).ok().filter(|m| m.is_file()).map(|m| m.len());
                         if arrived != Some(c.size) {
+                            waiting += lines.len() - done;
                             break;
                         }
                         if copy(&s, &l).is_err() {
@@ -307,7 +338,7 @@ impl Sides<'_> {
             }
             st.read.insert(log, done);
         }
-        changed
+        (changed, waiting)
     }
 
     /// This computer's changes since last time, to the shared folder.
@@ -349,7 +380,7 @@ fn new_id(by: &str) -> String {
 
 /// Brings this computer's library and the shared folder into step (see the
 /// module notes). Returns whether anything here changed.
-fn sync_folders(local: &Path, shared: &Path, by: &str, st: &mut State) -> CmdResult<bool> {
+fn sync_folders(local: &Path, shared: &Path, by: &str, st: &mut State) -> CmdResult<(bool, usize)> {
     if st.id.is_empty() {
         st.id = new_id(by);
     }
@@ -366,11 +397,11 @@ fn sync_folders(local: &Path, shared: &Path, by: &str, st: &mut State) -> CmdRes
         st.files.clear();
         let changed = sides.reconcile(st)?;
         let _ = std::fs::write(&marker, "");
-        return Ok(changed);
+        return Ok((changed, 0));
     }
-    let changed = sides.pull(st);
+    let pulled = sides.pull(st);
     sides.push(st)?;
-    Ok(changed)
+    Ok(pulled)
 }
 
 /// Emitted when files of the library came from another computer (the
@@ -380,10 +411,40 @@ pub const LIBRARY_EVENT: &str = "episco://library";
 /// Only one sync at a time.
 static RUNNING: Mutex<()> = Mutex::new(());
 
+/// How the last sync went, for the Library's status line.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct SyncStatus {
+    /// A shared folder is chosen.
+    pub shared: bool,
+    /// When the last sync finished (seconds since 1970), if one has.
+    pub at: Option<u64>,
+    /// Why it failed (e.g. the shared folder cannot be reached).
+    pub error: Option<String>,
+    /// Files another computer saved that are still on their way here.
+    pub waiting: usize,
+}
+
+static STATUS: Mutex<SyncStatus> = Mutex::new(SyncStatus { shared: false, at: None, error: None, waiting: 0 });
+
 /// Syncs now, if a shared folder is chosen and reachable. Tells the windows
 /// (and reloads the layouts and parish details) when files here changed.
 pub fn run(app: &AppHandle) -> CmdResult<bool> {
-    let Some(shared) = crate::storage::shared_root() else { return Ok(false) };
+    let result = run_once(app);
+    let mut status = STATUS.lock().unwrap_or_else(|e| e.into_inner());
+    status.shared = crate::storage::shared_root().is_some();
+    match &result {
+        Ok((_, waiting)) => {
+            status.at = Some(now());
+            status.error = None;
+            status.waiting = *waiting;
+        }
+        Err(e) => status.error = Some(e.clone()),
+    }
+    result.map(|(changed, _)| changed)
+}
+
+fn run_once(app: &AppHandle) -> CmdResult<(bool, usize)> {
+    let Some(shared) = crate::storage::shared_root() else { return Ok((false, 0)) };
     let _one = RUNNING.lock().unwrap_or_else(|e| e.into_inner());
     let local = crate::storage::copy_root(app)?;
     let state_file = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join(STATE_FILE);
@@ -396,7 +457,7 @@ pub fn run(app: &AppHandle) -> CmdResult<bool> {
         let _ = std::fs::create_dir_all(dir);
     }
     let _ = std::fs::write(&state_file, serde_json::to_string(&st).unwrap_or_default());
-    let changed = result?;
+    let (changed, waiting) = result?;
     // The first copy is made: work from it from now on.
     if first {
         crate::storage::copy_made(app);
@@ -407,16 +468,40 @@ pub fn run(app: &AppHandle) -> CmdResult<bool> {
         crate::bulletin::init(app);
         let _ = app.emit(LIBRARY_EVENT, ());
     }
-    Ok(changed)
+    Ok((changed, waiting))
 }
 
-/// Syncs at start-up and every half minute, apart from the windows.
+/// Set by [`soon`]: something in the library was just saved here.
+static NUDGE: (Mutex<bool>, Condvar) = (Mutex::new(false), Condvar::new());
+
+/// Asks for a sync in a moment (after a library item, layout or the parish
+/// details is saved here), so the other computer sees it soon.
+pub fn soon() {
+    let (flag, wake) = &NUDGE;
+    *flag.lock().unwrap_or_else(|e| e.into_inner()) = true;
+    wake.notify_one();
+}
+
+/// How often the library is synced when nothing was saved here.
+const EVERY: Duration = Duration::from_secs(15);
+
+/// Syncs at start-up, every 15 seconds and soon after a save here, apart
+/// from the windows.
 pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || loop {
         if let Err(e) = run(&app) {
             tracing::warn!("library sync: {e}");
         }
-        std::thread::sleep(Duration::from_secs(30));
+        let (flag, wake) = &NUDGE;
+        let guard = flag.lock().unwrap_or_else(|e| e.into_inner());
+        let (mut nudged, _) = wake.wait_timeout_while(guard, EVERY, |n| !*n).unwrap_or_else(|e| e.into_inner());
+        let was = *nudged;
+        *nudged = false;
+        drop(nudged);
+        // A save often comes with others: wait a moment and sync them together.
+        if was {
+            std::thread::sleep(Duration::from_secs(2));
+        }
     });
 }
 
@@ -424,6 +509,14 @@ pub fn spawn(app: AppHandle) {
 #[tauri::command]
 pub async fn library_sync(app: AppHandle) -> CmdResult<bool> {
     tauri::async_runtime::spawn_blocking(move || run(&app)).await.map_err(|e| e.to_string())?
+}
+
+/// How the last sync went.
+#[tauri::command]
+pub fn library_sync_status() -> SyncStatus {
+    let mut s = STATUS.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    s.shared = crate::storage::shared_root().is_some();
+    s
 }
 
 #[cfg(test)]
@@ -475,7 +568,7 @@ mod tests {
         put(&a, "layouts.json", "{}");
         sync_folders(&a, &shared, "Rector", &mut sa).unwrap();
         std::fs::remove_file(b.join("media/window.png")).unwrap();
-        assert!(sync_folders(&b, &shared, "Tech", &mut sb).unwrap(), "B took A's changes");
+        assert!(sync_folders(&b, &shared, "Tech", &mut sb).unwrap().0, "B took A's changes");
         assert_eq!(read(&b, "library/hymn-436.ewm").as_deref(), Some("436, new words"));
         assert_eq!(read(&b, "layouts.json").as_deref(), Some("{}"));
         assert!(read(&shared, "media/window.png").is_none());
@@ -484,7 +577,7 @@ mod tests {
 
         // Nothing new: nothing copied, nothing logged.
         let log = std::fs::read_to_string(shared.join(LOG_DIR).join(format!("{}.jsonl", sa.id))).unwrap();
-        assert!(!sync_folders(&a, &shared, "Rector", &mut sa).unwrap());
+        assert!(!sync_folders(&a, &shared, "Rector", &mut sa).unwrap().0);
         assert_eq!(std::fs::read_to_string(shared.join(LOG_DIR).join(format!("{}.jsonl", sa.id))).unwrap(), log);
         assert!(log.contains("\"by\":\"Rector\""));
 
@@ -517,5 +610,22 @@ mod tests {
         assert!(safe("library/../services/x").is_none());
         assert!(safe("/etc/passwd").is_none());
         assert!(safe("media/a\\b.png").is_none());
+    }
+
+    #[test]
+    fn drive_conflict_copies_are_left_alone() {
+        let shared = tmp("conflict-shared");
+        let a = tmp("conflict-a");
+        put(&shared, "library/hymn-436.ewm", "one");
+        put(&shared, "library/hymn-436 (1).ewm", "two");
+        put(&shared, "library/Psalm (23).ewm", "psalm");
+        let mut sa = State::default();
+        sync_folders(&a, &shared, "Rector", &mut sa).unwrap();
+        assert!(a.join("library/hymn-436.ewm").is_file());
+        assert!(!a.join("library/hymn-436 (1).ewm").exists(), "Drive's conflict copy stays behind");
+        assert!(a.join("library/Psalm (23).ewm").is_file(), "a name with a number of its own is kept");
+        for d in [shared, a] {
+            let _ = std::fs::remove_dir_all(d);
+        }
     }
 }

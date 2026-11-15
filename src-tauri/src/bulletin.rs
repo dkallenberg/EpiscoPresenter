@@ -64,6 +64,7 @@ pub fn parish_get(app: AppHandle) -> ParishInfo {
 /// (as `parish-logo.png` or `.jpg`) so every computer can find it.
 #[tauri::command]
 pub fn parish_set(app: AppHandle, engine: State<'_, Engine>, mut info: ParishInfo) -> CmdResult<ParishInfo> {
+    crate::sync::soon();
     let root = crate::storage::local_root(&app)?;
     std::fs::create_dir_all(&root).map_err(|e| e.to_string())?;
     if let Some(logo) = info.logo.take() {

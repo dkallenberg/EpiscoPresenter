@@ -574,6 +574,7 @@ pub fn list_backgrounds(app: AppHandle, engine: State<'_, Engine>) -> Vec<Backgr
 /// if it has been saved, else the app's folder). Returns the new entries.
 #[tauri::command]
 pub async fn import_backgrounds(app: AppHandle, engine: State<'_, Engine>) -> CmdResult<Vec<BackgroundFile>> {
+    crate::sync::soon();
     let picked = app.dialog().file().add_filter("Image", &IMAGE_EXTENSIONS).blocking_pick_files().unwrap_or_default();
     let dir = library_dirs(&app, &engine).into_iter().next().ok_or("no library folder is available")?;
     std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;

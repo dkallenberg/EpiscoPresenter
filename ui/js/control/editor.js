@@ -436,7 +436,8 @@ function metaForm(c) {
     field(
       "Name in the service list",
       el("input", {
-        value: o.title ?? "",
+        // A hymn shows the name it has in the list ("Entrance Hymn").
+        value: o.title ?? (c.category === "hymn" ? c.title : ""),
         placeholder: "Same as the title",
         disabled: app.readonly,
         oninput: (e) => setOverride({ title: e.target.value.trim() || undefined }),

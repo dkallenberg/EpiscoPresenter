@@ -64,6 +64,7 @@ fn file_key(path: &Path) -> String {
 /// Sets a media file's tags (an empty list removes them).
 #[tauri::command]
 pub fn media_set_tags(app: AppHandle, path: PathBuf, tags: Vec<String>) -> CmdResult<Vec<String>> {
+    crate::sync::soon();
     let path = inside_media(&app, &path)?;
     let dir = media_dir(&app)?;
     let mut all = read_tags(&dir);
@@ -148,6 +149,7 @@ pub fn copy_into_library(app: &AppHandle, src: &Path) -> CmdResult<PathBuf> {
 /// Copies images and videos chosen in a file dialog into the media folder.
 #[tauri::command]
 pub async fn media_import(app: AppHandle) -> CmdResult<Vec<MediaEntry>> {
+    crate::sync::soon();
     let all: Vec<&str> = IMAGE_EXTENSIONS.iter().chain(VIDEO_EXTENSIONS.iter()).copied().collect();
     let picked = app
         .dialog()
@@ -189,6 +191,7 @@ fn inside_media(app: &AppHandle, path: &Path) -> CmdResult<PathBuf> {
 /// Deletes a file from the media library.
 #[tauri::command]
 pub fn media_delete(app: AppHandle, path: PathBuf) -> CmdResult<()> {
+    crate::sync::soon();
     let path = inside_media(&app, &path)?;
     std::fs::remove_file(&path).map_err(|e| format!("could not delete {}: {e}", path.display()))?;
     let dir = media_dir(&app)?;

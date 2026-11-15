@@ -118,7 +118,12 @@ function render() {
             `div.lib-row${e.id === lib.selected ? ".selected" : ""}`,
             {
               onclick: () => { lib.selected = e.id; lib.version = null; render(); },
-              ondblclick: () => add([e.builtin ? (versionsOf(e).find((v) => v.default) ?? e).id : e.id]),
+              ondblclick: () => {
+                const id = e.builtin ? (versionsOf(e).find((v) => v.default) ?? e).id : e.id;
+                // A hymn on an empty hymn slot fills it (keeping "Entrance Hymn").
+                const slot = e.category === "hymn" ? emptySlot() : null;
+                return slot && !app.readonly ? fill(id, slot, e.title) : add([id]);
+              },
             },
             el(
               "div.lib-title",
@@ -131,6 +136,7 @@ function render() {
                   : el("span.badge.own", {}, "Mine"),
               e.builtin && !e.default ? el("span.badge.own", { title: "New services use the parish's default version" }, "Parish default") : null,
               e.builtin && versionsOf(e).length > 1 ? el("span.muted.small", {}, ` ${versionsOf(e).length - 1} cop${versionsOf(e).length === 2 ? "y" : "ies"}`) : null,
+              e.dupes?.length ? el("span.badge.dupe", { title: "This item is in the library more than once. Select it to keep one copy." }, `×${e.dupes.length + 1}`) : null,
             ),
             el("div.lib-meta", {}, [titleCase(e.category), e.rite ? `Rite ${e.rite}` : null, e.citation, e.season, `${e.slides} slide${e.slides === 1 ? "" : "s"}`].filter(Boolean).join(" · ")),
             el("div.lib-summary", {}, e.summary),
@@ -154,7 +160,8 @@ function render() {
       ),
       chips,
       list,
-      el("p.hint.muted", {}, "Double-click an item to add it after the selected cue. Save your own items from the Editor with “Save to Library”."),
+      syncLine(),
+      el("p.hint.muted", {}, "Double-click an item to add it after the selected cue (a hymn fills an empty hymn slot, such as the Entrance Hymn, keeping its name). Save your own items from the Editor with “Save to Library”."),
     ),
     preview,
   );
@@ -187,6 +194,7 @@ async function showPreview(rowId) {
       ),
     ),
     // (replaceChildren would print a null as "null".)
+    entry?.dupes?.length ? dupeBar(entry) : "",
     baseName(entry ?? {}) ? versionBar(versions, entry) : "",
     el("div.picker-sub", {}, "Sanctuary · Live Stream"),
     grid,
@@ -268,12 +276,21 @@ function slotFor(item) {
   return c?.category === "hymn" || /sanctus/i.test(c?.title ?? "") ? c : null;
 }
 
+/** The selected item if it is a hymn slot still waiting for its hymn. */
+function emptySlot() {
+  const c = app.service?.cues[app.selectedIndex()];
+  if (c?.category !== "hymn" || c.content.kind !== "liturgy") return null;
+  const doc = c.content.document;
+  const text = (doc?.blocks ?? []).map((b) => (b.lines ?? []).flat().map((x) => x.text).join("")).join(" ");
+  return !doc?.meta?.hymn_number && /^Choose this hymn/.test(text.trim()) ? c : null;
+}
+
 /** Puts a library hymn into a slot; the slot keeps its name. */
-async function fill(id, slot) {
+async function fill(id, slot, title) {
   const ok = await call("library_fill_cue", { id, cue: slot.id });
   if (ok === undefined) return;
   app.select(slot.id);
-  toast(`The ${slot.title} is now “${lib.entries.find((e) => e.id === lib.selected)?.title ?? "this hymn"}”`);
+  toast(`The ${slot.title} is now “${title ?? lib.entries.find((e) => e.id === lib.selected)?.title ?? "this hymn"}”`);
 }
 
 async function add(ids) {
@@ -358,6 +375,48 @@ export function pasteText() {
   );
   document.body.append(overlay);
   title.focus();
+}
+
+/** The other copies of an item: keep the one shown, remove the rest. */
+function dupeBar(entry) {
+  const others = entry.dupes.map((id) => lib.entries.find((e) => e.id === id)).filter(Boolean);
+  const merge = async () => {
+    const ok = await call("confirm", {
+      title: "Keep one copy",
+      message: `Keep this “${entry.title}” and remove the other ${others.length === 1 ? "copy" : `${others.length} copies`} (${others.map((o) => `“${o.title}”`).join(", ")}) from the library? Services keep their own words.`,
+      okLabel: "Keep this one",
+    });
+    if (!ok) return;
+    const n = await call("library_merge", { keep: entry.id, remove: entry.dupes });
+    if (n === undefined) return;
+    toast(`Removed ${n} cop${n === 1 ? "y" : "ies"}; “${entry.title}” stays`);
+    await refresh();
+  };
+  return el(
+    "div.lib-dupes",
+    {},
+    el("span", {}, `In the library ${others.length + 1} times: `, others.flatMap((o, i) => [i ? ", " : "", el("button.link", { onclick: () => { lib.selected = o.id; render(); } }, o.title)])),
+    el("button.small", { disabled: app.readonly, title: "Keep this copy and remove the others", onclick: merge }, "Keep this one"),
+  );
+}
+
+/** When the library last came in step with the other computers. */
+function syncLine() {
+  const line = el("p.lib-sync.muted.small");
+  if (!window.__TAURI__) return line;
+  window.__TAURI__.core.invoke("library_sync_status").then((st) => {
+    if (!st?.shared) return;
+    const at = st.at ? new Date(st.at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
+    line.textContent = st.error
+      ? `⚠ Not in step with the shared folder: ${st.error}`
+      : st.waiting
+        ? `⇣ ${st.waiting} change${st.waiting === 1 ? "" : "s"} from the other computer still downloading (Google Drive)…`
+        : at
+          ? `✓ In step with the other computers · checked ${at}`
+          : "Checking the shared folder…";
+    line.classList.toggle("warn", Boolean(st.error));
+  }).catch(() => {});
+  return line;
 }
 
 async function remove(entry) {

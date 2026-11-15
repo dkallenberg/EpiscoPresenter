@@ -46,14 +46,27 @@ on the computer (library items and hymns, media, backgrounds, the Bible
 file, slide layouts and parish details) and work from it, so the Library
 opens quickly and keeps working when Google Drive is not. The shared folder
 holds a **change log** for each computer (`change-log/<computer>.jsonl`):
-a line for every file it added, changed or removed. At start-up and every
-half minute each app reads what the other computers have logged since it
+a line for every file it added, changed or removed. At start-up, every
+15 seconds, and a couple of seconds after anything in the library is saved,
+each app reads what the other computers have logged since it
 last looked and copies just those files (or removes them), then sends its
 own changes to the shared folder and logs them. A file whose log line
 arrives before the file itself (Google Drive can be slow) waits until it is
 there. The first time, or with a new shared folder, the copy and the shared
 folder are compared file by file instead: a file on one side only goes to
 the other, and where both have it the newer wins (nothing is removed).
+Google Drive's conflict copies (`name (1).ewm` beside `name.ewm`, made when
+two computers change a file at once) are left out.
+
+The Library shows how the copy stands under its list: **✓ In step with the
+other computers** and when it last checked, **⇣ changes still downloading**
+while Google Drive brings another computer's files, or **⚠** and why when
+the shared folder cannot be reached.
+
+**Copies of the same item.** An item in the library more than once (the
+same hymn number, or the same kind and title) is marked **×2** in the list.
+Select it to see the others and click **Keep this one** to remove the rest:
+services keep their own words, so nothing else changes.
 Until EpiscoPlanner's first copy is made it works from the shared folder.
 Services and templates are not copied: they stay in the shared folder
 (EpiscoPresenter takes its own copy of a service when it is Ready). The

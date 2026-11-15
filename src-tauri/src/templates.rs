@@ -74,6 +74,7 @@ pub fn layouts_set(
     key: String,
     template: SlideTemplate,
 ) -> CmdResult<Templates> {
+    crate::sync::soon();
     let mut all = current();
     all.insert(key, template);
     store(&app, &engine, all)
@@ -103,6 +104,7 @@ pub fn layouts_defaults(app: AppHandle) -> Templates {
 /// the parish's default, which Reset goes back to.
 #[tauri::command]
 pub fn layouts_make_default(app: AppHandle, key: Option<String>) -> CmdResult<Templates> {
+    crate::sync::soon();
     let now = current();
     let mut defaults = read_defaults(&app);
     match key {
@@ -136,6 +138,7 @@ pub fn layouts_reset(
     key: Option<String>,
     builtin: Option<bool>,
 ) -> CmdResult<Templates> {
+    crate::sync::soon();
     let defaults = if builtin.unwrap_or(false) { Templates::new() } else { read_defaults(&app) };
     let mut all = current();
     match key {

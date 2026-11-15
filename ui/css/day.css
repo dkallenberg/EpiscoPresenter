@@ -14,6 +14,8 @@ body.planner.day {
   background: var(--bg);
 }
 :root:has(body.planner.day) { color-scheme: light; background: #f4f3ef; color: #1f2024; }
+body.planner.day ::-webkit-scrollbar-thumb { background: #c4c0b5; border: 2px solid transparent; background-clip: padding-box; }
+body.planner.day ::-webkit-scrollbar-thumb:hover { background: #a9a498; border: 2px solid transparent; background-clip: padding-box; }
 
 body.planner.day button { background: #ffffff; color: var(--text); border-color: var(--line); }
 body.planner.day button:hover:not(:disabled) { background: #ece9e1; }
@@ -59,3 +61,6 @@ body.planner.day .doc-scroll { background: #dcd8ce; }
 body.planner.day .bible-file-row { background: var(--panel-2); }
 
 #btn-theme { min-width: 34px; }
+body.planner.day .badge.dupe { background: #f6e3bd; color: #7a5410; }
+body.planner.day .lib-dupes { background: #fbf3e2; border-color: #e3c98f; }
+body.planner.day .lib-sync.warn { color: #9a5b00; }
