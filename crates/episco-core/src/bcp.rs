@@ -455,9 +455,59 @@ pub fn with_preface(doc: &crate::LiturgyDocument, text: &str) -> Option<crate::L
     Some(out)
 }
 
+/// The rubric that marks where the Proper Preface goes.
+pub const PREFACE_RUBRIC: &str =
+    "Here a Proper Preface is sung or said on all Sundays, and on other occasions as appointed.";
+
+/// A parish's own Eucharistic Prayer (pasted, e.g. from Enriching Our
+/// Worship) with the place for the Proper Preface marked, if it has none
+/// yet: after the presider's first words following the people's "It is
+/// right to give … thanks and praise", as in Prayers A and B. Unchanged if
+/// the place is marked already or cannot be found.
+pub fn mark_preface_place(doc: &crate::LiturgyDocument) -> crate::LiturgyDocument {
+    use crate::document::{Block, Span};
+    use crate::role::Role;
+    let has = doc.blocks.iter().any(|b| {
+        matches!(b, Block::Paragraph { role: Some(Role::Rubric), .. }) && b.plain_text().contains("Proper Preface")
+    });
+    if has {
+        return doc.clone();
+    }
+    let is_people = |b: &Block| matches!(b, Block::Paragraph { role: Some(r), .. } if r.is_congregational());
+    let Some(right) = doc.blocks.iter().position(|b| {
+        let t = b.plain_text().to_lowercase();
+        is_people(b) && t.contains("right to give")
+    }) else {
+        return doc.clone();
+    };
+    let Some(at) = doc.blocks.iter().enumerate().skip(right + 1).find_map(|(i, b)| {
+        matches!(b, Block::Paragraph { role: Some(r), .. } if !r.is_rubric() && !r.is_congregational()).then_some(i)
+    }) else {
+        return doc.clone();
+    };
+    let mut out = doc.clone();
+    out.blocks
+        .insert(at + 1, Block::Paragraph { role: Some(Role::Rubric), lines: vec![vec![Span::italic(PREFACE_RUBRIC)]] });
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_parish_prayer_gets_the_preface_after_its_opening_words() {
+        let doc: crate::LiturgyDocument = "---\ntitle: Eucharistic Prayer 1 (EOW)\ntype: eucharistic_prayer\n---\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Celebrant] Lift up your hearts.\n[People] **We lift them to the Lord.**\n[Celebrant] Let us give thanks to the Lord our God.\n[People] **It is right to give our thanks and praise.**\n\n[Celebrant] It is truly right to glorify you.\n\n[Celebrant] Therefore we praise you.\n".parse().unwrap();
+        let marked = mark_preface_place(&doc);
+        let texts: Vec<String> = marked.blocks.iter().map(|b| b.plain_text()).collect();
+        let at = texts.iter().position(|t| t.contains("Proper Preface")).expect("marked");
+        assert_eq!(texts[at - 1], "It is truly right to glorify you.");
+        assert_eq!(texts[at + 1], "Therefore we praise you.");
+        // The preface then goes in.
+        assert!(with_preface(&marked, "For you are the source of light.").is_some());
+        // Marked once only.
+        assert_eq!(mark_preface_place(&marked), marked);
+    }
 
     #[test]
     fn psalter_is_complete() {

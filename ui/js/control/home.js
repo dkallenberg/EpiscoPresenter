@@ -1,6 +1,7 @@
 // The Services screen: upcoming scheduled services, scheduling ahead, and
 // opening services. Shown when the app starts and from "☰ Services".
 
+import { EUCHARISTIC_PRAYERS, PRAYERS_FORMS, parishTexts } from "/js/control/parish-texts.js";
 import { invoke, listen } from "/js/bridge.js";
 import { app, call, el, reportWarnings, toast } from "/js/control/util.js";
 import { openParish } from "/js/control/bulletin.js";
@@ -364,30 +365,41 @@ function serviceOptions() {
   const rite = sel("svc.rite", "II", [["II", "Rite II"], ["I", "Rite I"]], "Contemporary (Rite II) or traditional (Rite I) language");
   const track = sel("svc.track", "1", [["1", "Track 1"], ["2", "Track 2"]], "Season after Pentecost: which Old Testament track");
   const bible = sel("svc.bible", "NRSVue", [["NRSVue", "NRSVue"], ["NRSV", "NRSV"]], "Translation for reading texts you paste in");
-  const prayers = sel(
-    "svc.prayers",
-    "",
-    [["", "Usual"], ["1", "Form I"], ["2", "Form II"], ["3", "Form III"], ["4", "Form IV"], ["5", "Form V"], ["6", "Form VI"], ["rite1", "Rite I prayer (BCP 328)"]],
-    "The Prayers of the People (BCP 383-393; Rite I, 328). Usual: the Rite I prayer in Rite I, Form I in Rite II",
-  );
-  // The Eucharistic Prayer, from the rite's own (remembered for each rite).
-  const PRAYERS = {
-    II: [["A", "Prayer A"], ["B", "Prayer B"], ["C", "Prayer C"], ["D", "Prayer D"]],
-    I: [["I", "Prayer I"], ["II", "Prayer II"]],
-  };
+  // The Prayers of the People and the Eucharistic Prayer: the Prayer
+  // Book's, and the parish's own from the library (each remembered for
+  // each rite).
+  const prayers = el("select", {
+    title: "The Prayers of the People (BCP 383-393; Rite I, 328; or the parish's own from the library). Usual: the Rite I prayer in Rite I, Form I in Rite II",
+    onchange: (e) => remember(`svc.prayers.${rite.value}`, e.target.value),
+  });
   const ep = el("select", {
     title: "A whole Eucharistic Prayer in the service (in place of the opening dialogue; it has the Sanctus and the Proper Preface), or just the dialogue and the Sanctus",
     onchange: (e) => remember(`svc.ep.${rite.value}`, e.target.value),
   });
+  let texts = { prayers: [], eucharistic: [] };
+  const group = (labelText, list, chosen) =>
+    list.length ? el("optgroup", { label: labelText }, list.map(([v, l]) => el("option", { value: v, selected: v === chosen }, l))) : null;
   const fillPrayers = () => {
+    const forms = recall(`svc.prayers.${rite.value}`, recall("svc.prayers", ""));
+    prayers.replaceChildren(
+      el("option", { value: "", selected: !forms }, "Usual"),
+      ...PRAYERS_FORMS.map(([v, l]) => el("option", { value: v, selected: v === forms }, l)),
+      group("The parish's own", texts.prayers, forms) ?? "",
+    );
     const chosen = recall(`svc.ep.${rite.value}`, "");
     ep.replaceChildren(
       el("option", { value: "", selected: !chosen }, "Dialogue and Sanctus only"),
-      ...PRAYERS[rite.value].map(([v, l]) => el("option", { value: v, selected: v === chosen }, l)),
+      ...EUCHARISTIC_PRAYERS[rite.value].map(([v, l]) => el("option", { value: v, selected: v === chosen }, l)),
+      group("The parish's own", texts.eucharistic, chosen) ?? "",
     );
   };
-  rite.addEventListener("change", fillPrayers);
+  const loadTexts = async () => {
+    texts = await parishTexts(rite.value);
+    fillPrayers();
+  };
+  rite.addEventListener("change", loadTexts);
   fillPrayers();
+  loadTexts();
   const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
   return {
     row: el(
@@ -396,7 +408,18 @@ function serviceOptions() {
       el("div.home-row.four", {}, field("Rite", rite), field("Readings", track), field("Bible", bible), field("Prayers of the People", prayers)),
       el("div.home-row.four", {}, field("Eucharistic Prayer", ep)),
     ),
-    value: () => ({ rite: rite.value, track: Number(track.value), bible: bible.value, prayers: prayers.value || null, eucharistic_prayer: ep.value || null }),
+    value: () => {
+      const own = (v) => v.startsWith("user:");
+      return {
+        rite: rite.value,
+        track: Number(track.value),
+        bible: bible.value,
+        prayers: prayers.value && !own(prayers.value) ? prayers.value : null,
+        prayers_item: own(prayers.value) ? prayers.value : null,
+        eucharistic_prayer: ep.value && !own(ep.value) ? ep.value : null,
+        eucharistic_prayer_item: own(ep.value) ? ep.value : null,
+      };
+    },
   };
 }
 

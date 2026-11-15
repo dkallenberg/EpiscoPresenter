@@ -665,3 +665,4 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 /* The prelude's and postlude's bulletin choice. */
 .music-bulletin { align-self: flex-start; margin-left: 0; text-transform: none; letter-spacing: 0; }
 .music-bulletin button { font-size: 12px; }
+.lib-uses { margin: 6px 0; }

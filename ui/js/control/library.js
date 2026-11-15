@@ -195,6 +195,7 @@ async function showPreview(rowId) {
     ),
     // (replaceChildren would print a null as "null".)
     entry?.dupes?.length ? dupeBar(entry) : "",
+    entry && !entry.builtin ? usesBar(entry) : "",
     baseName(entry ?? {}) ? versionBar(versions, entry) : "",
     el("div.picker-sub", {}, "Sanctuary · Live Stream"),
     grid,
@@ -320,9 +321,14 @@ export function pasteText() {
   const type = el(
     "select",
     {},
-    [["eucharistic_prayer", "Eucharistic Prayer"], ["prayer", "Prayer or dialogue"], ["collect", "Collect"], ["acclamation", "Acclamation"], ["anthem", "Anthem or canticle"], ["other", "Other"]].map(([v, l]) =>
+    [["eucharistic_prayer", "Eucharistic Prayer"], ["prayers_of_the_people", "Prayers of the People"], ["prayer", "Prayer or dialogue"], ["collect", "Collect"], ["acclamation", "Acclamation"], ["anthem", "Anthem or canticle"], ["other", "Other"]].map(([v, l]) =>
       el("option", { value: v }, l),
     ),
+  );
+  const rite = el(
+    "select",
+    { title: "Eucharistic Prayers and Prayers of the People are offered for services in this rite" },
+    [["", "Either"], ["II", "Rite II"], ["I", "Rite I"]].map(([v, l]) => el("option", { value: v }, l)),
   );
   const citation = el("input", { placeholder: "e.g. EOW 1, p. 57" });
   const text = el("textarea.paste-text", {
@@ -336,10 +342,12 @@ export function pasteText() {
     try {
       id = await window.__TAURI__.core.invoke("library_create_from_text", {
         title: title.value,
-        category: type.value,
+        category: type.value === "prayers_of_the_people" ? "prayer" : type.value,
         citation: citation.value || null,
         text: text.value,
         replace,
+        uses: type.value === "prayers_of_the_people" ? "prayers_of_the_people" : null,
+        rite: rite.value || null,
       });
     } catch (e) {
       const msg = String(e);
@@ -367,7 +375,12 @@ export function pasteText() {
         {},
         "For texts the app cannot include, such as the Eucharistic Prayers of Enriching Our Worship (© Church Pension Fund): copy them from your parish's copy and paste here. The item is saved in the parish library folder, where everyone can use it; check it in the Editor afterwards.",
       ),
-      el("div.home-row", {}, field("Title", title), field("Type", type)),
+      el("div.home-row", {}, field("Title", title), field("Type", type), field("Rite", rite)),
+      el(
+        "p.muted.small",
+        {},
+        "A Eucharistic Prayer or Prayers of the People is then offered when a service is made (Schedule services) and in Service settings. A Eucharistic Prayer takes the place of the dialogue and the Sanctus, and the Proper Preface goes where the prayer says “Here a Proper Preface…” (the app marks that place after the opening words if the text has none).",
+      ),
       field("Where it comes from (printed on the bulletin)", citation),
       text,
       el("div.modal-actions", {}, el("button", { onclick: () => overlay.remove() }, "Cancel"), el("button.primary", { onclick: () => save(false) }, "Add to library")),
@@ -375,6 +388,29 @@ export function pasteText() {
   );
   document.body.append(overlay);
   title.focus();
+}
+
+/** A parish's own Prayers of the People or Eucharistic Prayer: offered when
+ *  a service is made (and in Service settings). */
+function usesBar(entry) {
+  const rite = entry.rite ? `Rite ${entry.rite} services` : "services in either rite";
+  if (entry.category === "eucharistic_prayer") {
+    return el("div.lib-uses.muted.small", {}, `Offered as a Eucharistic Prayer for ${rite} (Schedule services, Service settings).`);
+  }
+  if (entry.category !== "prayer" || entry.base) return "";
+  const on = entry.uses === "prayers_of_the_people";
+  const toggle = async () => {
+    const ok = await call("library_set_uses", { id: entry.id, uses: on ? null : "prayers_of_the_people" });
+    if (ok === undefined) return;
+    toast(on ? `“${entry.title}” is no longer offered as Prayers of the People` : `“${entry.title}” is offered as Prayers of the People`);
+    await refresh();
+  };
+  return el(
+    "label.lib-uses.field.check",
+    { title: "Offer this prayer with the Prayer Book's forms of the Prayers of the People when a service is made" },
+    el("input", { type: "checkbox", checked: on, disabled: app.readonly, onchange: toggle }),
+    el("span", {}, `Prayers of the People (offered for ${rite})`),
+  );
 }
 
 /** The other copies of an item: keep the one shown, remove the rest. */

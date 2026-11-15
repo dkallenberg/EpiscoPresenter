@@ -12,6 +12,7 @@ import { backgroundCss, mountStage, renderOutput } from "/js/render.js";
 import { saveAsTemplate } from "/js/control/home.js";
 import { parseDeck } from "/js/deck.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
+import { EUCHARISTIC_PRAYERS, PRAYERS_FORMS, currentChoices, parishTexts, riteOf } from "/js/control/parish-texts.js";
 
 export const OUTPUTS = [
   ["sanctuary", "Sanctuary"],
@@ -378,8 +379,10 @@ export function openServiceSettings(focus) {
       { title: "Said in Eucharistic Prayers A and B (Rite I: Prayers I and II) where the rubric calls for it" },
       el("option", { value: "", selected: !s.preface }, `As appointed for the day${!s.preface ? (s.preface_used ? ` (${s.preface_used})` : " (none)") : ""}`),
       (v.prefaces ?? []).map((name) => el("option", { value: name, selected: s.preface === name }, name)),
-      el("option", { value: "none", selected: s.preface === "none" }, "None"),
+      el("option", { value: "none", selected: s.preface === "none" }, "Leave out"),
     ),
+    prayers: el("select", {}),
+    eucharistic: el("select", {}),
     bishop: el("input", { type: "checkbox", checked: Boolean(s.bishop) }),
     deacon: el("input", { type: "checkbox", checked: !s.no_deacon }),
     baptismal: el(
@@ -400,6 +403,29 @@ export function openServiceSettings(focus) {
       toast(v === "baptism" ? "Holy Baptism added in place of the Creed" : v === "renewal" ? "Renewal of Baptismal Vows added in place of the Creed" : "Confirmation added, with the bishop presiding");
     }
   };
+  // The Prayers of the People and the Eucharistic Prayer the service has:
+  // the Prayer Book's or the parish's own (for the service's rite).
+  let current = { prayers: "", eucharistic: "" };
+  const fillTexts = async () => {
+    const texts = await parishTexts(riteOf(s));
+    current = currentChoices(s, texts);
+    const group = (label, list, chosen) =>
+      list.length ? el("optgroup", { label }, list.map(([v, l]) => el("option", { value: v, selected: v === chosen }, l))) : "";
+    const forms = PRAYERS_FORMS.filter(([v]) => (riteOf(s) === "I" ? true : v !== "rite1"));
+    f.prayers.replaceChildren(
+      ...(current.prayers ? [] : [el("option", { value: "", selected: true }, current.hasPrayers ? "As it is" : "None in this service")]),
+      ...forms.map(([v, l]) => el("option", { value: v, selected: v === current.prayers }, l)),
+      group("The parish's own", texts.prayers, current.prayers),
+    );
+    f.prayers.disabled = !current.hasPrayers;
+    f.eucharistic.replaceChildren(
+      el("option", { value: "", selected: !current.eucharistic }, "Dialogue and Sanctus only"),
+      ...EUCHARISTIC_PRAYERS[riteOf(s)].map(([v, l]) => el("option", { value: v, selected: v === current.eucharistic }, l)),
+      group("The parish's own", texts.eucharistic, current.eucharistic),
+    );
+    f.eucharistic.disabled = !current.hasThanksgiving;
+  };
+  fillTexts();
   f.key.addEventListener("change", () => (f.customKey.hidden = f.key.value !== "custom"));
   const deckNote = el("p.small.deck-note");
   const checkDeck = () => {
@@ -443,6 +469,13 @@ export function openServiceSettings(focus) {
       },
     });
     if (ok === undefined) return;
+    if (f.prayers.value && f.prayers.value !== current.prayers) {
+      if ((await call("service_set_prayers", { choice: f.prayers.value })) !== undefined) toast("The Prayers of the People are changed");
+    }
+    if (!f.eucharistic.disabled && f.eucharistic.value !== current.eucharistic) {
+      const done = await call("service_set_eucharistic_prayer", { choice: f.eucharistic.value || null });
+      if (done !== undefined) toast(f.eucharistic.value ? "The Eucharistic Prayer is changed" : "The dialogue and the Sanctus are back in place of the prayer");
+    }
     if (f.bishop.checked !== Boolean(app.service?.bishop)) {
       const added = await call("set_service_bishop", { bishop: f.bishop.checked });
       if (added) toast("The Bishop's Blessing was added before the dismissal");
@@ -462,7 +495,8 @@ export function openServiceSettings(focus) {
       el("div.look-row", {}, row("Date", f.date), row("Season", f.season), row("Colour", f.color)),
       el("div.look-row", {}, row("Rite", f.rite), row("Readings (after Pentecost)", f.track), row("Bible for reading texts", f.bible)),
       el("p.muted.small", {}, "The rite and track apply to texts added from now on (Library → Propers…, new items)."),
-      row("Proper Preface (Eucharistic Prayers A, B, I and II)", f.preface),
+      el("div.look-row", {}, row("Prayers of the People", f.prayers), row("Eucharistic Prayer", f.eucharistic)),
+      row("Proper Preface (Eucharistic Prayers A, B, I and II, and the parish's own)", f.preface),
       el("div.look-row", {}, row("Prelude", f.preludeTitle), row("Composer (and arranger)", f.preludeComposer)),
       el("p.muted.small", {}, "Shown on the live stream's welcome before the service, and at the top of the bulletin."),
       el("div.look-row", {}, row("Postlude", f.postludeTitle), row("Composer (and arranger)", f.postludeComposer)),

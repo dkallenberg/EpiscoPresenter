@@ -183,21 +183,79 @@ fn eucharistic_prayer_item(rite: Rite, prayer: EucharisticPrayer) -> Option<&'st
 /// that follows it (the prayer has the Sanctus in its place).
 fn use_eucharistic_prayer(service: &mut Service, rite: Rite, prayer: EucharisticPrayer) {
     let Some(doc) = eucharistic_prayer_item(rite, prayer).and_then(builtin_doc) else { return };
-    let is = |c: &Cue, name: &str| {
-        c.document().and_then(|d| d.meta.extra("based_on")).is_some_and(|b| b == name || b == format!("rite1/{name}"))
+    use_eucharistic_doc(service, doc);
+}
+
+/// Whether a cue is the Prayer Book item `name` (in either rite).
+fn is_item(c: &Cue, name: &str) -> bool {
+    c.document().and_then(|d| d.meta.extra("based_on")).is_some_and(|b| b == name || b == format!("rite1/{name}"))
+}
+
+/// Puts `doc` (a whole Eucharistic Prayer, the Prayer Book's or the
+/// parish's) in place of the dialogue and the Sanctus after it, or of the
+/// Eucharistic Prayer the service has. A parish's prayer gets its place for
+/// the Proper Preface marked. Returns whether it found the place.
+fn use_eucharistic_doc(service: &mut Service, doc: LiturgyDocument) -> bool {
+    let at = service
+        .cues
+        .iter()
+        .position(|c| is_item(c, "sursum-corda"))
+        .or_else(|| service.cues.iter().position(|c| c.category == ElementCategory::EucharisticPrayer));
+    let Some(at) = at else { return false };
+    let doc = if doc.meta.extra("based_on").is_none() { episco_core::bcp::mark_preface_place(&doc) } else { doc };
+    replace_cue(service, at, doc);
+    if service.cues.get(at + 1).is_some_and(|c| is_item(c, "sanctus")) {
+        service.cues.remove(at + 1);
+    }
+    true
+}
+
+/// Puts back the dialogue and the said Sanctus in place of a whole
+/// Eucharistic Prayer.
+fn use_dialogue(service: &mut Service, rite: Rite) -> bool {
+    let whole = |c: &Cue| c.category == ElementCategory::EucharisticPrayer && !is_item(c, "sursum-corda");
+    let Some(at) = service.cues.iter().position(whole) else {
+        return false;
     };
-    let Some(at) = service.cues.iter().position(|c| is(c, "sursum-corda")) else { return };
+    let (Some(dialogue), Some(sanctus)) =
+        (builtin_doc(&rite_name(rite, "sursum-corda")), builtin_doc(&rite_name(rite, "sanctus")))
+    else {
+        return false;
+    };
+    replace_cue(service, at, dialogue);
+    let mut sanctus = said(Cue::liturgy("", sanctus, None, CueOverrides::default()));
+    sanctus.modified = true;
+    service.insert_cue(at + 1, sanctus);
+    true
+}
+
+/// A new cue with `doc` at `at` (a fresh id, a new item's settings).
+fn replace_cue(service: &mut Service, at: usize, doc: LiturgyDocument) {
     let mut cue = Cue::liturgy("", doc, None, CueOverrides::default());
     cue.modified = true;
     service.cues[at] = cue;
-    if service.cues.get(at + 1).is_some_and(|c| is(c, "sanctus")) {
-        service.cues.remove(at + 1);
-    }
     let ids: Vec<String> = service.cues.iter().map(|c| c.id.clone()).collect();
     if service.cues[at].id.is_empty() || ids.iter().filter(|i| **i == service.cues[at].id).count() > 1 {
         let title = service.cues[at].document().map(|d| d.meta.title.clone()).unwrap_or_default();
         service.cues[at].id = service.unique_id(&title);
     }
+}
+
+/// Whether a cue is the service's Prayers of the People (a Prayer Book
+/// form, or the parish's own).
+fn is_prayers(c: &Cue) -> bool {
+    c.document().is_some_and(|d| {
+        d.meta.extra("based_on").is_some_and(|b| PRAYERS_FORMS.contains(&b))
+            || d.meta.extra(crate::library::USES) == Some(crate::library::PRAYERS_OF_THE_PEOPLE)
+    })
+}
+
+/// Puts `doc` in place of the service's Prayers of the People. Returns
+/// whether the service has them.
+fn use_prayers_doc(service: &mut Service, doc: LiturgyDocument) -> bool {
+    let Some(at) = service.cues.iter().position(is_prayers) else { return false };
+    replace_cue(service, at, doc);
+    true
 }
 
 /// The Sanctus said (by all, in bold, on a prayer's layout), as new
@@ -396,7 +454,7 @@ fn propers_position(service: &Service) -> usize {
 
 /// Choices for a new service. Unset values come from the template, else the
 /// defaults (Rite II, Track 1, NRSVue).
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct ServiceOptions {
     #[serde(default)]
     pub rite: Option<Rite>,
@@ -420,6 +478,14 @@ pub struct ServiceOptions {
     /// prayer has). None: the dialogue and the Sanctus only.
     #[serde(default)]
     pub eucharistic_prayer: Option<EucharisticPrayer>,
+    /// The parish's own Prayers of the People (a library id, `user:…`), in
+    /// place of a form of the Prayer Book's.
+    #[serde(default)]
+    pub prayers_item: Option<String>,
+    /// The parish's own Eucharistic Prayer (a library id), in place of the
+    /// dialogue and the Sanctus.
+    #[serde(default)]
+    pub eucharistic_prayer_item: Option<String>,
     /// The kind of service (Holy Week, ordinations) and the bishop,
     /// baptism, renewal and confirmation options.
     #[serde(default, flatten)]
@@ -534,7 +600,22 @@ fn create(
         Some(path) => Some(Service::load_plan(path).map_err(|e| e.to_string())?.service),
         None => None,
     };
+    // The parish's own Prayers of the People and Eucharistic Prayer.
+    let parish = |id: &Option<String>| -> CmdResult<Option<LiturgyDocument>> {
+        id.as_deref().filter(|i| i.starts_with("user:")).map(|i| crate::library::load(app, i)).transpose()
+    };
+    let (prayers, prayer) = (parish(&opts.prayers_item)?, parish(&opts.eucharistic_prayer_item)?);
     let mut service = build(date, title, template, opts);
+    let mut changed = false;
+    if let Some(doc) = prayers {
+        changed |= use_prayers_doc(&mut service, doc);
+    }
+    if let Some(doc) = prayer {
+        changed |= use_eucharistic_doc(&mut service, doc);
+    }
+    if changed {
+        service.rebuild_all();
+    }
     service.time = time.map(str::trim).filter(|t| !t.is_empty()).map(String::from);
     service.library_root = crate::storage::root();
     // Reading texts from the parish's Bible file, if it has one.
@@ -611,7 +692,7 @@ pub fn services_schedule(
             // times, any service that day).
             let taken = existing.iter().any(|(d, t)| *d == day && (time.is_none() || t == time));
             if !taken {
-                created.push(create(&app, date, None, template.as_deref(), options, time.as_deref())?);
+                created.push(create(&app, date, None, template.as_deref(), options.clone(), time.as_deref())?);
             }
         }
     }
@@ -835,6 +916,65 @@ pub fn service_keep(app: AppHandle, engine: State<'_, Engine>, date: String) -> 
         s.save_to(&target).map_err(|e| e.to_string())
     })?;
     Ok(plan)
+}
+
+/// The service's Prayers of the People: a Prayer Book form ("1"–"6",
+/// "rite1") or the parish's own (a library id, `user:…`).
+#[tauri::command]
+pub fn service_set_prayers(app: AppHandle, engine: State<'_, Engine>, choice: String) -> CmdResult<()> {
+    let doc = if choice.starts_with("user:") {
+        crate::library::load(&app, &choice)?
+    } else {
+        let form: PrayersForm = serde_json::from_value(serde_json::Value::String(choice.clone()))
+            .map_err(|_| format!("no form “{choice}”"))?;
+        let rite = engine.service().and_then(|s| s.rite).unwrap_or_default();
+        builtin_doc(&prayers_item(rite, Some(form))).ok_or("that form is not in the library")?
+    };
+    engine.edit_service(|s| {
+        if !use_prayers_doc(s, doc) {
+            return Err("this service has no Prayers of the People to change".to_string());
+        }
+        s.modified = true;
+        s.rebuild_all();
+        Ok(())
+    })
+}
+
+/// The service's Eucharistic Prayer: a Prayer Book prayer ("A"–"D", "I",
+/// "II"), the parish's own (`user:…`), or none (the dialogue and the
+/// Sanctus only).
+#[tauri::command]
+pub fn service_set_eucharistic_prayer(
+    app: AppHandle,
+    engine: State<'_, Engine>,
+    choice: Option<String>,
+) -> CmdResult<()> {
+    let rite = engine.service().and_then(|s| s.rite).unwrap_or_default();
+    let doc = match choice.as_deref().filter(|c| !c.is_empty()) {
+        None => None,
+        Some(id) if id.starts_with("user:") => Some(crate::library::load(&app, id)?),
+        Some(name) => {
+            let prayer: EucharisticPrayer = serde_json::from_value(serde_json::Value::String(name.into()))
+                .map_err(|_| format!("no Eucharistic Prayer “{name}”"))?;
+            Some(
+                eucharistic_prayer_item(rite, prayer)
+                    .and_then(builtin_doc)
+                    .ok_or_else(|| format!("Prayer {name} is not in this rite"))?,
+            )
+        }
+    };
+    engine.edit_service(|s| {
+        let done = match doc {
+            Some(doc) => use_eucharistic_doc(s, doc),
+            None => use_dialogue(s, rite),
+        };
+        if !done {
+            return Err("this service has no Great Thanksgiving to change".to_string());
+        }
+        s.modified = true;
+        s.rebuild_all();
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -1215,7 +1355,7 @@ mod tests {
     #[test]
     fn copies_drop_propers_and_get_their_own_files() {
         let no_propers = ServiceOptions { propers: Some(false), ..Default::default() };
-        let mut template = build("2026-11-15".parse().unwrap(), None, None, no_propers);
+        let mut template = build("2026-11-15".parse().unwrap(), None, None, no_propers.clone());
         let reading: LiturgyDocument =
             "---\ntitle: First Reading\ntype: reading\ncitation: Joshua 24\n---\n# The First Reading\n"
                 .parse()
@@ -1278,6 +1418,7 @@ mod tests {
             occasion: Default::default(),
             prayers: None,
             eucharistic_prayer: None,
+            ..Default::default()
         };
         let s = build("2026-11-15".parse().unwrap(), None, None, opts);
         let t = titles(&s);
@@ -1331,5 +1472,49 @@ mod tests {
         let sermon = titles.iter().position(|x| *x == "The Sermon").unwrap();
         assert_eq!(titles[sermon - 1], "The Holy Gospel");
         assert_eq!(lent.title, "The Fifth Sunday in Lent");
+    }
+
+    #[test]
+    fn a_parish_prayer_takes_the_place_of_the_prayer_books() {
+        let mut s = build("2026-11-15".parse().unwrap(), None, None, ServiceOptions::default());
+        let n = s.cues.len();
+        // The parish's Eucharistic Prayer: the dialogue and the Sanctus give way.
+        let ep: LiturgyDocument = "---\ntitle: Eucharistic Prayer 1 (EOW)\ntype: eucharistic_prayer\n---\n[Celebrant] The Lord be with you.\n[People] **And also with you.**\n[Celebrant] Let us give thanks to the Lord our God.\n[People] **It is right to give our thanks and praise.**\n\n[Celebrant] It is truly right to glorify you.\n\n[Celebrant] Therefore we praise you.\n".parse().unwrap();
+        assert!(use_eucharistic_doc(&mut s, ep));
+        s.rebuild_all();
+        assert_eq!(s.cues.len(), n - 1, "the separate Sanctus is left out");
+        assert!(!s.cues.iter().any(|c| is_item(c, "sursum-corda") || is_item(c, "sanctus")));
+        let cue = s.cues.iter().find(|c| c.category == ElementCategory::EucharisticPrayer).unwrap();
+        assert_eq!(cue.title, "Eucharistic Prayer 1 (EOW)");
+        // The Proper Preface goes in on the slides (the date's, unless left out).
+        let text: String = (0..cue.slide_count())
+            .flat_map(|i| cue.slide(i).unwrap().blocks.iter().map(Block::plain_text).collect::<Vec<_>>())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let preface = s.preface_entry().unwrap().text(Rite::Two).unwrap();
+        assert!(text.contains(&preface[..20]), "{text}");
+        s.preface = Some("none".into());
+        s.rebuild_all();
+        let cue = s.cues.iter().find(|c| c.category == ElementCategory::EucharisticPrayer).unwrap();
+        let text: String =
+            (0..cue.slide_count()).flat_map(|i| cue.slide(i).unwrap().blocks.iter().map(Block::plain_text)).collect();
+        assert!(!text.contains(&preface[..20]), "left out");
+        // Back to the dialogue and the Sanctus.
+        assert!(use_dialogue(&mut s, Rite::Two));
+        assert_eq!(s.cues.len(), n);
+        let at = s.cues.iter().position(|c| is_item(c, "sursum-corda")).unwrap();
+        assert!(is_item(&s.cues[at + 1], "sanctus"));
+
+        // The parish's Prayers of the People, then a Prayer Book form again.
+        let mut pop: LiturgyDocument =
+            "---\ntitle: Prayers of the People (St. James)\ntype: prayer\n---\n[Leader] Let us pray.\n"
+                .parse()
+                .unwrap();
+        pop.meta.extra.push((crate::library::USES.into(), crate::library::PRAYERS_OF_THE_PEOPLE.into()));
+        assert!(use_prayers_doc(&mut s, pop));
+        assert!(s.cues.iter().any(|c| c.title == "Prayers of the People (St. James)"));
+        assert!(use_prayers_doc(&mut s, builtin_doc("prayers-of-the-people-3").unwrap()), "found again");
+        assert!(s.cues.iter().any(|c| c.title == "The Prayers of the People (Form III)"));
+        assert_eq!(s.cues.len(), n);
     }
 }

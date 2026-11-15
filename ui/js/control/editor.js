@@ -685,6 +685,10 @@ function prayerSanctusPanel(c) {
  *  prayer's own text), and where to change it. */
 function prefaceNote() {
   const has = ed.doc.blocks.some((b) => b.kind === "paragraph" && b.role === "Rubric" && /Proper Preface/.test(b.lines.flat().map((s) => s.text).join("")));
+  // A parish's own prayer without the place marked: say how to mark it.
+  if (!has && !extraOf(ed.doc, "based_on")) {
+    return el("p.muted.small.preface-note", {}, "No place for the Proper Preface in this prayer. To have one, add a rubric (Rubric) line “Here a Proper Preface is sung or said” where it goes.");
+  }
   if (!has) return null;
   const used = app.service?.preface_used;
   return el(

@@ -177,6 +177,10 @@ pub struct LibraryEntry {
     /// First words of the text, for the list.
     summary: String,
     slides: usize,
+    /// What the parish uses the item for in a service (`prayers_of_the_people`):
+    /// it is then offered with the Prayer Book's forms.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    uses: Option<String>,
     /// The parish's other items that are the same hymn (same number) or
     /// the same item (same kind and title): copies to merge.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -215,6 +219,7 @@ fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
         default: false,
         summary,
         slides: doc.slides().len(),
+        uses: doc.meta.extra(USES).map(String::from),
         dupes: Vec::new(),
     }
 }
@@ -408,8 +413,27 @@ pub fn builtin_doc(name: &str) -> Option<LiturgyDocument> {
     bcp_doc(name)
 }
 
+/// Front matter: what the parish uses an item for in a service.
+pub const USES: &str = "uses";
+/// [`USES`]: a form of the Prayers of the People.
+pub const PRAYERS_OF_THE_PEOPLE: &str = "prayers_of_the_people";
+
+/// Marks a library item as used for something in a service (or unmarks
+/// it), e.g. a parish's own Prayers of the People.
+#[tauri::command]
+pub fn library_set_uses(app: AppHandle, id: String, uses: Option<String>) -> CmdResult<()> {
+    crate::sync::soon();
+    let path = user_dir(&app)?.join(user_file(&id)?);
+    let mut doc = ewm::load_file(&path).map_err(|e| e.to_string())?.document;
+    doc.meta.extra.retain(|(k, _)| k != USES);
+    if let Some(u) = uses.map(|u| u.trim().to_string()).filter(|u| !u.is_empty()) {
+        doc.meta.extra.push((USES.into(), u));
+    }
+    std::fs::write(&path, ewm::to_string(&doc)).map_err(|e| format!("could not save {}: {e}", path.display()))
+}
+
 /// Loads a library item's document by id.
-fn load(app: &AppHandle, id: &str) -> CmdResult<LiturgyDocument> {
+pub fn load(app: &AppHandle, id: &str) -> CmdResult<LiturgyDocument> {
     if let Some(name) = id.strip_prefix("builtin:") {
         return bcp_doc(name).ok_or_else(|| "no such built-in item".into());
     }
@@ -431,7 +455,8 @@ fn list_library(app: &AppHandle) -> Vec<LibraryEntry> {
         .iter()
         .filter_map(|(name, src)| ewm::parse(src).ok().map(|p| entry(format!("builtin:{name}"), &p.document, true)))
         .collect();
-    let mut cache = crate::cache::Cache::open(app, "library");
+    // ("-2": entries now say what an item is used for.)
+    let mut cache = crate::cache::Cache::open(app, "library-2");
     for path in user_files(app) {
         let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else { continue };
         let Some(stamp) = crate::cache::file_stamp(&path) else { continue };
@@ -613,6 +638,7 @@ fn find_version(dir: &Path, doc: &LiturgyDocument) -> Option<String> {
 /// own copy of a supplemental liturgy) and saves it to the parish library.
 /// With `replace` false, refuses to overwrite an item of the same name.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn library_create_from_text(
     app: AppHandle,
     title: String,
@@ -620,12 +646,22 @@ pub fn library_create_from_text(
     citation: Option<String>,
     text: String,
     replace: bool,
+    uses: Option<String>,
+    rite: Option<String>,
 ) -> CmdResult<String> {
     crate::sync::soon();
     if title.trim().is_empty() {
         return Err("give the item a title".into());
     }
-    let doc = episco_core::paste::document_from_text(&title, category, citation.as_deref(), &text, 70);
+    let mut doc = episco_core::paste::document_from_text(&title, category, citation.as_deref(), &text, 70);
+    if let Some(u) = uses.filter(|u| !u.trim().is_empty()) {
+        doc.meta.extra.push((USES.into(), u));
+    }
+    // "I" or "II": offered for services in that rite only.
+    if let Some(r) = rite.filter(|r| matches!(r.as_str(), "I" | "II")) {
+        doc.meta.extra.retain(|(k, _)| k != "rite");
+        doc.meta.extra.push(("rite".into(), r));
+    }
     if !doc.blocks.iter().any(|b| matches!(b, episco_core::Block::Paragraph { .. })) {
         return Err("paste the text first".into());
     }

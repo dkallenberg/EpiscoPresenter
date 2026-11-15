@@ -301,8 +301,8 @@ Fund), for example. Add them from the parish's own copy:
 
 1. **Library → Paste a text…**
 2. Give it a title ("Eucharistic Prayer 1 (EOW)"), a type (Eucharistic
-   Prayer) and where it comes from ("EOW 1, p. 57"; printed on the
-   bulletin).
+   Prayer, or Prayers of the People), the rite it is for (or Either) and
+   where it comes from ("EOW 1, p. 57"; printed on the bulletin).
 3. Copy the prayer from the book or PDF and paste it. Start each speaker's
    part with the speaker's name, as the book prints it:
 
@@ -323,3 +323,24 @@ Fund), for example. Add them from the parish's own copy:
 4. **Add to library**. The item is saved in the parish library folder, so
    everyone can use it. Look it over in the Editor (speakers, rubrics, slide
    breaks) and save any corrections back with **Save to Library**.
+
+### The parish's own Eucharistic Prayers and Prayers of the People
+
+A Eucharistic Prayer in the library, and a prayer marked as **Prayers of
+the People**, are offered with the Prayer Book's when services are made
+(**Schedule services**: *Prayers of the People* and *Eucharistic Prayer*,
+under "The parish's own") and in **⚙ Settings → Service settings** for the
+open service, for services in its rite (or both, if it is for Either).
+
+* To mark a prayer already in the library, select it and tick **Prayers of
+  the People** under its name. Pasted as *Prayers of the People*, it is
+  marked already.
+* A Eucharistic Prayer takes the place of the dialogue (*The Great
+  Thanksgiving*) and the separate Sanctus: the prayer has both. Choosing
+  *Dialogue and Sanctus only* in Service settings puts them back.
+* The Proper Preface goes in where the prayer says "Here a Proper Preface
+  is sung or said…". If the pasted prayer has no such line, the app puts
+  one after the presider's first words following the people's "It is right
+  to give … thanks and praise", as in Prayers A and B (the Editor says so
+  when it cannot find the place). The preface is the day's, or the one
+  chosen in Service settings, where **Leave out** leaves it out.
