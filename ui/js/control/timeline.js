@@ -6,7 +6,7 @@ import { addAnthem, addGoogleSlides, addPdfSlides, addSlides, addWebVideo } from
 import { backgroundName } from "/js/control/looks.js";
 import { load as loadDeck, loopSlide, onDeckChange, pageCount, slideImage } from "/js/deckpdf.js";
 import { backgroundCss } from "/js/render.js";
-import { preludeRow } from "/js/control/prelude.js";
+import { musicRow } from "/js/control/prelude.js";
 import { app, call, el, reportWarnings, slideCount, titleCase } from "/js/control/util.js";
 
 const ICONS = {
@@ -170,8 +170,10 @@ function render(list) {
   const rows = [];
   if (service) rows.push(preServiceRow(service, active));
   // The planner's list begins with the prelude (the bulletin's first line).
-  if (service && app.mode === "planner") rows.push(preludeRow());
+  if (service && app.mode === "planner") rows.push(musicRow("prelude"));
   cues.forEach((cue, i) => rows.push(cueRow(cue, i, active, cues.length)));
+  // ...and ends with the postlude (the bulletin's last line).
+  if (service && app.mode === "planner") rows.push(musicRow("postlude"));
   if (service && !cues.length) {
     rows.push(el("li.cue-hint.muted", {}, "This service is empty. Use + Add above for prayers, hymns, readings and slides, or the Library tab."));
   }

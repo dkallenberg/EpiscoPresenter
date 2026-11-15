@@ -274,7 +274,10 @@ select.overridden, .bg-button.overridden { border-color: var(--accent); }
 
 .modal-overlay { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; }
 .modal { width: 620px; max-width: 92vw; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px;
-  display: flex; flex-direction: column; gap: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.6); }
+  display: flex; flex-direction: column; gap: 12px; box-shadow: 0 16px 48px rgba(0,0,0,.6);
+  /* A tall box scrolls on a small screen; its buttons stay in view. */
+  max-height: calc(100vh - 32px); overflow-y: auto; }
+.modal > .modal-actions { position: sticky; bottom: -18px; margin: 6px -20px -18px; padding: 10px 20px 18px; background: var(--panel); border-top: 1px solid transparent; }
 .modal h3 { margin: 0 0 4px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px; }
 
@@ -659,3 +662,6 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 .lib-sync { margin: 6px 0 0; }
 .lib-sync.warn { color: #f3c46b; }
 .lib-dupes button { flex: none; white-space: nowrap; }
+/* The prelude's and postlude's bulletin choice. */
+.music-bulletin { align-self: flex-start; margin-left: 0; text-transform: none; letter-spacing: 0; }
+.music-bulletin button { font-size: 12px; }

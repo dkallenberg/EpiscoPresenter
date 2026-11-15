@@ -1,9 +1,10 @@
 //! Music named in the service: the prelude (on the stream's welcome slide
-//! and at the head of the bulletin) and the choir's anthems (an item with a
-//! lower third on the stream).
+//! and at the head of the bulletin), the postlude (the bulletin's last line)
+//! and the choir's anthems (an item with a lower third on the stream).
 
 use serde::{Deserialize, Serialize};
 
+use crate::bulletin::BulletinStyle;
 use crate::document::{Block, LiturgyDocument, Span};
 use crate::role::Role;
 use crate::ElementCategory;
@@ -16,15 +17,40 @@ pub struct Music {
     pub title: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub composer: String,
+    /// How the bulletin shows it: [`BulletinStyle::Title`] ("Prelude"
+    /// alone) or [`BulletinStyle::Hidden`]; unset, the title and composer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bulletin: Option<BulletinStyle>,
 }
 
 impl Music {
     pub fn new(title: &str, composer: &str) -> Music {
-        Music { title: title.trim().to_string(), composer: composer.trim().to_string() }
+        Music { title: title.trim().to_string(), composer: composer.trim().to_string(), bulletin: None }
     }
 
+    /// No title or composer (the piece is not named yet).
     pub fn is_empty(&self) -> bool {
         self.title.trim().is_empty() && self.composer.trim().is_empty()
+    }
+
+    /// Nothing to keep: not named, and shown in the bulletin as usual.
+    pub fn is_unset(&self) -> bool {
+        self.is_empty() && self.bulletin.is_none()
+    }
+
+    /// How the bulletin shows it.
+    pub fn style(&self) -> BulletinStyle {
+        match self.bulletin {
+            Some(s @ (BulletinStyle::Title | BulletinStyle::Hidden)) => s,
+            _ => BulletinStyle::Reference,
+        }
+    }
+
+    /// With the bulletin's choice (the usual one, title and composer, is
+    /// kept as unset).
+    pub fn with_bulletin(mut self, style: BulletinStyle) -> Music {
+        self.bulletin = matches!(style, BulletinStyle::Title | BulletinStyle::Hidden).then_some(style);
+        self
     }
 }
 

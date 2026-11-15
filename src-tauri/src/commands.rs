@@ -1,5 +1,7 @@
 //! Tauri commands invoked from the web front-end.
 
+use episco_core::bulletin::BulletinStyle;
+use episco_core::music::Music;
 use std::path::{Path, PathBuf};
 
 use episco_core::ewm::{self, Parsed};
@@ -471,6 +473,9 @@ pub struct ServiceDetails {
     /// The prelude (title and composer); none clears it.
     #[serde(default)]
     prelude: Option<episco_core::music::Music>,
+    /// The postlude, likewise.
+    #[serde(default)]
+    postlude: Option<episco_core::music::Music>,
     /// The Proper Preface: a name, "none", or empty for the date's.
     #[serde(default)]
     preface: Option<String>,
@@ -491,8 +496,11 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
         s.rite = details.rite;
         s.track = details.track.filter(|t| matches!(t, 1 | 2));
         s.bible = details.bible;
-        s.prelude =
-            details.prelude.map(|m| episco_core::music::Music::new(&m.title, &m.composer)).filter(|m| !m.is_empty());
+        let named = |m: Option<Music>| m.unwrap_or_default();
+        let prelude = named(details.prelude);
+        let postlude = named(details.postlude);
+        s.prelude = music(s.prelude.as_ref(), &prelude.title, &prelude.composer, prelude.bulletin);
+        s.postlude = music(s.postlude.as_ref(), &postlude.title, &postlude.composer, postlude.bulletin);
         s.preface = details.preface.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
         s.modified = true;
         s.rebuild_all();
@@ -500,12 +508,40 @@ pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -
     })
 }
 
-/// Sets the service's prelude (title and composer); both empty clears it.
+/// The prelude or postlude as it will be: the new title and composer, and
+/// the bulletin's choice (`None` keeps the one it had). Nothing to keep is
+/// none.
+fn music(old: Option<&Music>, title: &str, composer: &str, bulletin: Option<BulletinStyle>) -> Option<Music> {
+    let style = bulletin.or_else(|| old.map(Music::style)).unwrap_or(BulletinStyle::Reference);
+    Some(Music::new(title, composer).with_bulletin(style)).filter(|m| !m.is_unset())
+}
+
+/// Sets the service's prelude (title and composer, and how the bulletin
+/// shows it: `reference`, `title` or `hidden`; unset keeps it).
 #[tauri::command]
-pub fn set_prelude(engine: State<'_, Engine>, title: String, composer: String) -> CmdResult<()> {
+pub fn set_prelude(
+    engine: State<'_, Engine>,
+    title: String,
+    composer: String,
+    bulletin: Option<BulletinStyle>,
+) -> CmdResult<()> {
     engine.edit_service(|s| {
-        let m = episco_core::music::Music::new(&title, &composer);
-        s.prelude = (!m.is_empty()).then_some(m);
+        s.prelude = music(s.prelude.as_ref(), &title, &composer, bulletin);
+        s.modified = true;
+        Ok(())
+    })
+}
+
+/// Sets the service's postlude, as [`set_prelude`].
+#[tauri::command]
+pub fn set_postlude(
+    engine: State<'_, Engine>,
+    title: String,
+    composer: String,
+    bulletin: Option<BulletinStyle>,
+) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        s.postlude = music(s.postlude.as_ref(), &title, &composer, bulletin);
         s.modified = true;
         Ok(())
     })

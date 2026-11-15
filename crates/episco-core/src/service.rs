@@ -100,6 +100,9 @@ pub struct Service {
     /// The prelude: on the stream's welcome slide and the bulletin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prelude: Option<crate::music::Music>,
+    /// The postlude: the bulletin's last line (not on the stream).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub postlude: Option<crate::music::Music>,
     /// The stream's welcome slide, from the service and the parish details
     /// (runtime only, not saved in the plan).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -770,7 +773,8 @@ impl Service {
             rite: plan.rite.as_deref().and_then(crate::bcp::Rite::parse),
             track: plan.track.filter(|t| matches!(t, 1 | 2)),
             bible: plan.bible.as_deref().and_then(crate::bible::BibleVersion::parse),
-            prelude: plan.prelude.filter(|m| !m.is_empty()),
+            prelude: plan.prelude.filter(|m| !m.is_unset()),
+            postlude: plan.postlude.filter(|m| !m.is_unset()),
             preface: plan.preface.filter(|p| !p.trim().is_empty()),
             ..Default::default()
         };
@@ -934,7 +938,8 @@ impl Service {
             rite: self.rite.filter(|r| *r == crate::bcp::Rite::One).map(|_| "I".into()),
             track: self.track.filter(|t| *t == 2),
             bible: self.bible.map(|b| b.initials().into()),
-            prelude: self.prelude.clone().filter(|m| !m.is_empty()),
+            prelude: self.prelude.clone().filter(|m| !m.is_unset()),
+            postlude: self.postlude.clone().filter(|m| !m.is_unset()),
             preface: self.preface.clone(),
             looks: self.looks.clone(),
             cues,
@@ -1002,6 +1007,8 @@ struct ServicePlan {
     // Tables must follow plain values in TOML.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     prelude: Option<crate::music::Music>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    postlude: Option<crate::music::Music>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     looks: BTreeMap<ElementCategory, CueLooks>,
     #[serde(default, rename = "cue")]
@@ -1173,6 +1180,7 @@ mod tests {
     fn the_prelude_is_saved_with_the_service() {
         let mut s = Service { title: "T".into(), ..Default::default() };
         s.prelude = Some(crate::music::Music::new("Adagio", "Johann Sebastian Bach, arr. by Homer Whitfield"));
+        s.postlude = Some(crate::music::Music::default().with_bulletin(crate::bulletin::BulletinStyle::Hidden));
         s.insert_cue(
             0,
             Cue::liturgy("c", "---\ntitle: C\n---\nWords\n".parse().unwrap(), None, CueOverrides::default()),
@@ -1183,9 +1191,10 @@ mod tests {
         let plan = dir.join("service.toml");
         s.save_to(&plan).unwrap();
         assert!(std::fs::read_to_string(&plan).unwrap().contains("[prelude]"));
-        let back = Service::load_plan(&plan).map(|l| l.service);
+        let back = Service::load_plan(&plan).map(|l| l.service).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
-        assert_eq!(back.unwrap().prelude, s.prelude);
+        assert_eq!(back.prelude, s.prelude);
+        assert_eq!(back.postlude, s.postlude, "a postlude left out of the bulletin is remembered");
     }
 
     #[test]

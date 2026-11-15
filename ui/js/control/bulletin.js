@@ -9,7 +9,7 @@
 
 import { assetUrl, listen } from "/js/bridge.js";
 import { app, call, debounce, el, toast } from "/js/control/util.js";
-import { editPrelude } from "/js/control/prelude.js";
+import { editMusic, musicStyle, musicText, needsNaming } from "/js/control/prelude.js";
 import { undoButtons } from "/js/control/undo.js";
 
 const STYLES = [
@@ -69,9 +69,10 @@ function makeView(kind) {
     el("button.primary", { onclick: () => exportDoc(kind) }, `⤓ ${exportLabel}`),
   );
   page.addEventListener("click", (e) => {
-    // The Prelude's line (or the place for it): its title and composer.
+    // The Prelude's or Postlude's line (or the place for it).
     const lone = e.target.closest(".entry:not([data-cue])");
-    if (lone && /^\s*Prelude\b/.test(lone.textContent)) return editPrelude();
+    const piece = lone && /^\s*(Prelude|Postlude)\b/.exec(lone.textContent)?.[1];
+    if (piece) return editMusic(piece.toLowerCase());
     const missing = e.target.closest(".missing");
     const entry = e.target.closest("[data-cue]");
     if (entry) app.select(entry.dataset.cue);
@@ -120,16 +121,29 @@ async function refresh(v) {
   const top = v.scroll.scrollTop;
   v.page.innerHTML = html;
   for (const img of v.page.querySelectorAll("img[data-path]")) img.src = assetUrl(null, img.dataset.path);
-  // No prelude yet: its place at the top, to fill in (not in the Word file).
-  const first = v.page.querySelector("section.entry");
-  if (first && !app.service?.prelude && !app.readonly) {
-    first.before(
-      el(
-        "section.entry.reference.prelude-missing",
-        { title: "Click to add the prelude's title and composer" },
-        el("p.line", {}, el("span.lead", {}, el("b", {}, "Prelude"), " "), el("span.missing", {}, "Add the title and composer")),
-      ),
-    );
+  // A prelude or postlude not named yet, or left out: its place, to fill
+  // in or bring back (only here, not in the Word file).
+  const entries = v.page.querySelectorAll("section.entry");
+  if (entries.length && !app.readonly) {
+    const place = (which) => {
+      const label = which === "prelude" ? "Prelude" : "Postlude";
+      const hidden = musicStyle(which) === "hidden";
+      if (!hidden && !needsNaming(which)) return null;
+      return el(
+        `section.entry.reference.prelude-missing.${which}-missing`,
+        { title: hidden ? `Left out of the bulletin: click to change` : `Click to add the ${label.toLowerCase()}'s title and composer` },
+        el(
+          "p.line",
+          {},
+          el("span.lead", {}, el("b", {}, label), " "),
+          el("span.missing", {}, hidden ? `Left out of the bulletin${musicText(which) ? ` (${musicText(which)})` : ""}` : "Add the title and composer"),
+        ),
+      );
+    };
+    const pre = place("prelude");
+    if (pre) entries[0].before(pre);
+    const post = place("postlude");
+    if (post) entries[entries.length - 1].after(post);
   }
   if (!app.readonly) {
     for (const n of v.page.querySelectorAll(".ed, .entry[data-cue] .ed-title")) {
@@ -163,6 +177,7 @@ async function renderTodo(v) {
   if (s.cues.some((c) => c.content.kind === "announcements") && !s.announcements_deck) {
     items.push(["Add the announcements' Google Slides link", () => document.getElementById("btn-settings")?.click()]);
   }
+  if (needsNaming("prelude")) items.push(["Name the prelude", () => editMusic("prelude")]);
   for (const c of s.cues) {
     const t = styles.get(c.id)?.todo;
     if (!t) continue;
@@ -175,6 +190,7 @@ async function renderTodo(v) {
       },
     ]);
   }
+  if (needsNaming("postlude")) items.push(["Name the postlude", () => editMusic("postlude")]);
   v.todo.replaceChildren(
     el("h4", {}, items.length ? `To do (${items.length})` : "To do"),
     items.length

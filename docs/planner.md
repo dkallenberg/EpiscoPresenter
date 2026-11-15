@@ -169,6 +169,16 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   Whitfield*); they are also in **⚙ Settings → Service settings**. It heads
   the bulletin and script (*Prelude — Adagio — Johann Sebastian Bach…*) and
   shows on the live stream's welcome before the service.
+* **The postlude**: the last row of the service list, **♪ Postlude**, and
+  the last line of the bulletin and script, set the same way (and in
+  Service settings). It is not on the live stream.
+* **Shortening or leaving them out**: the Prelude and Postlude boxes have
+  **In the bulletin**: *Title and composer* (the usual), *Name only* (just
+  "Prelude", e.g. when the piece is not chosen) or *Left out*. A piece left
+  out keeps a faint line in the Bulletin tab (not printed) to bring it back,
+  the service list says so, and the script still names it. Until a piece
+  the bulletin shows is named, To do lists *Name the prelude* or *Name the
+  postlude*.
 * **Choir anthems**: **+ Add → Choir anthem…** asks for its name in the
   service (*Offertory Anthem* to start with), its title and composer. The
   bulletin lists it like a hymn (*Offertory Anthem — Ave verum corpus — W.

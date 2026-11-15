@@ -350,7 +350,7 @@ const KEYS = [
   ["transparent", "Transparent (alpha)"],
 ];
 
-/** Service settings; `focus` "prelude" starts at the Prelude. */
+/** Service settings; `focus` "prelude" or "postlude" starts there. */
 export function openServiceSettings(focus) {
   const s = app.service;
   if (!s) return;
@@ -361,6 +361,8 @@ export function openServiceSettings(focus) {
     title: el("input", { value: s.title ?? "" }),
     preludeTitle: el("input", { value: s.prelude?.title ?? "", placeholder: "e.g. Adagio" }),
     preludeComposer: el("input", { value: s.prelude?.composer ?? "", placeholder: "e.g. Johann Sebastian Bach, arr. by Homer Whitfield" }),
+    postludeTitle: el("input", { value: s.postlude?.title ?? "", placeholder: "e.g. Toccata (Symphony No. 5)" }),
+    postludeComposer: el("input", { value: s.postlude?.composer ?? "", placeholder: "e.g. Charles-Marie Widor" }),
     date: el("input", { type: "date", value: s.date ?? "" }),
     season: el("select", {}, el("option", { value: "" }, "—"), v.seasons.map((x) => el("option", { value: x.key, selected: s.season === x.key }, x.label))),
     color: el("select", {}, el("option", { value: "" }, "Auto (from season)"), v.colors.map((x) => el("option", { value: x.key, selected: s.color === x.key && s.color !== seasonColor(s.season) }, x.key))),
@@ -436,6 +438,7 @@ export function openServiceSettings(focus) {
         track: Number(f.track.value),
         bible: f.bible.value,
         prelude: { title: f.preludeTitle.value, composer: f.preludeComposer.value },
+        postlude: { title: f.postludeTitle.value, composer: f.postludeComposer.value },
         preface: f.preface.value || null,
       },
     });
@@ -462,6 +465,8 @@ export function openServiceSettings(focus) {
       row("Proper Preface (Eucharistic Prayers A, B, I and II)", f.preface),
       el("div.look-row", {}, row("Prelude", f.preludeTitle), row("Composer (and arranger)", f.preludeComposer)),
       el("p.muted.small", {}, "Shown on the live stream's welcome before the service, and at the top of the bulletin."),
+      el("div.look-row", {}, row("Postlude", f.postludeTitle), row("Composer (and arranger)", f.postludeComposer)),
+      el("p.muted.small", {}, "The last line of the bulletin (not on the live stream). To shorten either in the bulletin or leave it out, click its line in the Bulletin tab."),
       el(
         "label.field.check",
         { title: "The Celebrant's and Priest's parts are labelled Bishop on the slides, bulletin and script" },
@@ -501,7 +506,7 @@ export function openServiceSettings(focus) {
     ),
   );
   document.body.append(overlay);
-  (focus === "prelude" ? f.preludeTitle : f.title).focus();
+  (focus === "prelude" ? f.preludeTitle : focus === "postlude" ? f.postludeTitle : f.title).focus();
 }
 
 function seasonColor(season) {

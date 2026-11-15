@@ -465,19 +465,38 @@ fn with_preface<'a>(cue: &'a Cue, service: &Service) -> std::borrow::Cow<'a, Cue
     std::borrow::Cow::Borrowed(cue)
 }
 
-/// The prelude's line at the head of the bulletin and script.
-fn prelude_entry(service: &Service) -> Option<Entry> {
-    let m = service.prelude.as_ref().filter(|m| !m.is_empty())?;
-    Some(Entry {
-        cue: None,
-        style: BulletinStyle::Reference,
-        pieces: vec![Piece::Line {
-            title: "Prelude".into(),
-            detail: None,
-            incipit: (!m.title.trim().is_empty()).then(|| m.title.trim().to_string()),
-            reference: (!m.composer.trim().is_empty()).then(|| m.composer.trim().to_string()),
-        }],
-    })
+/// The prelude's or postlude's line (at the head or the end of the
+/// bulletin and script): its title and composer, or "Prelude" alone, or
+/// nothing (left out, or not named yet). The script names the piece
+/// whatever the bulletin shows.
+fn music_entry(label: &str, music: Option<&crate::music::Music>, script: bool) -> Option<Entry> {
+    let m = music?;
+    let style = if script { BulletinStyle::Reference } else { m.style() };
+    let named = !m.is_empty();
+    let line = |incipit: Option<String>, reference: Option<String>| Piece::Line {
+        title: label.into(),
+        detail: None,
+        incipit,
+        reference,
+    };
+    let piece = match style {
+        BulletinStyle::Hidden => return None,
+        BulletinStyle::Title => line(None, None),
+        _ if !named => return None,
+        _ => line(
+            (!m.title.trim().is_empty()).then(|| m.title.trim().to_string()),
+            (!m.composer.trim().is_empty()).then(|| m.composer.trim().to_string()),
+        ),
+    };
+    Some(Entry { cue: None, style, pieces: vec![piece] })
+}
+
+fn prelude_entry(service: &Service, script: bool) -> Option<Entry> {
+    music_entry("Prelude", service.prelude.as_ref(), script)
+}
+
+fn postlude_entry(service: &Service, script: bool) -> Option<Entry> {
+    music_entry("Postlude", service.postlude.as_ref(), script)
 }
 
 fn cover(service: &Service, parish: &ParishInfo) -> Cover {
@@ -815,7 +834,7 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool, root: Option<&Path>) -> 
 
 /// The congregation's bulletin for a service.
 pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
-    let entries = prelude_entry(service)
+    let entries = prelude_entry(service, false)
         .into_iter()
         .chain(
             service
@@ -830,6 +849,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
                 })
                 .filter(|e| e.style != BulletinStyle::Hidden),
         )
+        .chain(postlude_entry(service, false))
         .collect();
     Doc { kind: DocKind::Bulletin, cover: cover(service, parish), entries, back: Some(parish.clone()) }
 }
@@ -837,7 +857,7 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
 /// The officiant's script: every word of every item, rubrics included, the
 /// Great Thanksgiving starting a new page.
 pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
-    let mut entries: Vec<Entry> = prelude_entry(service).into_iter().collect();
+    let mut entries: Vec<Entry> = prelude_entry(service, true).into_iter().collect();
     for cue in &service.cues {
         let doc = cue.document();
         let media = doc.is_some_and(|d| d.meta.screen_only());
@@ -859,6 +879,7 @@ pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
         speaker_labels(&mut e.pieces, parish.speaker_labels);
         entries.push(e);
     }
+    entries.extend(postlude_entry(service, true));
     Doc { kind: DocKind::Script, cover: cover(service, parish), entries, back: None }
 }
 
@@ -1550,5 +1571,39 @@ mod tests {
             }
         );
         assert!(matches!(script(&s, &ParishInfo::default()).entries[0].pieces[0], Piece::Line { .. }));
+    }
+
+    #[test]
+    fn the_prelude_and_postlude_can_be_shortened_or_left_out() {
+        use crate::music::Music;
+        let titles = |s: &Service, script_too: bool| -> Vec<String> {
+            let d = if script_too { script(s, &ParishInfo::default()) } else { bulletin(s, &ParishInfo::default()) };
+            d.entries
+                .iter()
+                .filter(|e| e.cue.is_none())
+                .map(|e| match &e.pieces[0] {
+                    Piece::Line { title, incipit, .. } => {
+                        format!("{title}{}", incipit.as_deref().map(|i| format!(": {i}")).unwrap_or_default())
+                    }
+                    _ => String::new(),
+                })
+                .collect()
+        };
+        let mut s = Service {
+            prelude: Some(Music::new("Adagio", "J. S. Bach")),
+            postlude: Some(Music::new("Toccata", "Charles-Marie Widor")),
+            ..Default::default()
+        };
+        assert_eq!(titles(&s, false), ["Prelude: Adagio", "Postlude: Toccata"]);
+        s.prelude = s.prelude.map(|m| m.with_bulletin(BulletinStyle::Title));
+        s.postlude = s.postlude.map(|m| m.with_bulletin(BulletinStyle::Hidden));
+        assert_eq!(titles(&s, false), ["Prelude"]);
+        // The script names both whatever the bulletin shows.
+        assert_eq!(titles(&s, true), ["Prelude: Adagio", "Postlude: Toccata"]);
+        // "Prelude" alone needs no piece named yet; left out, nothing is kept but that.
+        s.prelude = Some(Music::default().with_bulletin(BulletinStyle::Title));
+        s.postlude = Some(Music::default().with_bulletin(BulletinStyle::Hidden));
+        assert_eq!(titles(&s, false), ["Prelude"]);
+        assert!(!s.postlude.as_ref().unwrap().is_unset());
     }
 }
