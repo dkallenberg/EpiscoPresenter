@@ -68,6 +68,16 @@ Every slide of the service, grouped by cue and numbered. The **Sanctuary / Live
 stream** switch at the top right picks which output the thumbnails show. Click
 a slide to put it on air. The live slide has a red frame.
 
+**The end of a reading.** A reading shown by its title (the reader reads
+from the book) has a step of its own between the title and the ending
+("The Word of the Lord."), for the operator only: the screens keep the
+title, and the step's card (dashed, *End of the reading · only here*) and
+**NOW** in the right pane show the end of the last verse, as much as fits,
+under **Listen for**. Press **Next** when the reader gets to those words,
+for the ending. The step is there once the reading's text is in the
+service (**Reading texts…**, or the parish's Bible file); without the text
+the title goes straight to the ending.
+
 ## Editor tab
 
 Edits the selected item. Changes reach every output about a third of a second

@@ -248,6 +248,11 @@ pub struct Slide {
     pub sanctuary: Option<crate::look::ResolvedLook>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stream: Option<crate::look::ResolvedLook>,
+    /// A step for the operator only: both screens keep the slide before,
+    /// and the operator sees this (the last words of a reading, to move on
+    /// to its ending when the reader gets there).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub operator: Option<String>,
 }
 
 impl Slide {
@@ -286,6 +291,7 @@ impl LiturgyDocument {
                     blocks: std::mem::take(current),
                     sanctuary: None,
                     stream: None,
+                    operator: None,
                 });
                 *fresh = false;
             }

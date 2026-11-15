@@ -125,15 +125,20 @@ function build() {
     // A step where this screen keeps the slide before while the other one
     // moves on (the stream runs text together or splits it differently).
     const held = (si) =>
-      si > 0 && at.length > 0 && (output === "stream" ? at[si] === at[si - 1] : JSON.stringify(slides[si]) === JSON.stringify(slides[si - 1]));
+      si > 0 && at.length > 0 && (output === "stream" ? at[si] === at[si - 1] : JSON.stringify(slides[si]?.blocks) === JSON.stringify(slides[si - 1]?.blocks));
     const cards = slides.map((slide, si) => {
       const thumb = el("div.thumb");
-      const holds = held(si);
+      // The operator's step at the end of a reading: both screens keep the
+      // slide before; the card shows the words to listen for.
+      const operator = slide?.operator;
+      const holds = !operator && held(si);
       const card = el(
-        `button.slide-card${holds ? ".held" : ""}`,
+        `button.slide-card${holds ? ".held" : ""}${operator ? ".operator-step" : ""}`,
         {
           dataset: { cue: ci, slide: si },
-          title: holds
+          title: operator
+            ? `Only on this screen: both screens keep the slide before. Press Next when the reader reaches “${operator}”, for the ending.`
+            : holds
             ? `This screen keeps the slide before; the ${output === "stream" ? "sanctuary" : "live stream"} moves on.`
             : slideSummary(slideFor(cue, si, output) ?? slide),
           onclick: () => {
@@ -146,14 +151,16 @@ function build() {
           "span.slide-label",
           {},
           el("span.slide-num", {}, String(si + 1)),
-          slide?.heading ?? (cue.content.kind === "announcements" ? `Slide ${si + 1}` : ""),
+          operator ? "End of the reading · only here" : slide?.heading ?? (cue.content.kind === "announcements" ? `Slide ${si + 1}` : ""),
         ),
       );
+
       // Rendered once attached, so text can be measured and fitted.
       jobs.push(() => {
         const stage = mountStage(thumb);
         const snap = { service: app.service, state: { revision: 0 } };
         renderOutput(stage, snap, { cue, slide, pos: { cue: ci, slide: si } }, output);
+        if (operator) thumb.append(el("div.operator-words", {}, el("span.operator-tag", {}, "Listen for"), operator));
       });
       return card;
     });

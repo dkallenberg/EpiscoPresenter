@@ -183,6 +183,34 @@ fn sanctus_sung(doc: &LiturgyDocument) -> Option<LiturgyDocument> {
     Some(out)
 }
 
+/// How much of a reading's last verse the operator's step shows.
+const READING_END_CHARS: usize = 160;
+
+/// A reading's ending (the text of its first line after the scripture,
+/// "The Word of the Lord.") and the end of its last verse, as much as fits
+/// ("…and they shall be my people."). `None` without the reading's text or
+/// an ending after it.
+fn reading_end(doc: &LiturgyDocument) -> Option<(String, String)> {
+    let last = doc.blocks.iter().rposition(|b| matches!(b, Block::Paragraph { role: None, .. }))?;
+    let ending = doc.blocks[last + 1..]
+        .iter()
+        .find(|b| matches!(b, Block::Paragraph { role: Some(r), .. } if !r.is_rubric()))?
+        .plain_text();
+    let text = doc.blocks[last].plain_text().split_whitespace().collect::<Vec<_>>().join(" ");
+    if text.is_empty() {
+        return None;
+    }
+    let words = if text.chars().count() <= READING_END_CHARS {
+        text
+    } else {
+        let cut: String = text.chars().rev().take(READING_END_CHARS).collect::<Vec<_>>().into_iter().rev().collect();
+        // From a whole word.
+        let from = cut.find(' ').map(|i| i + 1).unwrap_or(0);
+        format!("…{}", &cut[from..])
+    };
+    Some((ending, words))
+}
+
 /// A Eucharistic Prayer with the Proper Preface in its place, in the
 /// prayer's rite (`rite: I` in its front matter, else Rite II). `None`: no
 /// preface, or a prayer without its place for one (C, D).
@@ -414,6 +442,26 @@ impl Cue {
         *slides = fitted.steps;
         *stream_slides = fitted.stream;
         *stream_at = fitted.stream_at;
+        // A reading shown by its title: a step for the operator between the
+        // title and the ending, with the end of the last verse.
+        if reading {
+            if let Some((ending, words)) = reading_end(document) {
+                let n = slides.len();
+                let at = slides
+                    .iter()
+                    .position(|s| s.blocks.iter().any(|b| b.plain_text() == ending))
+                    .unwrap_or(n.saturating_sub(1));
+                if at >= 1 && at < n {
+                    let mut hold = slides[at - 1].clone();
+                    hold.operator = Some(words);
+                    slides.insert(at, hold);
+                    if !stream_at.is_empty() {
+                        let before = stream_at[at - 1];
+                        stream_at.insert(at, before);
+                    }
+                }
+            }
+        }
         if sung.is_some() {
             // The hymn's look (with the service's own for hymns, if it has one).
             let hymn = |output: Output| {
@@ -1211,6 +1259,26 @@ mod tests {
     }
 
     #[test]
+    fn a_reading_has_a_step_for_the_operator_at_its_end() {
+        let src = "---\ntitle: The First Reading\ntype: reading\ncitation: Ezekiel 34:11-16\n---\n# The First Reading\n---\n[Reader] A Reading from Ezekiel.\n\nThus says the Lord God: I myself will search for my sheep.\n\nI will feed them with justice, and they shall lie down in good grazing land, and I will bind up the injured, and I will strengthen the weak, but the fat and the strong I will destroy.\n\n---\n\n[Reader] The Word of the Lord.\n[People] **Thanks be to God.**\n";
+        let mut s = Service::default();
+        let id = s.insert_cue(0, Cue::liturgy("r", src.parse().unwrap(), None, CueOverrides::default()));
+        let cue = s.cue(&id).unwrap();
+        let steps: Vec<&crate::document::Slide> = (0..cue.slide_count()).map(|i| cue.slide(i).unwrap()).collect();
+        let at = steps.iter().position(|x| x.operator.is_some()).expect("an operator's step");
+        let words = steps[at].operator.as_deref().unwrap();
+        assert!(words.starts_with('…') && words.ends_with("the fat and the strong I will destroy."), "{words}");
+        // Both screens keep the slide before; the ending follows.
+        assert_eq!(steps[at].blocks, steps[at - 1].blocks);
+        assert!(steps[at + 1].blocks.iter().any(|b| b.plain_text() == "The Word of the Lord."));
+        // Without the reading's text, no such step.
+        let bare = "---\ntitle: The Second Reading\ntype: reading\n---\n# The Second Reading\n---\n[Reader] A Reading from Romans.\n\n---\n\n[Reader] The Word of the Lord.\n[People] **Thanks be to God.**\n";
+        let id = s.insert_cue(1, Cue::liturgy("b", bare.parse().unwrap(), None, CueOverrides::default()));
+        let cue = s.cue(&id).unwrap();
+        assert!((0..cue.slide_count()).all(|i| cue.slide(i).unwrap().operator.is_none()));
+    }
+
+    #[test]
     fn older_gospels_open_in_the_order_they_are_used() {
         let dir = std::env::temp_dir().join(format!("episco-gospel-order-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -1257,9 +1325,10 @@ mod tests {
         let src = "---\ntitle: First Reading\ntype: reading\ncitation: Job 19:23-27a\n---\n# The First Reading\n\n---\n\nO that my words were written down!\n\n---\n\nFor I know that my Redeemer lives. (NRSVue)\n\n---\n\n[Reader] The word of the Lord.\n[People] **Thanks be to God.**\n";
         let doc: LiturgyDocument = src.parse().unwrap();
         let cue = Cue::liturgy("r", doc.clone(), None, CueOverrides::default());
-        assert_eq!(cue.slide_count(), 2, "title and responses only");
+        assert_eq!(cue.slide_count(), 3, "title, the operator's step and responses only");
         assert!(cue.slide(0).unwrap().blocks.is_empty(), "the title slide stays");
-        assert!(cue.slide(1).unwrap().blocks.iter().all(|b| b.role().is_some()));
+        assert!(cue.slide(1).unwrap().operator.is_some() && cue.slide(1).unwrap().blocks.is_empty());
+        assert!(cue.slide(2).unwrap().blocks.iter().all(|b| b.role().is_some()));
         // Asked for: the text is on the slides too.
         let mut with = doc;
         with.meta.extra.push((SLIDE_TEXT.into(), "true".into()));

@@ -45,6 +45,8 @@ function describe(service, pos) {
   const cue = service.cues[pos.cue];
   const slide = cue.content.kind === "liturgy" ? cue.content.slides[pos.slide] : null;
   const n = slideCount(cue);
+  // The operator's step at the end of a reading: the words to listen for.
+  if (slide?.operator) return { title: cue.title, where: "end of the reading (screens unchanged)", text: `Listen for: ${slide.operator}`, operator: true };
   return { title: cue.title, where: n > 1 ? `slide ${pos.slide + 1} of ${n}` : "", text: slideSummary(slide) };
 }
 
@@ -54,7 +56,7 @@ function line(label, info, fallback) {
     {},
     el("span.nn-label", {}, label),
     info
-      ? el("span.nn-body", {}, el("strong", {}, info.title), info.where ? ` · ${info.where}` : "", info.text ? el("div.nn-text", {}, info.text) : null)
+      ? el("span.nn-body", {}, el("strong", {}, info.title), info.where ? ` · ${info.where}` : "", info.text ? el(`div.nn-text${info.operator ? ".nn-operator" : ""}`, {}, info.text) : null)
       : el("span.nn-body.muted", {}, fallback),
   );
 }

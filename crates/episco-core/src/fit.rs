@@ -232,6 +232,7 @@ fn layout(doc: &LiturgyDocument, output: Output, cap: Capacity, keep: &dyn Fn(&B
                 blocks: parts.into_iter().map(|p| p.block).collect(),
                 sanctuary: None,
                 stream: None,
+                operator: None,
             };
             out.push((slide, start));
         }
