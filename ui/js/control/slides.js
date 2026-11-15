@@ -189,12 +189,17 @@ function highlight(scrollToSelection) {
   highlightLoop();
   const group = app.selectedId && grid.querySelector(`.slide-group[data-id="${CSS.escape(app.selectedId)}"]`);
   group?.classList.add("selected");
-  // The live slide moves to the top when it changes (Next, Back, a click),
-  // so the slides coming up are in view; browsing other items scrolls to them.
+  // The live slide moves to the second row when it changes (Next, Back, a
+  // click): the slide before stays in view above it, the slides coming up
+  // below; browsing other items scrolls to them.
   const at = a ? `${a.cue}/${a.slide}` : null;
   const moved = at !== liveAt;
   liveAt = at;
   if (scrollToSelection && !moved) group?.scrollIntoView({ block: "start", behavior: "smooth" });
-  else if (moved) live?.scrollIntoView({ block: "start", behavior: "smooth" });
+  else if (moved && live) {
+    const gap = parseFloat(getComputedStyle(live.parentElement).rowGap) || 12;
+    live.style.scrollMarginTop = `${live.offsetHeight + gap + 8}px`;
+    live.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
   else live?.scrollIntoView({ block: "nearest" });
 }

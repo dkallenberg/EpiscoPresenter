@@ -264,8 +264,9 @@ Clear, Before the service) holds the other computer's controls for one
 second: anything it presses in that second is ignored. A click on a slide
 always goes through, and so do stage messages.
 
-In the **Slides** tab the slide on screen moves to the top whenever it
-changes, so the slides coming up are in view.
+In the **Slides** tab the slide on screen moves to the second row whenever it
+changes, so the slide before is just above it and the slides coming up are
+in view below.
 
 Pictures, PDFs and videos from the parish library are shown from each
 computer's own copy of the library folder, so set the parish library folder
