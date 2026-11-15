@@ -80,6 +80,20 @@ and for the planner's own installer (its own name and app identity):
 cargo tauri build --config src-tauri/planner/bundle.json
 ```
 
+### Installers from GitHub (Windows and Mac)
+
+GitHub can build the installers for both apps without a Windows PC: on the
+repository's **Actions** tab choose **Build installers → Run workflow**.
+After about 20 minutes the run's page lists, under **Artifacts**,
+`windows-installers` (an `.msi` and a setup `.exe` for each app) and
+`mac-installers` (a `.dmg` for each app, for Apple silicon and Intel Macs).
+Pushing a version tag (`v0.2.0`) builds them too.
+
+The Windows installers are not signed: the first time, Windows SmartScreen
+says **"Windows protected your PC"**; choose **More info → Run anyway**.
+Windows 10 and 11 have the WebView2 runtime the app needs (the installer
+fetches it if it is missing).
+
 ### Installing on another Mac
 
 The app is not signed with an Apple Developer ID, so on a Mac it was not
