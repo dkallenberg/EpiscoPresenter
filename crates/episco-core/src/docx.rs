@@ -42,8 +42,8 @@ impl Page {
                 width: 12240,
                 height: 15840,
                 landscape: true,
-                margin: 1080,
-                text: 12240 - 2 * 1080,
+                margin: 720,
+                text: 12240 - 2 * 720,
                 size: 24,
                 font: "Garamond",
                 rubric_color: None,
@@ -68,7 +68,7 @@ impl Page {
                 landscape: true,
                 margin: 720,
                 text: 7920 - 2 * 720,
-                size: 22,
+                size: 24,
                 font: "Garamond",
                 rubric_color: None,
                 hang: 1080,
@@ -343,9 +343,8 @@ impl Writer<'_> {
         if let Some(w) = &doc.cover.when {
             self.para("Cover", "", &text_run(w, "<w:i/>"));
         }
-        if doc.kind == DocKind::Bulletin {
-            self.page_break();
-        }
+        // The service starts on the first page, under the title (as the
+        // parish's own bulletin has it).
     }
 
     fn back(&mut self, p: &ParishInfo) {
@@ -447,11 +446,14 @@ pub fn to_docx(doc: &Doc) -> Result<Vec<u8>, String> {
     }
 
     let orient = if page.landscape { " w:orient=\"landscape\"" } else { "" };
+    // The bulletin's first page has the service on it, and its number;
+    // the script's is its cover.
+    let title_page = if doc.kind == DocKind::Bulletin { "" } else { "<w:titlePg/>" };
     let sect = format!(
         "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdFooter\"/>\
 <w:pgSz w:w=\"{}\" w:h=\"{}\"{orient}/>\
 <w:pgMar w:top=\"{m}\" w:right=\"{m}\" w:bottom=\"{m}\" w:left=\"{m}\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/>\
-<w:titlePg/></w:sectPr>",
+{title_page}</w:sectPr>",
         page.width,
         page.height,
         m = page.margin

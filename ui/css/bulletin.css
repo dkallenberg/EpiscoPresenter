@@ -25,9 +25,10 @@
 .doc-scroll { flex: 1; min-height: 0; overflow: auto; background: #3a3c44; border-radius: 8px; padding: 24px 0; }
 .doc-page { margin: 0 auto; background: #fffef9; color: #1b1b1b; box-shadow: 0 4px 24px rgba(0,0,0,.45);
   font-family: Garamond, "EB Garamond", "Adobe Garamond Pro", Georgia, serif; }
-#bulletin-view .doc-page { width: 5.5in; padding: 0.5in; font-size: 11pt; line-height: 1.25; }
-/* 11 × 17 folded: 8½ × 11 pages (the Word file sets the same). */
-#bulletin-view .doc-page:has(.paper-tabloid) { width: 8.5in; padding: 0.75in; font-size: 12pt; }
+/* Garamond 12 pt, 0.5 in margins on every paper (the Word file sets the same). */
+#bulletin-view .doc-page { width: 5.5in; padding: 0.5in; font-size: 12pt; line-height: 1.25; }
+/* 11 × 17 folded: 8½ × 11 pages. */
+#bulletin-view .doc-page:has(.paper-tabloid) { width: 8.5in; padding: 0.5in; font-size: 12pt; }
 /* Legal (8½ × 14) folded: 7 × 8½ pages. */
 #bulletin-view .doc-page:has(.paper-legal) { width: 7in; padding: 0.5in; font-size: 12pt; }
 #script-view .doc-page { width: 8.5in; padding: 0.75in; font-size: 15pt; line-height: 1.3; }
