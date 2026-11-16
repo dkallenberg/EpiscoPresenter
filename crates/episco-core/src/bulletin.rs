@@ -106,6 +106,8 @@ pub enum BulletinPaper {
     Tabloid,
     /// 8½ × 11 in, folded: 5½ × 8½ in pages.
     Letter,
+    /// 8½ × 14 in (legal), folded: 7 × 8½ in pages.
+    Legal,
 }
 
 impl BulletinPaper {
@@ -113,6 +115,7 @@ impl BulletinPaper {
         match self {
             BulletinPaper::Tabloid => "tabloid",
             BulletinPaper::Letter => "letter",
+            BulletinPaper::Legal => "legal",
         }
     }
 }

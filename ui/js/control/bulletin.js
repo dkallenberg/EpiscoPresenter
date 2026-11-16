@@ -48,7 +48,7 @@ function makeView(kind) {
               if (info) await call("parish_set", { info: { ...info, paper: paper.value } });
             },
           },
-          [["tabloid", "11 × 17, folded"], ["letter", "8½ × 11, folded"]].map(([v, l]) => el("option", { value: v }, l)),
+          [["tabloid", "11 × 17, folded"], ["legal", "8½ × 14, folded"], ["letter", "8½ × 11, folded"]].map(([v, l]) => el("option", { value: v }, l)),
         )
       : null;
   const toolbar = el(
@@ -569,6 +569,7 @@ export async function openParish() {
       {},
       [
         ["tabloid", "11 × 17, folded (8½ × 11 pages)"],
+        ["legal", "8½ × 14 (legal), folded (7 × 8½ pages)"],
         ["letter", "8½ × 11, folded (5½ × 8½ pages)"],
       ].map(([v, l]) => el("option", { value: v, selected: v === (info.paper ?? "tabloid") }, l)),
     ),

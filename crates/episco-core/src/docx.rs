@@ -2,9 +2,11 @@
 //!
 //! Written directly as Office Open XML so there is nothing to install. The
 //! bulletin is set up for **book fold** printing (Word: Layout → Margins →
-//! Custom Margins → Multiple pages: Book fold): each sheet of letter paper,
-//! printed on both sides and folded, carries four half-letter pages, and Word
-//! puts the pages in booklet order when printing. The script is plain letter
+//! Custom Margins → Multiple pages: Book fold): each sheet (11 × 17, letter
+//! or legal), printed on both sides and folded, carries four pages, two side
+//! by side, and Word puts the pages in booklet order when printing. For book
+//! fold Word keeps the size of one *page* (half the sheet) with the sheet's
+//! landscape orientation, as a book-fold file saved by Word has it. The script is plain letter
 //! paper in large type with the rubrics in red.
 
 use std::io::{Cursor, Write};
@@ -16,8 +18,10 @@ use crate::bulletin::{escape, BulletinPaper, Doc, DocKind, ParishInfo, Piece, Ru
 
 /// Layout numbers for one kind of document (twentieths of a point).
 struct Page {
+    /// One page's size (for a bulletin, half the sheet).
     width: u32,
     height: u32,
+    /// The sheet is landscape (for book fold, the folded pages stand upright).
     landscape: bool,
     margin: u32,
     /// Width of the text column.
@@ -35,7 +39,7 @@ impl Page {
         match kind {
             // Book fold: 11 × 17 landscape, each half a page 8.5 × 11 in.
             DocKind::Bulletin if paper == BulletinPaper::Tabloid => Page {
-                width: 24480,
+                width: 12240,
                 height: 15840,
                 landscape: true,
                 margin: 1080,
@@ -45,9 +49,21 @@ impl Page {
                 rubric_color: None,
                 hang: 1440,
             },
+            // Book fold: 8.5 × 14 landscape, each half a page 7 × 8.5 in.
+            DocKind::Bulletin if paper == BulletinPaper::Legal => Page {
+                width: 10080,
+                height: 12240,
+                landscape: true,
+                margin: 720,
+                text: 10080 - 2 * 720,
+                size: 24,
+                font: "Garamond",
+                rubric_color: None,
+                hang: 1440,
+            },
             // Book fold: letter landscape, each half a page 5.5 × 8.5 in.
             DocKind::Bulletin => Page {
-                width: 15840,
+                width: 7920,
                 height: 12240,
                 landscape: true,
                 margin: 720,
@@ -512,15 +528,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bulletins_on_11x17_or_letter() {
+    fn bulletins_on_11x17_letter_or_legal() {
         let page = |paper| Page::for_kind(DocKind::Bulletin, paper);
-        // 17 × 11 in landscape, folded to 8.5 × 11 in pages.
+        // Book fold keeps one page's size (half the sheet), the sheet landscape.
+        // 17 × 11 in, folded to 8.5 × 11 in pages.
         let t = page(BulletinPaper::Tabloid);
-        assert_eq!((t.width, t.height, t.landscape), (24480, 15840, true));
-        assert_eq!(t.text + 2 * t.margin, 12240, "half the sheet is one page");
+        assert_eq!((t.width, t.height, t.landscape), (12240, 15840, true));
+        assert_eq!(t.text + 2 * t.margin, t.width);
+        // 11 × 8.5 in, folded to 5.5 × 8.5 in pages.
         let l = page(BulletinPaper::Letter);
-        assert_eq!((l.width, l.height), (15840, 12240));
+        assert_eq!((l.width, l.height), (7920, 12240));
         assert_eq!(l.text + 2 * l.margin, 7920);
+        // 14 × 8.5 in, folded to 7 × 8.5 in pages (as the parish's own bulletin).
+        let g = page(BulletinPaper::Legal);
+        assert_eq!((g.width, g.height, g.landscape), (10080, 12240, true));
+        assert_eq!(g.text + 2 * g.margin, 10080);
         assert_eq!(BulletinPaper::default(), BulletinPaper::Tabloid);
     }
 
