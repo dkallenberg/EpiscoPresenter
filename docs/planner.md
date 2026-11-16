@@ -93,7 +93,8 @@ folder (on macOS `~/Library/Application Support/org.episcopresenter.planner/`).
 The planner opens on the **Bulletin** tab: a live preview of the printed
 bulletin in Garamond, updated as the service changes. The bar above it has
 the **Service time**, the **Paper** (**11 × 17, folded** into 8½ × 11 pages,
-the default, or 8½ × 11, folded into 5½ × 8½ pages; also in Parish details),
+the default; 8½ × 14 (legal), folded into 7 × 8½ pages; or 8½ × 11, folded
+into 5½ × 8½ pages; also in Parish details),
 **B** / **I**, **Reading texts…**, **Parish details…** and **Export to Word**.
 
 **To do**, beside the page, lists what the service still needs, and each
@@ -208,8 +209,9 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
 * **Export bulletin to Word** saves a `.docx` (suggested in the library's
   `bulletins/` folder, named like `2025-11-09 0800 Bulletin.docx`) and opens
   it. It is set up for **book fold**: Word shows the folded pages and, on
-  a two-sided printer, prints them in booklet order on 11 × 17 (or letter)
-  paper to fold in half. (LibreOffice and Google Docs ignore book fold and show the
+  a two-sided printer, prints them in booklet order on 11 × 17, legal or
+  letter paper to fold in half. The service starts on the first page,
+  under the title, in Garamond 12 pt with 0.5 in margins. (LibreOffice and Google Docs ignore book fold and show the
   pages as landscape sheets.) Edit the Word file freely for last touches.
 
 **Edit the text in place**, like a word processor, in both the Bulletin
