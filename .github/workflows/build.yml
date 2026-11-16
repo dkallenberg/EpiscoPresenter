@@ -6,6 +6,11 @@
 # is pushed. When it finishes, the installers are at the bottom of the
 # run's page under "Artifacts".
 #
+# Pushing a version tag also makes a GitHub release with the installers
+# attached: a tag with a label (v0.2.0-beta.1, v0.3.0-rc.1) is marked
+# "Pre-release" (a beta); a plain tag (v0.2.0) is a full release. Set the
+# version in Cargo.toml and both tauri.conf.json files to match first.
+#
 # The installers are not code-signed: Windows SmartScreen says "Windows
 # protected your PC" (More info → Run anyway) and macOS asks once (see the
 # README, "Installing on another Mac").
@@ -103,3 +108,37 @@ jobs:
           name: mac-installers
           path: installers/*.dmg
           if-no-files-found: error
+
+  release:
+    name: Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          ls -l installers
+          # v0.2.0-beta.1 → "0.2.0 beta 1"; a label makes it a pre-release.
+          version="${TAG#v}"
+          title="EpiscoPresenter $(echo "${version}" | sed -E 's/-([a-z]+)\.?([0-9]*)/ \1 \2/')"
+          pre=""
+          case "$version" in *-*) pre="--prerelease" ;; esac
+          cat > notes.md <<NOTES
+          EpiscoPresenter and EpiscoPlanner ${version}.
+
+          **Windows:** download the \`.exe\` (or \`.msi\`) for each app and run it. The installers are not signed: Windows SmartScreen says "Windows protected your PC"; choose **More info → Run anyway**.
+
+          **Mac** (Apple silicon and Intel): download the \`.dmg\` for each app and drag the app into Applications. The apps are not signed by Apple: if macOS says the app "is damaged and can't be opened", run \`xattr -dr com.apple.quarantine /Applications/EpiscoPresenter.app\` (and EpiscoPlanner.app) in Terminal once.
+          NOTES
+          gh release create "$TAG" installers/* --repo "$REPO" --title "$title" --notes-file notes.md --generate-notes $pre
+
