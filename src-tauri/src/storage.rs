@@ -35,7 +35,16 @@ type CmdResult<T> = Result<T, String>;
 pub const EVENT: &str = "episco://storage";
 
 const SETTINGS_FILE: &str = "library.json";
-const SUBFOLDERS: [&str; 5] = ["services", "templates", "library", "media", "backgrounds"];
+const SUBFOLDERS: [&str; 8] = [
+    "services",
+    "templates",
+    "library",
+    "media",
+    "music/Antiphon",
+    "music/Setting",
+    "music/Gospel Acclamation",
+    "backgrounds",
+];
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct StorageSettings {

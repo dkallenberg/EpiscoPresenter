@@ -146,6 +146,69 @@ pub fn copy_into_library(app: &AppHandle, src: &Path) -> CmdResult<PathBuf> {
     Ok(dest)
 }
 
+// ---- music: antiphons, settings, Gospel Acclamations -------------------------
+
+/// The music folders in the parish library (`music/Antiphon`, …), by kind:
+/// pictures of music lines kept apart from the media library.
+fn music_folder(kind: &str) -> CmdResult<&'static str> {
+    match kind {
+        "antiphon" => Ok("Antiphon"),
+        "setting" => Ok("Setting"),
+        "gospel" => Ok("Gospel Acclamation"),
+        _ => Err(format!("no music folder “{kind}”")),
+    }
+}
+
+fn music_dir(app: &AppHandle, kind: &str) -> CmdResult<PathBuf> {
+    Ok(crate::storage::data_dir(app, "music")?.join(music_folder(kind)?))
+}
+
+/// The pictures in one music folder (`antiphon`, `setting`, `gospel`), by name.
+#[tauri::command]
+pub fn music_list(app: AppHandle, kind: String) -> CmdResult<Vec<MediaEntry>> {
+    let dir = music_dir(&app, &kind)?;
+    let Ok(read) = std::fs::read_dir(&dir) else { return Ok(Vec::new()) };
+    let mut out: Vec<MediaEntry> =
+        read.filter_map(|e| e.ok()).filter_map(|e| entry(e.path())).filter(|e| e.kind == "image").collect();
+    out.sort_by_key(|e| e.name.to_lowercase());
+    Ok(out)
+}
+
+/// Copies pictures chosen in a file dialog into a music folder.
+#[tauri::command]
+pub async fn music_import(app: AppHandle, kind: String) -> CmdResult<Vec<MediaEntry>> {
+    crate::sync::soon();
+    let dir = music_dir(&app, &kind)?;
+    let picked = app
+        .dialog()
+        .file()
+        .set_title(format!("Add to the {} folder", music_folder(&kind)?))
+        .add_filter("Images", &IMAGE_EXTENSIONS)
+        .blocking_pick_files()
+        .unwrap_or_default();
+    std::fs::create_dir_all(&dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+    let mut out = Vec::new();
+    for file in picked {
+        let src = file.into_path().map_err(|e| e.to_string())?;
+        if kind_of_image(&src) {
+            let dest = if src.parent() == Some(dir.as_path()) {
+                src.clone()
+            } else {
+                let name = src.file_name().ok_or("bad file name")?.to_string_lossy().into_owned();
+                let dest = unique(&dir, &name);
+                std::fs::copy(&src, &dest).map_err(|e| format!("could not copy {}: {e}", src.display()))?;
+                dest
+            };
+            out.extend(entry(dest));
+        }
+    }
+    Ok(out)
+}
+
+fn kind_of_image(p: &Path) -> bool {
+    kind(p) == Some("image")
+}
+
 /// Copies images and videos chosen in a file dialog into the media folder.
 #[tauri::command]
 pub async fn media_import(app: AppHandle) -> CmdResult<Vec<MediaEntry>> {

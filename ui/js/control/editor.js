@@ -13,7 +13,7 @@ import { refreshGoogleSlides, slideMakerPanel, webVideoPanel } from "/js/control
 import { saveCueToLibrary } from "/js/control/library.js";
 import { undoButtons } from "/js/control/undo.js";
 import { lookCards, lookPanel, openServiceSettings } from "/js/control/looks.js";
-import { pickMedia } from "/js/control/media.js";
+import { pickMedia, pickMusic } from "/js/control/media.js";
 import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
 const SEND_DELAY_MS = 350;
@@ -188,20 +188,19 @@ function render(c) {
         header(c),
         el("div#live-banner.live-banner", { hidden: true }),
         isPrayerBook() ? prayerBookNotice(c) : null,
-        // A Eucharistic Prayer is long: its Sanctus (said or sung) and its
-        // Proper Preface come before its words.
+        // The cards first: the item's look, its details and its panels;
+        // then its words.
+        looks,
+        metaForm(c),
         c.category === "eucharistic_prayer" ? prayerSanctusPanel(c) : null,
         c.category === "eucharistic_prayer" ? prefaceNote() : null,
-        // The words first; then the item's details, its panels and its look.
-        ...madePanels(c),
-        metaForm(c),
         c.category === "psalm" ? psalmPanel(c) : null,
         c.category === "gospel" ? gospelMusicPanel(c) : null,
         ["reading", "gospel"].includes(c.category) ? readingPanel(c) : null,
         c.category === "hymn" ? hymnPanel(c) : null,
         isSanctus(c) ? sanctusPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
-        looks,
+        ...madePanels(c),
       ].filter(Boolean),
     );
   }
@@ -494,7 +493,7 @@ function firstAntiphonText() {
 }
 
 /** A small image chooser row: thumbnail, Choose…, Remove. */
-function imageField(label, src, onPick, hint) {
+function imageField(label, src, onPick, hint, music = null) {
   const img = el("img.score-thumb", { alt: "" });
   img.hidden = !src;
   if (src) img.src = assetUrl(cue(), src);
@@ -509,7 +508,9 @@ function imageField(label, src, onPick, hint) {
       ? null
       : el("button.small", {
           onclick: async () => {
-            const path = await pickMedia({ kind: "image", relativeTo: cue()?.content.source ?? null });
+            const relativeTo = cue()?.content.source ?? null;
+            // Music lines come from their own folder (music › Antiphon …).
+            const path = music ? await pickMusic(music, { relativeTo }) : await pickMedia({ kind: "image", relativeTo });
             if (path) onPick(path);
           },
         }, src ? "Change…" : "Choose…"),
@@ -595,8 +596,8 @@ function psalmPanel(c) {
     el(
       "div.psalm-images",
       {},
-      imageField("Antiphon music", antiphonSrc, setAntiphonMusic, "The music line for the antiphon (both screens)."),
-      imageField("Musical setting (stream)", setting, setSetting, "Shown on the stream between the gold title box and the text bar."),
+      imageField("Antiphon music", antiphonSrc, setAntiphonMusic, "The antiphon's music line: in the bulletin and script, and on the stream (the sanctuary shows its words).", "antiphon"),
+      imageField("Musical setting", setting, setSetting, "The setting the verses are sung to: in the bulletin and script, and on the stream between the title box and the text bar.", "setting"),
     ),
     paste,
     el(
@@ -787,7 +788,7 @@ function gospelMusicPanel(c) {
     "details.section.reading-panel.gospel-music",
     { open: true },
     el("summary", {}, "Music before the Gospel", el("span.muted.small", {}, img ? " · on the first slide" : " · none")),
-    imageField("Music line", img?.src ?? null, set, "A picture of the Alleluia or Gospel acclamation, from the media library. The one you choose is used for new services too."),
+    imageField("Music line", img?.src ?? null, set, "A picture of the Alleluia or Gospel Acclamation, from the music › Gospel Acclamation folder. The one you choose is used for new services too.", "gospel"),
     el(
       "div.reading-row",
       {},

@@ -80,7 +80,8 @@ impl Service {
                     }
                 }
                 for (k, v) in &mut document.meta.extra {
-                    if k == "media" {
+                    // A media item's file, a psalm's musical setting.
+                    if k == "media" || k == "setting_image" {
                         doc_changed |= fix(v, root);
                     }
                 }

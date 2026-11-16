@@ -305,3 +305,73 @@ export function pickMedia({ kind, relativeTo = null, title = "Choose from the me
     load().then(fill);
   });
 }
+
+/** The music folders in the parish library: pictures of music lines. */
+const MUSIC = {
+  antiphon: { folder: "Antiphon", what: "antiphon music" },
+  setting: { folder: "Setting", what: "musical setting" },
+  gospel: { folder: "Gospel Acclamation", what: "Gospel Acclamation" },
+};
+
+/**
+ * A chooser over one music folder (`antiphon`, `setting` or `gospel`):
+ * pick a picture there, add new ones to it, or take one from the media
+ * library. Resolves to a file path, or null.
+ */
+export function pickMusic(kind, { relativeTo = null } = {}) {
+  const m = MUSIC[kind];
+  return new Promise((resolve) => {
+    let done = false;
+    let files = [];
+    const finish = (v) => {
+      if (done) return;
+      done = true;
+      overlay.remove();
+      resolve(v);
+    };
+    const grid = el("div.media-grid.picker");
+    const search = el("input.lib-search", { type: "search", placeholder: "Search names…", oninput: () => fill() });
+    const fill = () => {
+      const shown = files.filter((f) => matchesQuery(f, search.value));
+      grid.replaceChildren(
+        ...(shown.length
+          ? shown.map((f) =>
+              el(
+                "div.media-tile",
+                { title: f.name, onclick: () => finish(f.path) },
+                el("div.media-thumb", {}, thumb(f)),
+                el("div.media-name", {}, f.name),
+              ),
+            )
+          : [el("p.muted", {}, files.length ? "Nothing matches." : `The ${m.folder} folder is empty. Add the ${m.what} with Import….`)]),
+      );
+    };
+    const load = async () => {
+      files = (await call("music_list", { kind })) ?? [];
+      fill();
+    };
+    const overlay = el(
+      "div.modal-overlay",
+      { onmousedown: (e) => e.target === overlay && finish(null) },
+      el(
+        "div.modal.wide",
+        {},
+        el("h3", {}, `Choose the ${m.what}`),
+        el("p.muted.small", {}, `From the parish library's music › ${m.folder} folder.`),
+        search,
+        grid,
+        el(
+          "div.modal-actions",
+          {},
+          el("button", { onclick: async () => { const a = await call("music_import", { kind }); if (a?.length) { toast(`Added to ${m.folder}`); await load(); } } }, "Import…"),
+          el("button", { title: "Pictures added to the media library before these folders", onclick: async () => { overlay.hidden = true; const p = await pickMedia({ kind: "image", relativeTo, title: "Choose from the media library" }); overlay.hidden = false; if (p) finish(p); } }, "From the media library…"),
+          el("span.spacer"),
+          el("button", { onclick: () => finish(null) }, "Cancel"),
+        ),
+      ),
+    );
+    document.body.append(overlay);
+    load();
+  });
+}
+

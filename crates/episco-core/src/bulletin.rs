@@ -300,8 +300,15 @@ pub enum Piece {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         indents: Vec<usize>,
     },
-    /// A psalm verse, with each line's indent.
-    Verse { number: String, lines: Vec<Vec<Run>>, indents: Vec<usize> },
+    /// A psalm verse, with each line's indent, and what is set at the right
+    /// margin at the end of its last line ("Antiphon": sung next).
+    Verse {
+        number: String,
+        lines: Vec<Vec<Run>>,
+        indents: Vec<usize>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        tail: Option<String>,
+    },
     /// Running text (a reading), one paragraph.
     Prose { runs: Vec<Run> },
     /// A picture, e.g. a line of music.
@@ -630,10 +637,87 @@ fn resolve(src: &str, cue: &Cue, root: Option<&Path>) -> Option<PathBuf> {
     full.is_file().then_some(full)
 }
 
+/// The congregation's directions for a psalm with an antiphon.
+pub const PSALM_ANTIPHON_RUBRIC: &str = "The Cantor introduces the antiphon, which is then repeated by the People.";
+pub const PSALM_VERSES_RUBRIC: &str =
+    "The People are invited to join the Choir singing the verses printed in boldface.";
+
+/// A psalm with an antiphon, as the bulletin and script print it: how it is
+/// sung, the antiphon's music and the setting's (or the antiphon's words,
+/// without music), then the verses, each verse before an antiphon marked
+/// "Antiphon" at the right margin. The antiphon's words are on the
+/// sanctuary's slides; here the music says it.
+fn psalm_body(cue: &Cue, doc: &LiturgyDocument, root: Option<&Path>) -> Option<Vec<Piece>> {
+    use crate::propers::{is_antiphon_role, ANTIPHON};
+    let is_antiphon_head = |b: &Block| matches!(b, Block::Heading { text, .. } if text.eq_ignore_ascii_case(ANTIPHON));
+    if !doc.blocks.iter().any(is_antiphon_head) {
+        return None;
+    }
+    let mut out = vec![Piece::Rubric { text: PSALM_ANTIPHON_RUBRIC.into(), src: None }];
+    // The antiphon's music (the first in the psalm), else its words once.
+    let music = doc.blocks.iter().find_map(|b| match b {
+        Block::Image { src, alt, .. } => resolve(src, cue, root).map(|path| Piece::Image { path, alt: alt.clone() }),
+        _ => None,
+    });
+    match music {
+        Some(m) => out.push(m),
+        None => {
+            if let Some((i, lines)) = doc.blocks.iter().enumerate().find_map(|(i, b)| match b {
+                Block::Paragraph { role, lines } if is_antiphon_role(role.as_ref()) => Some((i, lines)),
+                _ => None,
+            }) {
+                out.push(Piece::Speech {
+                    label: Some("People".into()),
+                    lines: lines_at(lines, true, i),
+                    joins: Vec::new(),
+                    indents: Vec::new(),
+                });
+            }
+        }
+    }
+    // The setting the verses are sung to.
+    if let Some(path) = doc.meta.extra("setting_image").and_then(|s| resolve(s, cue, root)) {
+        out.push(Piece::Image { path, alt: "Setting".into() });
+    }
+    let bold_verse = doc.blocks.iter().any(|b| {
+        matches!(b, Block::Paragraph { role: Some(Role::Custom(n)), lines }
+            if n.starts_with(|c: char| c.is_ascii_digit()) && lines.iter().flatten().any(|s| s.bold))
+    });
+    if bold_verse {
+        out.push(Piece::Rubric { text: PSALM_VERSES_RUBRIC.into(), src: None });
+    }
+    for (i, b) in doc.blocks.iter().enumerate() {
+        match b {
+            Block::Paragraph { role: Some(Role::Custom(n)), lines } if n.starts_with(|c: char| c.is_ascii_digit()) => {
+                out.push(Piece::Verse {
+                    number: n.clone(),
+                    lines: keep_asterisks(lines_at(lines, false, i)),
+                    indents: verse_indents(n, lines),
+                    tail: None,
+                });
+            }
+            b if is_antiphon_head(b) => {
+                // The verse before an antiphon says so.
+                if let Some(Piece::Verse { tail, .. }) = out.last_mut() {
+                    *tail = Some(ANTIPHON.into());
+                }
+            }
+            _ => {}
+        }
+    }
+    Some(out)
+}
+
 /// The full text of an item as pieces. `script`: rubrics are kept and
 /// slide headings become section lines.
 fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
     let Some(doc) = cue.document() else { return Vec::new() };
+    if cue.category == ElementCategory::Psalm {
+        if let Some(p) = psalm_body(cue, doc, root) {
+            let _ = script; // the bulletin and the script print a psalm alike
+            return p;
+        }
+    }
     let mut out = Vec::new();
     // Where a reading's text goes: the start of its last slide.
     let last_break = doc.blocks.iter().rposition(|b| matches!(b, Block::SlideBreak));
@@ -675,6 +759,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                         number: n.clone(),
                         lines: keep_asterisks(lines_at(lines, false, i)),
                         indents: verse_indents(n, lines),
+                        tail: None,
                     });
                 }
                 Some(Role::Custom(a)) if a.eq_ignore_ascii_case("antiphon") || a.eq_ignore_ascii_case("refrain") => {
@@ -1143,11 +1228,17 @@ pub fn to_html(doc: &Doc) -> String {
                     };
                     h.push_str(&format!("<span class=\"said\">{body}</span></div>"));
                 }
-                Piece::Verse { number, lines, indents } => {
+                Piece::Verse { number, lines, indents, tail } => {
+                    let mut body = html_lines(lines, &[], indents);
+                    // At the end of the last line, at the right margin.
+                    if let Some(t) = tail {
+                        if let Some(at) = body.rfind("</span>") {
+                            body.insert_str(at, &format!("<b class=\"tail\">{}</b>", escape(t)));
+                        }
+                    }
                     h.push_str(&format!(
-                        "<div class=\"verse\"><span class=\"num\">{}</span><span class=\"said\">{}</span></div>",
-                        escape(number),
-                        html_lines(lines, &[], indents)
+                        "<div class=\"verse\"><span class=\"num\">{}</span><span class=\"said\">{body}</span></div>",
+                        escape(number)
                     ));
                 }
                 Piece::Prose { runs } => h.push_str(&format!("<p class=\"prose\">{}</p>", html_runs(runs))),
@@ -1648,5 +1739,60 @@ mod tests {
             ("I will open my mouth in a parable;\u{a0}", "*")
         );
         assert_eq!(lines[2][0].text, "incline your ears");
+    }
+
+    #[test]
+    fn a_psalm_with_an_antiphon_prints_its_music_and_marks_the_antiphons() {
+        use crate::propers::{parse_psalm_text, psalm_document, PsalmOptions};
+        let dir = std::env::temp_dir().join(format!("episco-psalm-print-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (a, st) = (dir.join("antiphon.png"), dir.join("setting.png"));
+        std::fs::write(&a, b"png").unwrap();
+        std::fs::write(&st, b"png").unwrap();
+        let verses = parse_psalm_text("1 Hear my teaching, O my people; *\n incline your ears.\n2 I will open my mouth in a parable; *\n I will declare the mysteries.\n3 That which we have heard and known, *\n we will not hide.\n4 We will recount to generations to come, *\n and the wonderful works he has done.");
+        let opts = PsalmOptions {
+            antiphon: Some("We will recount".into()),
+            antiphon_every: 2,
+            placed: false,
+            verses_per_slide: 2,
+        };
+        let img = vec![Block::Image { src: a.to_string_lossy().into_owned(), alt: "Antiphon".into(), fit: None }];
+        let mut doc = psalm_document("Psalm 78:1-7", Some("Psalm 78:1-7"), &verses, &opts, &img);
+        doc.meta.extra.push(("setting_image".into(), st.to_string_lossy().into_owned()));
+        let mut s = Service::default();
+        s.insert_cue(0, Cue::liturgy("p", doc, None, Default::default()));
+        s.rebuild_all();
+        for d in [bulletin(&s, &ParishInfo::default()), script(&s, &ParishInfo::default())] {
+            let p = &d.entries[0].pieces;
+            let kinds: Vec<String> = p
+                .iter()
+                .map(|x| match x {
+                    Piece::Line { .. } => "title".into(),
+                    Piece::Rubric { text, .. } => format!("rubric:{}", &text[..10]),
+                    Piece::Image { path, .. } => format!("image:{}", path.file_name().unwrap().to_string_lossy()),
+                    Piece::Verse { number, tail, .. } => {
+                        format!("{number}{}", tail.as_deref().map(|t| format!(" {t}")).unwrap_or_default())
+                    }
+                    other => format!("{other:?}"),
+                })
+                .collect();
+            assert_eq!(
+                kinds,
+                [
+                    "title",
+                    "rubric:The Cantor",
+                    "image:antiphon.png",
+                    "image:setting.png",
+                    "rubric:The People",
+                    "1",
+                    "2 Antiphon",
+                    "3",
+                    "4 Antiphon"
+                ],
+                "{:?}",
+                d.kind
+            );
+        }
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

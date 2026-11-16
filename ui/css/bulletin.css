@@ -100,3 +100,6 @@
 .seg.doc-format button { min-width: 30px; }
 .clergy-row { display: grid; grid-template-columns: 80px 0.8fr 1.2fr 1fr; gap: 8px; align-items: center; margin-top: 4px; text-transform: none; letter-spacing: 0; }
 .clergy-label { font-size: 12px; }
+
+/* A psalm verse before an antiphon: "Antiphon" at the right margin. */
+.doc .verse .ln .tail { float: right; padding-left: 1em; text-indent: 0; }

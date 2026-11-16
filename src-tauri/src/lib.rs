@@ -273,6 +273,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         media::media_list,
         media::media_import,
         media::media_delete,
+        media::music_list,
+        media::music_import,
         media::media_rename,
         media::media_set_tags,
         media::media_folder,

@@ -39,7 +39,7 @@ use tauri::{AppHandle, Emitter, Manager};
 type CmdResult<T> = Result<T, String>;
 
 /// The folders kept in step.
-const DIRS: [&str; 4] = ["library", "media", "backgrounds", "bible"];
+const DIRS: [&str; 5] = ["library", "media", "music", "backgrounds", "bible"];
 /// The files at the top of the library kept in step.
 const FILES: [&str; 4] = ["layouts.json", "layouts-default.json", "parish.json", "gospel-music.json"];
 /// The change logs, in the shared folder.

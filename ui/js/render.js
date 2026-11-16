@@ -449,13 +449,27 @@ function pieces(key, cue, slide) {
   }
 
   if (key === "sanctuary.prayer" || key === "sanctuary.psalm") {
-    if (key === "sanctuary.psalm" && isAntiphonSlide(slide)) {
-      const img = slide.blocks.find((b) => b.kind === "image" && b.src);
-      if (img) p.music = img;
-      p.antiphon = slide.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric");
+    const words = () => slide.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric");
+    if (key === "sanctuary.psalm" && cue.category === "psalm" && isAntiphonSlide(slide)) {
+      // A psalm's antiphon: the words alone (the music is in the bulletin
+      // and on the stream), the psalm at the top left, "Antiphon" at the right.
+      p.title = citation ?? cue.title;
+      p.tag = "Antiphon";
+      p.text = words();
+      p.antiphonOnly = true;
       return p;
     }
-    if (slide.section_start && heading) {
+    if (key === "sanctuary.psalm" && isAntiphonSlide(slide)) {
+      // The music line before the Gospel: the music, the words under it.
+      const img = slide.blocks.find((b) => b.kind === "image" && b.src);
+      if (img) p.music = img;
+      p.antiphon = words();
+      return p;
+    }
+    // A psalm with an antiphon names itself on the antiphon's slide; one
+    // without names itself on its first verses.
+    const named = key === "sanctuary.psalm" && cue.content.slides?.some((s) => isAntiphonSlide(s));
+    if (slide.section_start && heading && !named) {
       p.title = citation ?? cue.title;
       if (heading !== p.title && !(key === "sanctuary.psalm" && heading === citation)) p.subtitle = heading;
     }
@@ -530,7 +544,7 @@ export function renderTemplated(stage, key, cue, slide, templates) {
   const shown = new Set();
   const limits = {};
   for (const [name, value] of Object.entries(p)) {
-    if (value == null || value === "" || name === "big" || name === "text") continue;
+    if (value == null || value === "" || name === "big" || name === "text" || name === "antiphonOnly") continue;
     if (!T[name] || T[name].hidden) continue;
     shown.add(name);
   }
@@ -573,6 +587,8 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     const lines = { reflow: o.join, hanging: o.hanging, psalm: cue.category === "psalm", alternate: o.alternate };
     const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits, key);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
+    // A psalm's antiphon on the sanctuary: its words in the middle.
+    if (p.antiphonOnly) centre(box);
     if (blocks.length && blocks.every((b) => b.kind === "image")) {
       centre(box);
       box.classList.add("music-only");

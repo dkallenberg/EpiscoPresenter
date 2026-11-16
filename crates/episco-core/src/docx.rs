@@ -214,6 +214,25 @@ impl Writer<'_> {
         }
     }
 
+    /// Sets `text` in bold at the right margin at the end of the paragraph
+    /// just written (a psalm verse before an antiphon: "Antiphon").
+    fn tail_last(&mut self, text: &str) {
+        let Some(at) = self.body.rfind("</w:p>") else { return };
+        self.body.insert_str(at, &format!("<w:r><w:tab/></w:r>{}", text_run(text, "<w:b/>")));
+        // A right tab at the margin, beside the paragraph's own tabs.
+        let start = self.body[..at].rfind("<w:p>").unwrap_or(0);
+        let tab = format!("<w:tab w:val=\"right\" w:pos=\"{}\"/>", self.page.text);
+        let para = &self.body[start..at];
+        let new = if let Some(t) = para.find("</w:tabs>") {
+            format!("{}{tab}{}", &para[..t], &para[t..])
+        } else if let Some(t) = para.find("</w:pPr>") {
+            format!("{}<w:tabs>{tab}</w:tabs>{}", &para[..t], &para[t..])
+        } else {
+            para.to_string()
+        };
+        self.body.replace_range(start..at, &new);
+    }
+
     fn para(&mut self, style: &str, ppr: &str, content: &str) {
         self.body.push_str(&format!("<w:p><w:pPr><w:pStyle w:val=\"{style}\"/>{ppr}</w:pPr>{content}</w:p>"));
     }
@@ -289,8 +308,11 @@ impl Writer<'_> {
                     label.as_deref().filter(|l| !l.is_empty()).map(|l| text_run(l, "<w:i/>")).unwrap_or_default();
                 self.indented_lines("Speech", &first, lines, joins, indents, page.hang);
             }
-            Piece::Verse { number, lines, indents } if !indents.is_empty() => {
+            Piece::Verse { number, lines, indents, tail } if !indents.is_empty() => {
                 self.indented_lines("Verse", &text_run(number, ""), lines, &[], indents, page.hang / 2);
+                if let Some(t) = tail {
+                    self.tail_last(t);
+                }
             }
             Piece::Speech { label, lines, joins, .. } => {
                 let mut x = String::new();
@@ -305,13 +327,16 @@ impl Writer<'_> {
                 );
                 self.para("Speech", &ind, &x);
             }
-            Piece::Verse { number, lines, .. } => {
+            Piece::Verse { number, lines, tail, .. } => {
                 let x = format!("{}<w:r><w:tab/></w:r>{}", text_run(number, ""), lines_xml(lines, ""));
                 let h = page.hang / 2;
                 let ind = format!(
                     "<w:tabs><w:tab w:val=\"left\" w:pos=\"{h}\"/></w:tabs><w:ind w:left=\"{h}\" w:hanging=\"{h}\"/>"
                 );
                 self.para("Verse", &ind, &x);
+                if let Some(t) = tail {
+                    self.tail_last(t);
+                }
             }
             Piece::Prose { runs } => {
                 let x: String = runs.iter().map(|r| run_xml(r, "")).collect();

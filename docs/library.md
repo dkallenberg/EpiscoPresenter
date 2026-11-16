@@ -119,8 +119,21 @@ The **Tags** chips above the pictures show only those with a tag; the search
 finds names and tags. The picture chooser (music lines, slide pictures) has
 the same search and tags.
 
-Images in the media library also appear in every background picker, and the
-editor's **Choose…** buttons for music images open the media library first.
+Images in the media library also appear in every background picker.
+
+### Music folders
+
+Pictures of music lines are kept apart from the media library, in the parish
+library's `music` folder, one folder for each use:
+
+* `music/Antiphon`: psalm antiphons;
+* `music/Setting`: the settings (chants, tones) psalm verses are sung to;
+* `music/Gospel Acclamation`: the Alleluia or acclamation before the Gospel.
+
+The Editor's **Choose…** for an antiphon, a setting or the music before the
+Gospel opens that folder: pick a picture, or **Import…** to add new ones to
+it. **From the media library…** takes one added there earlier. The folders
+are kept in step between computers like the rest of the library.
 
 ## Propers
 
@@ -240,8 +253,7 @@ to …" / "Glory to you, Lord Christ."), the title slide, the text (if shown),
 and "The Gospel of the Lord." / "Praise to you, Lord Christ."
 
 Select the Gospel and open the **Editor**. In **Music before the Gospel**,
-**Choose…** a picture of the Alleluia or Gospel acclamation from the media
-library; it goes on the first slide, laid out like the psalm's antiphon
+**Choose…** a picture of the Alleluia or Gospel acclamation from the's `music/Gospel Acclamation` folder; it goes on the first slide, laid out like the psalm's antiphon
 music (centred in the live stream's bar, as is the citation on the Gospel's
 title slide). **Remove** takes it off. The music you choose becomes the
 parish's usual one: new services start with it before the Gospel (choose
@@ -255,14 +267,27 @@ Select the psalm and open the **Editor**. The **Psalm layout** panel has:
 
 | Setting | What it does |
 | --- | --- |
-| Antiphon music | The music line for the antiphon, from the media library (or any file). It shows on both screens: on the sanctuary almost full width with the words retyped under it. |
-| Musical setting (stream) | An image of the psalm's setting (chant or tone), shown on the live stream between the gold title box and the text bar, on every slide of the psalm. |
+| Antiphon music | The music line for the antiphon, from `music/Antiphon`. It is printed in the bulletin and script and shown on the live stream; the sanctuary shows the antiphon's words instead. |
+| Musical setting | An image of the psalm's setting (chant or tone), from `music/Setting`. It is printed in the bulletin and script under the antiphon, and shown on the live stream between the gold title box and the text bar on every slide of the psalm. |
 | Antiphon words | The antiphon's text (sung by all), bold. |
 | Antiphon | Where it repeats: *start & end*, *every 2/3/4/6 verses*, or *where placed* (keep the antiphons you put in by hand). |
 | Slides | Verses per slide (1–4). |
 
 **Apply** rebuilds the slides from the numbered verses, keeping who sings
 each verse.
+
+**On the sanctuary screen** an antiphon's slide shows its words alone, with
+the psalm (*Psalm 78:1-7*) at the top left and **Antiphon** at the right.
+A psalm with an antiphon names itself there; one without names itself at
+the top of its first verses.
+
+**In the bulletin and script** a psalm with an antiphon is printed as it is
+sung: its title; *The Cantor introduces the antiphon, which is then
+repeated by the People.*; the antiphon's music and the setting's; *The
+People are invited to join the Choir singing the verses printed in
+boldface.*; then the verses, the verse before each antiphon ending with
+**Antiphon** at the right margin. Without a picture of the antiphon, its
+words are printed once instead.
 
 In the block list:
 
