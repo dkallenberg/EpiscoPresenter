@@ -45,6 +45,10 @@ pub struct StorageSettings {
     /// The person using this computer, e.g. "Rector" or "Music".
     #[serde(default)]
     pub name: String,
+    /// The parish library is a Google Drive folder reached directly
+    /// (drive.rs); `folder` is then this computer's copy of it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub drive: Option<crate::drive::DriveLink>,
 }
 
 static SETTINGS: RwLock<Option<StorageSettings>> = RwLock::new(None);
@@ -61,9 +65,14 @@ pub fn is_presenter() -> bool {
     PRESENTER.load(Ordering::Relaxed)
 }
 
-/// The parish library folder, if one is chosen and reachable.
+/// The parish library folder, if one is chosen and reachable. A Google
+/// Drive folder counts once its first copy here is made.
 pub fn shared_root() -> Option<PathBuf> {
-    settings().folder.filter(|f| f.is_dir())
+    let s = settings();
+    if s.drive.is_some() && !crate::drive::mirror_ready() {
+        return None;
+    }
+    s.folder.filter(|f| f.is_dir())
 }
 /// The data root as last worked out (see [`root`]).
 static ROOT: RwLock<Option<PathBuf>> = RwLock::new(None);
@@ -210,7 +219,13 @@ pub fn storage_set(
         }
         prepare(f)?;
     }
-    let new = StorageSettings { folder, name: name.trim().to_string() };
+    apply(&app, engine.inner(), StorageSettings { folder, name: name.trim().to_string(), drive: None })
+}
+
+/// Saves the library settings and switches to them (storage_set, and
+/// drive.rs for a Google Drive folder).
+pub fn apply(app: &AppHandle, engine: &Engine, new: StorageSettings) -> CmdResult<StorageInfo> {
+    let app = app.clone();
     let old = settings();
     if old.folder != new.folder && !is_presenter() {
         // EpiscoPlanner's copy belongs to the old folder: send it any changes

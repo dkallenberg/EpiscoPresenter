@@ -342,7 +342,8 @@ impl Sides<'_> {
     }
 
     /// This computer's changes since last time, to the shared folder.
-    fn push(&self, st: &mut State) -> CmdResult<()> {
+    /// Returns how many files it sent (or removed).
+    fn push(&self, st: &mut State) -> CmdResult<usize> {
         let ours = walk(self.local);
         let mut sent = Vec::new();
         for (rel, stamp) in &ours {
@@ -365,7 +366,8 @@ impl Sides<'_> {
             sent.push(Change { t: now(), op: Op::Del, path: rel.clone(), size: 0, by: self.by.into() });
             st.files.remove(&rel);
         }
-        self.log(&st.id, &sent)
+        self.log(&st.id, &sent)?;
+        Ok(sent.len())
     }
 }
 
@@ -400,7 +402,9 @@ fn sync_folders(local: &Path, shared: &Path, by: &str, st: &mut State) -> CmdRes
         return Ok((changed, 0));
     }
     let pulled = sides.pull(st);
-    sides.push(st)?;
+    if sides.push(st)? > 0 {
+        sent_on();
+    }
     Ok(pulled)
 }
 
@@ -480,6 +484,14 @@ pub fn soon() {
     let (flag, wake) = &NUDGE;
     *flag.lock().unwrap_or_else(|e| e.into_inner()) = true;
     wake.notify_one();
+}
+
+/// After this computer's changes reached the shared folder: with a Google
+/// Drive folder, send them on to Drive soon too.
+fn sent_on() {
+    if crate::storage::settings().drive.is_some() {
+        crate::drive::soon();
+    }
 }
 
 /// How often the library is synced when nothing was saved here.

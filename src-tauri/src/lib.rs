@@ -13,6 +13,7 @@ mod bulletin;
 mod cache;
 mod commands;
 mod deck;
+mod drive;
 mod engine;
 mod handoff;
 mod inuse;
@@ -86,6 +87,7 @@ pub fn run_planner(context: tauri::Context<tauri::Wry>) {
             // Commands that read the node config get a plain one (no outputs are opened).
             app.manage(NodeConfig::default());
             sync::spawn(app.handle().clone());
+            drive::spawn(app.handle().clone());
             undo::init(app.handle());
             inuse::spawn(app.handle().clone());
             Ok(())
@@ -150,6 +152,7 @@ pub fn run(context: tauri::Context<tauri::Wry>) {
             app.manage(config);
             // Copy services marked Ready in the parish library to this computer.
             sync::spawn(app.handle().clone());
+            drive::spawn(app.handle().clone());
             undo::init(app.handle());
             handoff::spawn(app.handle().clone());
             Ok(())
@@ -235,6 +238,12 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         library::anthem_set,
         sync::library_sync,
         sync::library_sync_status,
+        drive::drive_status,
+        drive::drive_import_client,
+        drive::drive_sign_in,
+        drive::drive_sign_out,
+        drive::drive_folders,
+        drive::drive_use_folder,
         inuse::in_use_status,
         inuse::in_use_take_over,
         undo::undo,

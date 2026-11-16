@@ -675,3 +675,18 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 .operator-tag { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
 .slide-card.operator-step { border-style: dashed; }
 .nn-text.nn-operator { color: #f3e6c4; font-style: italic; }
+/* The parish library dialog: Google Drive, step by step. */
+.lib-modes { align-self: flex-start; margin-left: 0; }
+.drive-panel { display: flex; flex-direction: column; gap: 10px; }
+.drive-step { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.drive-step p { margin: 2px 0 6px; }
+.drive-step.todo { border-color: var(--accent); }
+.drive-step.done .drive-n { background: var(--ok); color: #fff; }
+.drive-n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; background: var(--panel-2); }
+.drive-choose { display: flex; flex-direction: column; gap: 6px; }
+.drive-search { width: 100%; }
+.drive-folders { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 6px; }
+.drive-folder { text-align: left; border: 0; border-radius: 0; background: none; display: flex; justify-content: space-between; gap: 8px; }
+.drive-folder + .drive-folder { border-top: 1px solid var(--line); }
+.drive-folder.on { background: var(--accent); color: #1b1b1b; }
+.drive-status { margin: 0; }

@@ -32,6 +32,12 @@ Parish Library/
   parish.json   parish details for bulletins
 ```
 
+**Google Drive without Drive for desktop.** The apps can also reach the
+shared folder in Google Drive themselves: each person signs in with their
+Google account and picks the folder, and the app keeps a full copy of it on
+the computer. See [google-drive.md](google-drive.md) for the one-time Google
+setup and the steps on each computer.
+
 An empty folder is set up the first time it is chosen. Change the folder or
 your name at any time with the **📁** button in the top bar; **This computer
 only** keeps everything in the app's own folder instead. If the shared folder

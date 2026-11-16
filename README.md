@@ -80,6 +80,12 @@ and for the planner's own installer (its own name and app identity):
 cargo tauri build --config src-tauri/planner/bundle.json
 ```
 
+### The parish library in Google Drive
+
+The apps can use a shared Google Drive folder directly (each person signs
+in with Google; no Google Drive for desktop needed). The parish sets up a
+free Google Cloud project once: see [docs/google-drive.md](docs/google-drive.md).
+
 ### Installers from GitHub (Windows and Mac)
 
 GitHub can build the installers for both apps without a Windows PC: on the

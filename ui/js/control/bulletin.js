@@ -48,7 +48,8 @@ function makeView(kind) {
               if (info) await call("parish_set", { info: { ...info, paper: paper.value } });
             },
           },
-          [["tabloid", "11 × 17, folded"], ["legal", "8½ × 14, folded"], ["letter", "8½ × 11, folded"]].map(([v, l]) => el("option", { value: v }, l)),
+          // (Folded in half, all of them: the title says so.)
+          [["tabloid", "11 × 17"], ["legal", "8½ × 14"], ["letter", "8½ × 11"]].map(([v, l]) => el("option", { value: v }, l)),
         )
       : null;
   const toolbar = el(

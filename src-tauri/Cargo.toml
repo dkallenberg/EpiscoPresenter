@@ -30,4 +30,9 @@ tracing-subscriber.workspace = true
 tauri = { version = "2", features = ["macos-private-api", "protocol-asset"] }
 tauri-plugin-dialog = "2"
 # Downloads the Google Slides deck as a PDF (already used by Tauri).
-reqwest = "0.13"
+reqwest = { version = "0.13", features = ["blocking", "query", "form"] }
+# Google Drive: sign-in (PKCE) and checking files against Drive's checksums.
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.2"
+md-5 = "0.10"
