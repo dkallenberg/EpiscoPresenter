@@ -1,7 +1,7 @@
 {
   "productName": "EpiscoPlanner",
   "identifier": "org.episcopresenter.planner",
-  "mainBinaryName": "episco-planner",
+  "mainBinaryName": "EpiscoPlanner",
   "bundle": {
     "icon": [
       "icons/planner/32x32.png",

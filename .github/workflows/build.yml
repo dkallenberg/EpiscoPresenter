@@ -25,7 +25,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Libraries for the desktop app
@@ -37,12 +37,12 @@ jobs:
     needs: test
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
       - name: Build EpiscoPresenter
         run: npx --yes @tauri-apps/cli@2 build
       - name: Build EpiscoPlanner
@@ -60,14 +60,24 @@ jobs:
     needs: test
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
       - uses: Swatinem/rust-cache@v2
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
+      # A universal build joins only the main program for both kinds of Mac;
+      # the app also carries the episco-planner program, joined here first.
+      - name: Join episco-planner for both kinds of Mac
+        run: |
+          cargo build --release --bin episco-planner --target aarch64-apple-darwin
+          cargo build --release --bin episco-planner --target x86_64-apple-darwin
+          mkdir -p target/universal-apple-darwin/release
+          lipo -create -output target/universal-apple-darwin/release/episco-planner \
+            target/aarch64-apple-darwin/release/episco-planner \
+            target/x86_64-apple-darwin/release/episco-planner
       - name: Build EpiscoPresenter
         run: npx --yes @tauri-apps/cli@2 build --target universal-apple-darwin --bundles dmg
       - name: Build EpiscoPlanner
