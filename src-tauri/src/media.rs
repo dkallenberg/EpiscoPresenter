@@ -155,6 +155,7 @@ fn music_folder(kind: &str) -> CmdResult<&'static str> {
         "antiphon" => Ok("Antiphon"),
         "setting" => Ok("Setting"),
         "gospel" => Ok("Gospel Acclamation"),
+        "hymn" => Ok("Hymn"),
         _ => Err(format!("no music folder “{kind}”")),
     }
 }
@@ -163,7 +164,7 @@ fn music_dir(app: &AppHandle, kind: &str) -> CmdResult<PathBuf> {
     Ok(crate::storage::data_dir(app, "music")?.join(music_folder(kind)?))
 }
 
-/// The pictures in one music folder (`antiphon`, `setting`, `gospel`), by name.
+/// The pictures in one music folder (`antiphon`, `setting`, `gospel`, `hymn`), by name.
 #[tauri::command]
 pub fn music_list(app: AppHandle, kind: String) -> CmdResult<Vec<MediaEntry>> {
     let dir = music_dir(&app, &kind)?;

@@ -39,6 +39,8 @@ escapes, or `'...'` with `''` for a quote). Lines starting with `#` are comments
 | `tune` | Hymn tune name | text |
 | `words`, `music`, `setting` | Hymn credits, shown at the foot of the stream slide | text |
 | `setting_image` | Psalms: image of the musical setting, shown on the stream between the gold title box and the text bar | image path |
+| `hymn_image` | Hymns: a picture of the hymn (music and words), printed in the bulletin (Full text) and script in place of the words | image path |
+| `music_on`, `words_on` | For music marked `{words}`: where the music and the words are shown, instead of the usual (music: bulletin, script, stream; words: sanctuary, stream) | places, e.g. `bulletin, stream`, or `none` |
 | `antiphon`, `antiphon_every`, `antiphon_placed`, `verses_per_slide` | Psalms: how **Apply** in the Psalm layout panel arranges the slides | text, number, `true`, number |
 | `media` | A media item (image or video shown full screen) | file path |
 | `rite` | Which rite a text belongs to (shown in the Library) | `I`, `II` |
@@ -131,6 +133,7 @@ Text with no tag forms a block with no speaker.
 | `--- stream` / `--- sanctuary` | A slide break on that screen only. |
 | Leading tabs (or every three spaces) on a line | Indent: one step each, as the Prayer Book sets the Creed and the Lord's Prayer. |
 | `![alt text](path/to/image.png)` alone on a line | Sheet-music snippet or other image, shown full-width. |
+| `![alt](music.png){words}` | Music that includes the words after it on its slide: printed in the bulletin and script without the words again; the sanctuary shows the words, the stream both (see `music_on` / `words_on`). |
 | `<!-- comment -->` | Ignored. May span several lines. |
 
 A line that would otherwise be read as syntax can be escaped with a leading

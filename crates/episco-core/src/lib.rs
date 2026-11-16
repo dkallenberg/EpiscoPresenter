@@ -31,6 +31,7 @@ pub mod propers;
 pub mod role;
 pub mod season;
 pub mod service;
+pub mod shows;
 pub mod state;
 pub mod template;
 

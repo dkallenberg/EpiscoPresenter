@@ -115,7 +115,7 @@ pub enum Block {
     /// `## Heading` — a section title; also begins a new slide.
     Heading { level: u8, text: String },
     /// `![alt](src)` — a sheet-music snippet or other image. `fit` (written
-    /// `![alt](src){width}`) sizes a picture on a made slide: `center`
+    /// `![alt](src){width}`, or `{width words}` with `words`) sizes a picture on a made slide: `center`
     /// (as it is, at most the box), `width` / `height` (the box's width or
     /// height) or `full` (the whole screen).
     Image {
@@ -123,6 +123,12 @@ pub enum Block {
         src: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         fit: Option<String>,
+        /// Music that carries its own words (written `{words}`): the words
+        /// after it on its slide are shown or left out by the item's rule
+        /// (see [`crate::shows`]): the bulletin and script print the music,
+        /// the sanctuary shows the words, the stream both.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        words: bool,
     },
     /// A lone `---` in the body — an explicit slide break.
     SlideBreak,

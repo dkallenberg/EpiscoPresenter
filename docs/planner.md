@@ -235,6 +235,19 @@ The **Script** tab is the officiant's copy: every word of every item, the
 rubrics in red, large type on letter paper, the Great Thanksgiving starting
 a new page. **Export script to Word** works the same way.
 
+A **hymn** in the script has the same choices as in the bulletin: click it
+and choose **Reference line**, **Full text**, **Responses only**, **Title
+only** or **Left out** in the bar above it. The usual is the full text (or
+its line, while it has no words or picture yet). A hymn with a **Picture of
+the hymn** (in the Editor's **Hymn words**) prints the picture in place of
+its words, in the script and in the bulletin (Full text). The choice is
+saved in the service plan (`script = "reference"` on the cue).
+
+**Music that includes its words** (an acclamation, a sung Sanctus): the
+bulletin and the script print the picture of the music and not the words
+again; the sanctuary shows the words, the stream both. See
+[Library: music with its words](library.md#music-with-its-words).
+
 The preview and the Word files are built from one description of the
 document (`episco-core`'s `bulletin` module, written out by its `docx`
 module), so they always match.

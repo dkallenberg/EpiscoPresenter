@@ -97,6 +97,38 @@ never under its place, so the same hymn can open the service one week and
 close it the next. A hymn with neither a number nor its own title cannot be
 saved to the library until it is given one.
 
+**A picture of the hymn.** The Editor's **Hymn words** has **Picture of the
+hymn**: a picture of its music and words (from `music/Hymn`). The bulletin
+(in Full text) and the script print the picture in place of the words; the
+screens show the words. The script's choice for a hymn is made on the
+Script tab, like the bulletin's (see the planner guide).
+
+### Music with its words
+
+Some pictures of music have the words printed in them: the Opening
+Acclamation sung, a Sanctus, a Fraction Anthem. Put the picture first on
+its slide, the words after it as usual (*[Celebrant] Blessed be God…*,
+*[People] And blessed be his kingdom…*), and tick **This music includes the
+words after it** under the picture in the Editor. The usual rule is then:
+
+| | Music | Words |
+| --- | --- | --- |
+| Bulletin | ✓ | — |
+| Script | ✓ | — |
+| Sanctuary | — | ✓ |
+| Stream | ✓ | ✓ |
+
+The words are the text after the picture on its slide (up to the next
+heading, slide break or picture); rubrics are always kept. For an item that
+should be different, open **Where it shows** in the Editor and tick the
+places for the music and for the words; **Back to the usual** clears it.
+The choice is saved with the item (`music_on:` and `words_on:` in its front
+matter), so a parish version in the Library keeps it. In the `.ewm` file the
+picture is marked `{words}`: `![](acclamation.png){words}`.
+
+A psalm's antiphon and the music before the Gospel keep their own layout
+(the music line with the words under it on the sanctuary).
+
 ## Media
 
 **Library → Media** holds images and videos (`png`, `jpg`, `gif`, `svg`,
@@ -128,10 +160,11 @@ library's `music` folder, one folder for each use:
 
 * `music/Antiphon`: psalm antiphons;
 * `music/Setting`: the settings (chants, tones) psalm verses are sung to;
-* `music/Gospel Acclamation`: the Alleluia or acclamation before the Gospel.
+* `music/Gospel Acclamation`: the Alleluia or acclamation before the Gospel;
+* `music/Hymn`: pictures of hymns (music and words).
 
-The Editor's **Choose…** for an antiphon, a setting or the music before the
-Gospel opens that folder: pick a picture, or **Import…** to add new ones to
+The Editor's **Choose…** for an antiphon, a setting, the music before the
+Gospel or a hymn's picture opens that folder: pick a picture, or **Import…** to add new ones to
 it. **From the media library…** takes one added there earlier. The folders
 are kept in step between computers like the rest of the library.
 

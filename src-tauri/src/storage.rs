@@ -35,7 +35,7 @@ type CmdResult<T> = Result<T, String>;
 pub const EVENT: &str = "episco://storage";
 
 const SETTINGS_FILE: &str = "library.json";
-const SUBFOLDERS: [&str; 8] = [
+const SUBFOLDERS: [&str; 9] = [
     "services",
     "templates",
     "library",
@@ -43,6 +43,7 @@ const SUBFOLDERS: [&str; 8] = [
     "music/Antiphon",
     "music/Setting",
     "music/Gospel Acclamation",
+    "music/Hymn",
     "backgrounds",
 ];
 

@@ -200,6 +200,7 @@ function render(c) {
         c.category === "hymn" ? hymnPanel(c) : null,
         isSanctus(c) ? sanctusPanel(c) : null,
         c.category === "homily" ? sermonPanel(c) : null,
+        el("div#shows-slot", {}, showsPanel()),
         ...madePanels(c),
       ].filter(Boolean),
     );
@@ -596,7 +597,7 @@ function psalmPanel(c) {
     el(
       "div.psalm-images",
       {},
-      imageField("Antiphon music", antiphonSrc, setAntiphonMusic, "The antiphon's music line: in the bulletin and script, and on the stream (the sanctuary shows its words).", "antiphon"),
+      imageField("Antiphon music", antiphonSrc, setAntiphonMusic, "The antiphon's music line: in the bulletin and script, and on both screens (the sanctuary shows the words under it).", "antiphon"),
       imageField("Musical setting", setting, setSetting, "The setting the verses are sung to: in the bulletin and script, and on the stream between the title box and the text bar.", "setting"),
     ),
     paste,
@@ -704,6 +705,94 @@ function prefaceNote() {
 
 /** A hymn's words, pasted from the parish's licensed source (the app ships
  *  no hymn texts), with its credits and licence notice. */
+// ----- music with its words: where each is shown -----
+
+const PLACES = [
+  ["bulletin", "Bulletin"],
+  ["script", "Script"],
+  ["sanctuary", "Sanctuary"],
+  ["stream", "Stream"],
+];
+/** The usual rule: the printed pages have the music, the sanctuary the
+ *  words, the stream both (crates/episco-core/src/shows.rs). */
+const SHOWS_USUAL = { music_on: ["bulletin", "script", "stream"], words_on: ["sanctuary", "stream"] };
+
+function showsOn(key) {
+  const v = extraOf(ed.doc, key);
+  if (v == null) return SHOWS_USUAL[key];
+  return v.split(",").map((x) => x.trim().toLowerCase()).filter((x) => PLACES.some(([k]) => k === x));
+}
+
+function setShowsOn(key, list) {
+  const usual = SHOWS_USUAL[key];
+  const same = list.length === usual.length && usual.every((x) => list.includes(x));
+  const ordered = PLACES.map(([k]) => k).filter((k) => list.includes(k));
+  setExtra(key, same ? null : ordered.length ? ordered.join(", ") : "none");
+}
+
+/** For an item with music that includes its words: where the music and
+ *  where the words are shown (the usual rule, or the item's own). */
+function showsPanel() {
+  if (!ed.doc?.blocks.some((b) => b.kind === "image" && b.words)) return null;
+  const own = extraOf(ed.doc, "music_on") != null || extraOf(ed.doc, "words_on") != null;
+  const row = (key, label) =>
+    el(
+      "tr",
+      {},
+      el("th", {}, label),
+      PLACES.map(([place, name]) =>
+        el(
+          "td",
+          {},
+          el("input", {
+            type: "checkbox",
+            title: `${label} in the ${name.toLowerCase()}`,
+            checked: showsOn(key).includes(place),
+            disabled: app.readonly,
+            onchange: (e) => {
+              const list = showsOn(key).filter((x) => x !== place);
+              if (e.target.checked) list.push(place);
+              setShowsOn(key, list);
+              changed();
+              refreshShows();
+            },
+          }),
+        ),
+      ),
+    );
+  return el(
+    "details.section.reading-panel.shows-panel",
+    { open: own },
+    el("summary", {}, "Where it shows", el("span.muted.small", {}, own ? " · this item's own choice" : " · the usual: music printed, words on the sanctuary, both on the stream")),
+    el(
+      "table.shows-grid",
+      {},
+      el("thead", {}, el("tr", {}, el("th"), PLACES.map(([, name]) => el("th", {}, name)))),
+      el("tbody", {}, row("music_on", "Music"), row("words_on", "Words")),
+    ),
+    el(
+      "div.reading-row",
+      {},
+      el("span.muted.small", {}, "For music marked “includes the words after it”: the words are the text after it on its slide."),
+      own && !app.readonly
+        ? el("button.small", {
+            onclick: () => {
+              setExtra("music_on", null);
+              setExtra("words_on", null);
+              changed();
+              refreshShows();
+            },
+          }, "Back to the usual")
+        : null,
+    ),
+  );
+}
+
+function refreshShows() {
+  const slot = document.getElementById("shows-slot");
+  if (slot) slot.replaceChildren(...[showsPanel()].filter(Boolean));
+}
+
 function hymnPanel(c) {
   const stanzas = ed.doc.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric").length;
   const credit = (key, label, placeholder) =>
@@ -748,6 +837,17 @@ function hymnPanel(c) {
           ` and click “Use for ${c.title}”.`,
         )
       : null,
+    imageField(
+      "Picture of the hymn",
+      extraOf(ed.doc, "hymn_image") ?? null,
+      (path) => {
+        setExtra("hymn_image", path);
+        changed();
+        render(c);
+      },
+      "Its music and words in one picture: printed in the bulletin (Full text) and the script in place of the words. The screens show the words.",
+      "hymn",
+    ),
     paste,
     el(
       "div.reading-row",
@@ -1199,6 +1299,22 @@ function blockRow(b, i, paraIndex) {
             changed();
           },
         }),
+        el(
+          "label.toggle.words-toggle",
+          { title: "The words are in the picture and also typed after it on its slide: the bulletin and script print the music, the sanctuary shows the words, the stream both (change it under “Where it shows”)." },
+          el("input", {
+            type: "checkbox",
+            checked: Boolean(b.words),
+            disabled: app.readonly,
+            onchange: (e) => {
+              if (e.target.checked) b.words = true;
+              else delete b.words;
+              changed();
+              refreshShows();
+            },
+          }),
+          "This music includes the words after it",
+        ),
         preview,
       ),
       rowTools(i),

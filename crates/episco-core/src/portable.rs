@@ -80,8 +80,8 @@ impl Service {
                     }
                 }
                 for (k, v) in &mut document.meta.extra {
-                    // A media item's file, a psalm's musical setting.
-                    if k == "media" || k == "setting_image" {
+                    // A media item's file, a psalm's musical setting, a hymn's picture.
+                    if k == "media" || k == "setting_image" || k == crate::bulletin::HYMN_IMAGE {
                         doc_changed |= fix(v, root);
                     }
                 }

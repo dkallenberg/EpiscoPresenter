@@ -311,6 +311,7 @@ const MUSIC = {
   antiphon: { folder: "Antiphon", what: "antiphon music" },
   setting: { folder: "Setting", what: "musical setting" },
   gospel: { folder: "Gospel Acclamation", what: "Gospel Acclamation" },
+  hymn: { folder: "Hymn", what: "hymn" },
 };
 
 /**

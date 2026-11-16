@@ -232,6 +232,9 @@ pub struct CueOverrides {
     /// How the item appears in the bulletin; `None` for its default.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bulletin: Option<crate::bulletin::BulletinStyle>,
+    /// How a hymn appears in the script; `None` for its default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub script: Option<crate::bulletin::BulletinStyle>,
     /// A Eucharistic Prayer whose Sanctus is sung: its slide is shown as a
     /// hymn (and kept a slide of its own).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -840,6 +843,7 @@ impl Service {
                 category: pc.category.as_deref().map(str::parse::<ElementCategory>).transpose().map_err(cue_err)?,
                 looks,
                 bulletin: pc.bulletin.as_deref().and_then(crate::bulletin::BulletinStyle::parse),
+                script: pc.script.as_deref().and_then(crate::bulletin::BulletinStyle::parse),
                 sanctus_sung: pc.sanctus_sung,
             };
             let cue = match (&pc.file, pc.announcements) {
@@ -963,6 +967,7 @@ impl Service {
                     background: None,
                     announcements,
                     bulletin: cue.overrides.bulletin.map(|b| b.key().to_string()),
+                    script: cue.overrides.script.map(|b| b.key().to_string()),
                     sanctus_sung: cue.overrides.sanctus_sung,
                     sanctuary: cue.overrides.looks.sanctuary.clone(),
                     stream: cue.overrides.looks.stream.clone(),
@@ -1079,6 +1084,9 @@ struct PlanCue {
     /// `reference`, `full`, `title` or `hidden`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     bulletin: Option<String>,
+    /// A hymn in the script, as `bulletin`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    script: Option<String>,
     /// The Sanctus within a Eucharistic Prayer is sung.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     sanctus_sung: bool,

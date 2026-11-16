@@ -20,6 +20,7 @@ use crate::category::ElementCategory;
 use crate::document::{split_indent, with_indent, Block, LiturgyDocument, Span};
 use crate::role::Role;
 use crate::service::{Cue, CueContent, Service};
+use crate::shows::Place;
 
 /// How an item appears in the bulletin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -708,10 +709,22 @@ fn psalm_body(cue: &Cue, doc: &LiturgyDocument, root: Option<&Path>) -> Option<V
     Some(out)
 }
 
+/// A hymn's picture (`hymn_image`: its music and words), printed in the
+/// bulletin and script in place of its words. The slides show the words.
+pub const HYMN_IMAGE: &str = "hymn_image";
+
+fn hymn_picture(cue: &Cue, doc: &LiturgyDocument, root: Option<&Path>) -> Option<PathBuf> {
+    (cue.category == ElementCategory::Hymn).then_some(())?;
+    resolve(doc.meta.extra(HYMN_IMAGE)?, cue, root)
+}
+
 /// The full text of an item as pieces. `script`: rubrics are kept and
 /// slide headings become section lines.
 fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
     let Some(doc) = cue.document() else { return Vec::new() };
+    if let Some(path) = hymn_picture(cue, doc, root) {
+        return vec![Piece::Image { path, alt: doc.meta.title.clone() }];
+    }
     if cue.category == ElementCategory::Psalm {
         if let Some(p) = psalm_body(cue, doc, root) {
             let _ = script; // the bulletin and the script print a psalm alike
@@ -731,9 +744,14 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
     let mut text_slide = 0;
     // Only a slide break since the last piece (not a heading, rubric …).
     let mut after_break = false;
+    // Music carrying its own words: the music or the words, by the item's rule.
+    let shown = crate::shows::shown(doc, if script { Place::Script } else { Place::Bulletin });
     for (i, b) in doc.blocks.iter().enumerate() {
         if Some(i) == last_break {
             text_at = out.len();
+        }
+        if !shown[i] {
+            continue;
         }
         let was_break = after_break;
         after_break = false;
@@ -942,21 +960,47 @@ pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
     Doc { kind: DocKind::Bulletin, cover: cover(service, parish), entries, back: Some(parish.clone()) }
 }
 
+/// The style an item has in the script unless the plan says otherwise:
+/// every word, except what has no words to print (announcements, a video,
+/// a hymn not chosen yet or named only by its number).
+pub fn script_default(cue: &Cue) -> BulletinStyle {
+    let doc = cue.document();
+    match &cue.content {
+        CueContent::Announcements { .. } => BulletinStyle::Title,
+        _ if doc.is_some_and(|d| d.meta.screen_only()) => BulletinStyle::Title,
+        _ if cue.category == ElementCategory::Hymn
+            && !doc.is_some_and(|d| {
+                d.meta.extra(HYMN_IMAGE).is_some_and(|v| !v.trim().is_empty())
+                    || d.blocks.iter().any(|b| {
+                        matches!(b, Block::Image { .. })
+                            || matches!(b, Block::Paragraph { role, .. } if !role.as_ref().is_some_and(Role::is_rubric))
+                    })
+            }) =>
+        {
+            BulletinStyle::Title
+        }
+        _ => BulletinStyle::Full,
+    }
+}
+
+/// The style an item has in the script: a hymn's can be chosen, as in the
+/// bulletin (its words, a picture of it, its line only, or left out).
+pub fn script_style_of(cue: &Cue) -> BulletinStyle {
+    match cue.overrides.script {
+        Some(s) if cue.category == ElementCategory::Hymn => s,
+        _ => script_default(cue),
+    }
+}
+
 /// The officiant's script: every word of every item, rubrics included, the
 /// Great Thanksgiving starting a new page.
 pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
     let mut entries: Vec<Entry> = prelude_entry(service, true).into_iter().collect();
     for cue in &service.cues {
-        let doc = cue.document();
-        let media = doc.is_some_and(|d| d.meta.screen_only());
-        let style = match &cue.content {
-            CueContent::Announcements { .. } => BulletinStyle::Title,
-            _ if media => BulletinStyle::Title,
-            _ if cue.category == ElementCategory::Hymn && doc.is_some_and(|d| d.blocks.len() <= 1) => {
-                BulletinStyle::Title
-            }
-            _ => BulletinStyle::Full,
-        };
+        let style = script_style_of(cue);
+        if style == BulletinStyle::Hidden {
+            continue;
+        }
         let mut e = entry(&with_preface(cue, service), style, true, service.library_root.as_deref());
         if cue.category == ElementCategory::EucharisticPrayer
             && !entries.iter().any(|x: &Entry| x.pieces.contains(&Piece::PageBreak))
@@ -1656,6 +1700,79 @@ mod tests {
     }
 
     #[test]
+    fn music_with_its_words_is_printed_without_the_words_again() {
+        let dir = std::env::temp_dir().join(format!("episco-sung-print-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let png = dir.join("acclamation.png");
+        std::fs::write(&png, b"png").unwrap();
+        let text = format!(
+            "---\ntitle: Opening Acclamation\ntype: acclamation\n---\n![]({}){{words}}\n\n[Celebrant] Blessed be God.\n[People] **And blessed be his kingdom.**\n\n---\n\n[Rubric] *The Celebrant then says*\n",
+            png.display()
+        );
+        let mut s = Service::default();
+        s.insert_cue(0, cue(&text));
+        s.cues[0].overrides.bulletin = Some(BulletinStyle::Full);
+        let kinds = |d: &Doc| -> Vec<&'static str> {
+            d.entries[0]
+                .pieces
+                .iter()
+                .map(|p| match p {
+                    Piece::Image { .. } => "music",
+                    Piece::Speech { .. } => "words",
+                    Piece::Rubric { .. } => "rubric",
+                    _ => "line",
+                })
+                .collect()
+        };
+        assert_eq!(kinds(&bulletin(&s, &ParishInfo::default())), ["line", "music", "rubric"]);
+        assert_eq!(kinds(&script(&s, &ParishInfo::default())), ["line", "music", "rubric"]);
+        // The item can ask for the words in the script too.
+        if let CueContent::Liturgy { document, .. } = &mut s.cues[0].content {
+            document.meta.extra.push(("words_on".into(), "script, sanctuary, stream".into()));
+        }
+        assert_eq!(kinds(&script(&s, &ParishInfo::default())), ["line", "music", "words", "words", "rubric"]);
+    }
+
+    #[test]
+    fn a_hymn_in_the_script_is_printed_as_chosen() {
+        let dir = std::env::temp_dir().join(format!("episco-hymn-script-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let png = dir.join("hymn.png");
+        std::fs::write(&png, b"png").unwrap();
+        let mut s = Service::default();
+        // A hymn that is only its picture: printed in the script.
+        s.insert_cue(
+            0,
+            cue(&format!("---\ntitle: Entrance Hymn\ntype: hymn\nhymn_number: 436\n---\n![]({})\n", png.display())),
+        );
+        assert_eq!(script_default(&s.cues[0]), BulletinStyle::Full);
+        let sc = script(&s, &ParishInfo::default());
+        assert!(sc.entries[0].pieces.iter().any(|p| matches!(p, Piece::Image { .. })));
+        // A picture of the hymn in place of its words.
+        let pic = format!(
+            "---\ntitle: Entrance Hymn\ntype: hymn\nhymn_image: {}\n---\n[1] Lift up your heads\n",
+            png.display()
+        );
+        let mut u = Service::default();
+        u.insert_cue(0, cue(&pic));
+        let kinds: Vec<_> = script(&u, &ParishInfo::default()).entries[0]
+            .pieces
+            .iter()
+            .map(|p| matches!(p, Piece::Image { .. }))
+            .collect();
+        assert_eq!(kinds, [false, true], "its line, then the picture (not the words)");
+        // Chosen: its line only, or left out.
+        s.cues[0].overrides.script = Some(BulletinStyle::Reference);
+        assert_eq!(script(&s, &ParishInfo::default()).entries[0].pieces.len(), 1);
+        s.cues[0].overrides.script = Some(BulletinStyle::Hidden);
+        assert!(script(&s, &ParishInfo::default()).entries.is_empty());
+        // Not chosen yet: its line.
+        let mut t = Service::default();
+        t.insert_cue(0, cue("---\ntitle: Entrance Hymn\ntype: hymn\n---\n"));
+        assert_eq!(script_default(&t.cues[0]), BulletinStyle::Title);
+    }
+
+    #[test]
     fn the_welcome_slide_names_the_service_parish_and_time() {
         let mut s = Service { date: Some("2026-11-08".into()), time: Some("10:30".into()), ..Default::default() };
         s.title = crate::calendar::liturgical_day("2026-11-08".parse().unwrap()).name;
@@ -1756,7 +1873,12 @@ mod tests {
             placed: false,
             verses_per_slide: 2,
         };
-        let img = vec![Block::Image { src: a.to_string_lossy().into_owned(), alt: "Antiphon".into(), fit: None }];
+        let img = vec![Block::Image {
+            src: a.to_string_lossy().into_owned(),
+            alt: "Antiphon".into(),
+            fit: None,
+            words: false,
+        }];
         let mut doc = psalm_document("Psalm 78:1-7", Some("Psalm 78:1-7"), &verses, &opts, &img);
         doc.meta.extra.push(("setting_image".into(), st.to_string_lossy().into_owned()));
         let mut s = Service::default();

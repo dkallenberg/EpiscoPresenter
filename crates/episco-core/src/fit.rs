@@ -306,6 +306,8 @@ fn gather(doc: &LiturgyDocument, output: Output, keep: &dyn Fn(&Block) -> bool) 
         begins: Begins::Start,
         keep,
     };
+    // Music carrying its own words: the music or the words, by the item's rule.
+    let shown = crate::shows::shown(doc, output.into());
     for (i, block) in doc.blocks.iter().enumerate() {
         match block {
             Block::SlideBreak => {
@@ -328,7 +330,7 @@ fn gather(doc: &LiturgyDocument, output: Output, keep: &dyn Fn(&Block) -> bool) 
             }
             other => {
                 g.saw = true;
-                if (g.keep)(other) {
+                if shown[i] && (g.keep)(other) {
                     g.parts.push(Part { block: other.clone(), at: (i, 0, 0) });
                 }
             }
@@ -632,6 +634,16 @@ mod tests {
 
     fn texts(s: &Slide) -> Vec<String> {
         s.blocks.iter().map(|b| b.plain_text()).collect()
+    }
+
+    #[test]
+    fn music_with_its_words_the_sanctuary_shows_the_words_the_stream_both() {
+        let d = doc("![](a.png){words}\n\n[Celebrant] Blessed be God.\n[People] **And blessed be his kingdom.**\n");
+        let f = fit(&d, Capacity::AS_WRITTEN, Capacity::AS_WRITTEN, &|_| true);
+        assert_eq!(texts(&f.steps[0]), ["Blessed be God.", "And blessed be his kingdom."]);
+        assert_eq!(f.stream.len(), 1);
+        assert_eq!(texts(&f.stream[0]), ["", "Blessed be God.", "And blessed be his kingdom."]);
+        assert!(matches!(f.stream[0].blocks[0], Block::Image { .. }));
     }
 
     #[test]

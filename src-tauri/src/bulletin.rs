@@ -180,6 +180,16 @@ pub fn set_cue_bulletin(engine: State<'_, Engine>, id: String, style: Option<Bul
     })
 }
 
+/// Sets how a hymn appears in the script (`None`: its default).
+#[tauri::command]
+pub fn set_cue_script(engine: State<'_, Engine>, id: String, style: Option<BulletinStyle>) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let mut overrides = s.cue(&id).ok_or("no such cue")?.overrides.clone();
+        overrides.script = style;
+        s.set_overrides(&id, overrides).map_err(|e| e.to_string())
+    })
+}
+
 /// Sets the service's start time (`"08:00"`), or clears it.
 #[tauri::command]
 pub fn set_service_time(engine: State<'_, Engine>, time: Option<String>) -> CmdResult<()> {
@@ -200,6 +210,9 @@ pub struct CueBulletin {
     id: String,
     style: BulletinStyle,
     default: BulletinStyle,
+    /// How it appears in the script, and how it would by default.
+    script: BulletinStyle,
+    script_default: BulletinStyle,
     /// A reading or Gospel (its text can be pasted in).
     reading: bool,
     /// A reading whose text has not been added yet.
@@ -231,7 +244,8 @@ pub fn todo(c: &episco_core::Cue) -> Option<String> {
                 .blocks
                 .iter()
                 .any(|b| matches!(b, Block::Paragraph { role, .. } if role.as_ref().is_none_or(|r| !r.is_rubric())));
-            (!words && doc.meta.hymn_number.is_none()).then(|| "Choose the hymn".into())
+            let picture = doc.meta.extra(bulletin::HYMN_IMAGE).is_some_and(|v| !v.trim().is_empty());
+            (!words && !picture && doc.meta.hymn_number.is_none()).then(|| "Choose the hymn".into())
         }
         ElementCategory::Homily => {
             doc.meta.extra("preacher").is_none_or(|p| p.trim().is_empty()).then(|| "Name the preacher".into())
@@ -255,6 +269,8 @@ pub fn bulletin_styles(engine: State<'_, Engine>) -> Vec<CueBulletin> {
                     id: c.id.clone(),
                     style: bulletin::style_of(c),
                     default: bulletin::default_style(c),
+                    script: bulletin::script_style_of(c),
+                    script_default: bulletin::script_default(c),
                     reading: matches!(
                         c.category,
                         episco_core::ElementCategory::Reading | episco_core::ElementCategory::Gospel

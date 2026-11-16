@@ -160,7 +160,7 @@ async function refresh(v) {
       n.dataset.orig = n.innerHTML;
     }
   }
-  if (v.kind === "bulletin") v.page.append(v.item);
+  v.page.append(v.item);
   v.scroll.scrollTop = top;
   markSelected(v, false);
   renderItem();
@@ -502,37 +502,44 @@ export async function openReadings(focus = null) {
   start?.scrollIntoView({ block: "nearest" });
 }
 
-/** The bar for the selected item: how it appears in the bulletin. */
+/** The bar for the selected item: how it appears in the bulletin (in the
+ *  script, a hymn's: its words, a picture of it, its line, or left out). */
 function renderItem() {
-  const v = views.bulletin;
+  for (const v of Object.values(views)) renderItemIn(v);
+}
+
+function renderItemIn(v) {
   if (!v) return;
+  const script = v.kind === "script";
   const cue = app.selectedCue();
   const entry = cue && v.page.querySelector(`.entry[data-cue="${CSS.escape(cue.id)}"]`);
+  const info = cue && styles.get(cue.id);
   // An item left out has no place on the page: its bar stays in view so it
   // can be brought back.
-  const leftOut = cue && !entry && styles.get(cue.id)?.style === "hidden";
-  v.item.hidden = !(entry || leftOut) || app.readonly;
+  const leftOut = cue && !entry && (script ? info?.script : info?.style) === "hidden";
+  v.item.hidden = !(entry || leftOut) || app.readonly || (script && cue?.category !== "hymn");
   if (v.item.hidden) return;
-  const info = styles.get(cue.id);
-  const current = info?.style ?? "full";
+  const current = (script ? info?.script : info?.style) ?? "full";
+  const usual = script ? info?.script_default : info?.default;
   const seg = el(
     "div.seg.doc-styles",
     {},
     STYLES.map(([key, label, tip]) =>
       el(
-        "button" + (key === current ? ".active" : "") + (info?.default === key ? ".usual" : ""),
+        "button" + (key === current ? ".active" : "") + (usual === key ? ".usual" : ""),
         {
-          title: tip + (info?.default === key ? " (the usual for this item)" : ""),
+          title: (script ? tip.replace("Not in the bulletin", "Not in the script") : tip) + (usual === key ? " (the usual for this item)" : ""),
           onclick: async () => {
-            const style = key === info?.default ? null : key;
-            await call("set_cue_bulletin", { id: cue.id, style });
+            const style = key === usual ? null : key;
+            await call(script ? "set_cue_script" : "set_cue_bulletin", { id: cue.id, style });
           },
         },
         label,
       ),
     ),
   );
-  v.item.replaceChildren(el("span.doc-item-name", { title: cue.title }, leftOut ? `“${cue.title}” is left out:` : "In the bulletin:"), seg);
+  const where = script ? "In the script:" : "In the bulletin:";
+  v.item.replaceChildren(el("span.doc-item-name", { title: cue.title }, leftOut ? `“${cue.title}” is left out:` : where), seg);
   if (v.item.parentNode !== v.page) v.page.append(v.item);
   // Just above the item, at its right; a left-out item's at the top of the
   // view. Above the first item, the prelude's line makes room for it.
