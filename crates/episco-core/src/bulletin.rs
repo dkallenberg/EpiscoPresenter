@@ -673,7 +673,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                 Some(Role::Custom(n)) if n.chars().next().is_some_and(|c| c.is_ascii_digit()) => {
                     out.push(Piece::Verse {
                         number: n.clone(),
-                        lines: lines_at(lines, false, i),
+                        lines: keep_asterisks(lines_at(lines, false, i)),
                         indents: verse_indents(n, lines),
                     });
                 }
@@ -906,6 +906,30 @@ pub enum LineEdit {
 
 /// Joins neighbouring spans with the same formatting; turns non-breaking
 /// spaces (from typing in the browser) into spaces.
+/// A psalm's half-verse mark stays with the word before it (a no-break
+/// space), so a long line never wraps to leave the "*" alone on the next
+/// line. (Edits in the preview turn it back into a space: see [`tidy`].)
+fn keep_asterisks(mut lines: Vec<Vec<Run>>) -> Vec<Vec<Run>> {
+    for line in &mut lines {
+        let n = line.len();
+        for k in 0..n {
+            let text = &mut line[k].text;
+            if text.ends_with(" *") {
+                let at = text.len() - 2;
+                text.replace_range(at..at + 1, "\u{a0}");
+            } else if text.trim() == "*" && k > 0 && line[k - 1].text.ends_with(' ') {
+                let prev = &mut line[k - 1].text;
+                prev.pop();
+                prev.push('\u{a0}');
+                // (The "*" run itself starts with no space now.)
+                let t = line[k].text.trim_start().to_string();
+                line[k].text = t;
+            }
+        }
+    }
+    lines
+}
+
 fn tidy(spans: Vec<Span>) -> Vec<Span> {
     let mut out: Vec<Span> = Vec::new();
     for mut s in spans {
@@ -1608,5 +1632,21 @@ mod tests {
         s.postlude = Some(Music::default().with_bulletin(BulletinStyle::Hidden));
         assert_eq!(titles(&s, false), ["Prelude"]);
         assert!(!s.postlude.as_ref().unwrap().is_unset());
+    }
+
+    #[test]
+    fn a_half_verse_mark_stays_with_its_word() {
+        let run = |t: &str, bold: bool| Run { text: t.into(), bold, italic: false, src: None };
+        let lines = keep_asterisks(vec![
+            vec![run("Hear my teaching, O my people; *", false)],
+            vec![run("I will open my mouth in a parable; ", true), run("*", false)],
+            vec![run("incline your ears", false)],
+        ]);
+        assert_eq!(lines[0][0].text, "Hear my teaching, O my people;\u{a0}*");
+        assert_eq!(
+            (lines[1][0].text.as_str(), lines[1][1].text.as_str()),
+            ("I will open my mouth in a parable;\u{a0}", "*")
+        );
+        assert_eq!(lines[2][0].text, "incline your ears");
     }
 }

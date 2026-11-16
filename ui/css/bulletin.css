@@ -50,9 +50,15 @@
 .doc .line .ref { white-space: nowrap; }
 .doc .rubric { font-style: italic; margin: 0.25em 0; }
 .doc.script .rubric { color: #c00000; }
+/* The speaker labels' and verse numbers' columns, as the Word file has them
+   (docx.rs: the label column is the page's "hang", verse numbers half that):
+   letter 0.75 in; 11 × 17 and legal 1 in; the script 1.25 in. */
 .doc .speech, .doc .verse { display: grid; grid-template-columns: 0.75in 1fr; margin: 0 0 0.3em; }
-.doc.script .speech { grid-template-columns: 1.25in 1fr; }
 .doc .verse { grid-template-columns: 0.375in 1fr; }
+.doc.paper-tabloid .speech, .doc.paper-legal .speech { grid-template-columns: 1in 1fr; }
+.doc.paper-tabloid .verse, .doc.paper-legal .verse { grid-template-columns: 0.5in 1fr; }
+.doc.script .speech { grid-template-columns: 1.25in 1fr; }
+.doc.script .verse { grid-template-columns: 0.625in 1fr; }
 .doc .said .ln { display: block; padding-left: calc((var(--in, 0) + 1) * 0.25in); text-indent: -0.25in; }
 .doc .who { font-style: italic; }
 .doc .prose { text-align: justify; margin: 0 0 0.4em; }
