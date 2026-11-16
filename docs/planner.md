@@ -39,10 +39,11 @@ the computer. See [google-drive.md](google-drive.md) for the one-time Google
 setup and the steps on each computer.
 
 An empty folder is set up the first time it is chosen. Change the folder or
-your name at any time with the **📁** button in the top bar; **This computer
-only** keeps everything in the app's own folder instead. If the shared folder
-cannot be found (for example Google Drive is not running), the button turns
-gold and the planner works from this computer's folder until it is back.
+your name at any time in **⚙ Settings → Parish library folder…** (the gear
+at the right end of the top bar); **This computer only** keeps everything in
+the app's own folder instead. If the shared folder cannot be found (for
+example Google Drive is not running), the gear and that menu item turn gold
+and the planner works from this computer's folder until it is back.
 
 On the presentation computer, set the shared folder to **Available offline**
 in Google Drive, so services are on the computer before Sunday.
@@ -202,7 +203,7 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   8:00, 10:30). Schedule services offers them for one service, and makes a
   service at each time that is ticked for the coming Sundays, and every service card shows its
   time.
-* **Day and night**: ☀ / ☾ in the top bar switches the planner's colours
+* **Day and night**: **⚙ Settings → Day colours / Night colours** switches the planner's colours
   (at first it follows the computer's setting). EpiscoPresenter is always
   dark.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),
@@ -245,7 +246,7 @@ Services screen, **Mark Ready** on a service when it is ready to go to the
 presentation computer (the button turns green: *✓ Ready*). On the
 presentation computer:
 
-1. Click **📁** in EpiscoPresenter's top bar once and choose the same parish
+1. In EpiscoPresenter, open **⚙ Settings → Parish library folder…** once and choose the same parish
    library folder (set it to *Available offline* in Google Drive).
 2. Within a minute the service is copied to that computer, with its texts,
    the pictures and videos it uses, and the slide layouts. It is listed under

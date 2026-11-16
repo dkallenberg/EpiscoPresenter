@@ -61,9 +61,9 @@ presentation computer signs in with an account that has the folder too.
 
 ## On each computer
 
-1. In EpiscoPlanner (or EpiscoPresenter) click **📁 Parish library** in the
-   top bar (in EpiscoPresenter: ⚙ Settings → Parish library folder), and
-   choose the **Google Drive** tab.
+1. Open **⚙ Settings** (the gear at the right end of the top bar) →
+   **Parish library folder…**, and choose the **Google Drive** tab. (On
+   EpiscoPlanner's first run this dialog opens by itself.)
 2. **Add the client file…** and choose the JSON file from step 7.
 3. **Sign in with Google…** The browser opens Google's sign-in. Because the
    app is not verified by Google, it says **"Google hasn't verified this
@@ -77,8 +77,8 @@ presentation computer signs in with an account that has the folder too.
 5. Enter your name (EpiscoPlanner) and click **Save**.
 
 The first copy of the folder can take a few minutes (pictures and videos
-included). The top bar says *Copying…* until it is done, then the Services
-screen and the Library fill in. From then on:
+included). **⚙ Settings → Parish library** says *Copying…* (hover over it)
+until it is done, then the Services screen and the Library fill in. From then on:
 
 * changes made on this computer go to Drive within a few seconds;
 * changes made elsewhere arrive within about 10 seconds (Drive's change list
