@@ -74,5 +74,13 @@
       "signingIdentity": "-"
     }
   },
-  "mainBinaryName": "episco-planner"
+  "mainBinaryName": "episco-planner",
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

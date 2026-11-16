@@ -690,3 +690,6 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 .drive-folder + .drive-folder { border-top: 1px solid var(--line); }
 .drive-folder.on { background: var(--accent); color: #1b1b1b; }
 .drive-status { margin: 0; }
+/* A new version is ready (update.js). */
+.update-note { display: inline-flex; align-items: center; gap: 8px; padding: 3px 4px 3px 10px; border: 1px solid var(--accent); border-radius: 8px; font-size: 13px; }
+.update-note[hidden] { display: none; }

@@ -7,6 +7,7 @@ import { initEditor } from "/js/control/editor.js";
 import { initHandoff, initHome, showHome } from "/js/control/home.js";
 import { initInUse, viewOnly } from "/js/control/inuse.js";
 import { initUndo } from "/js/control/undo.js";
+import { initUpdates } from "/js/control/update.js";
 import { openLayouts } from "/js/control/layouts.js";
 import { initOutputs } from "/js/control/outputs.js";
 import { load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
@@ -277,6 +278,7 @@ if (!inTauri) {
   initHandoff();
   initInUse();
   initUndo();
+  initUpdates();
   app.vocab = await invoke("vocabulary");
   let last = { service: undefined, state: undefined, link: undefined };
   connectStore((snap) => {

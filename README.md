@@ -107,6 +107,42 @@ says **"Windows protected your PC"**; choose **More info → Run anyway**.
 Windows 10 and 11 have the WebView2 runtime the app needs (the installer
 fetches it if it is missing).
 
+### Updates
+
+Both apps look for a newer version of themselves about 10 seconds after
+they start. If there is one they download it in the background and the top
+bar says **"EpiscoPresenter 0.2.1 is ready · Restart to update"**; nothing
+is installed until someone clicks it (**Later** keeps working and asks again
+next time), so an update never interrupts a service.
+
+Updates come from the GitHub releases (betas too) and are signed with the
+parish's own key, which the apps check before installing. To set it up once:
+
+1. On a computer with the Tauri CLI, make the key pair (a password is
+   optional):
+
+   ```bash
+   cargo tauri signer generate -w ~/.tauri/episcopresenter.key
+   ```
+
+2. In the repository on GitHub: **Settings → Secrets and variables →
+   Actions**.
+   * **Secrets → New repository secret**: `TAURI_SIGNING_PRIVATE_KEY`, the
+     contents of `~/.tauri/episcopresenter.key` (and
+     `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if you gave it a password).
+   * **Variables → New repository variable**: `TAURI_SIGNING_PUBLIC_KEY`,
+     the contents of `~/.tauri/episcopresenter.key.pub`.
+3. Keep a copy of the private key somewhere safe: without it, later versions
+   cannot be signed for the apps already installed.
+
+Then for each new version: raise the version in `Cargo.toml` and both
+`tauri.conf.json` files (an update must have a higher number, e.g. 0.2.1),
+and run **Build installers** with that version in **Release**
+(`v0.2.1-beta.1` or `v0.2.1`). The release also updates the `updates`
+release, where the apps look. Versions built before this (0.2.0 and
+earlier) do not look for updates: install the first version with updates by
+hand once.
+
 ### Installing on another Mac
 
 The app is not signed with an Apple Developer ID, so on a Mac it was not
