@@ -267,7 +267,7 @@ Select the psalm and open the **Editor**. The **Psalm layout** panel has:
 
 | Setting | What it does |
 | --- | --- |
-| Antiphon music | The music line for the antiphon, from `music/Antiphon`. It is printed in the bulletin and script and shown on the live stream; the sanctuary shows the antiphon's words instead. |
+| Antiphon music | The music line for the antiphon, from `music/Antiphon`. It is printed in the bulletin and script (without the words) and shown on both screens; the sanctuary shows the words under it. |
 | Musical setting | An image of the psalm's setting (chant or tone), from `music/Setting`. It is printed in the bulletin and script under the antiphon, and shown on the live stream between the gold title box and the text bar on every slide of the psalm. |
 | Antiphon words | The antiphon's text (sung by all), bold. |
 | Antiphon | Where it repeats: *start & end*, *every 2/3/4/6 verses*, or *where placed* (keep the antiphons you put in by hand). |
@@ -276,8 +276,9 @@ Select the psalm and open the **Editor**. The **Psalm layout** panel has:
 **Apply** rebuilds the slides from the numbered verses, keeping who sings
 each verse.
 
-**On the sanctuary screen** an antiphon's slide shows its words alone, with
-the psalm (*Psalm 78:1-7*) at the top left and **Antiphon** at the right.
+**On the sanctuary screen** an antiphon's slide has the psalm (*Psalm
+78:1-7*) at the top left and **Antiphon** at the right, then the music line
+with the words under it (only the words, in the middle, until it has music).
 A psalm with an antiphon names itself there; one without names itself at
 the top of its first verses.
 

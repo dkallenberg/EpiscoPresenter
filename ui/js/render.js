@@ -451,12 +451,20 @@ function pieces(key, cue, slide) {
   if (key === "sanctuary.prayer" || key === "sanctuary.psalm") {
     const words = () => slide.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric");
     if (key === "sanctuary.psalm" && cue.category === "psalm" && isAntiphonSlide(slide)) {
-      // A psalm's antiphon: the words alone (the music is in the bulletin
-      // and on the stream), the psalm at the top left, "Antiphon" at the right.
+      // A psalm's antiphon: the psalm at the top left, "Antiphon" at the
+      // right, the music line and the words under it (the only place the
+      // words are shown: the bulletin, script and stream have the music).
       p.title = citation ?? cue.title;
       p.tag = "Antiphon";
-      p.text = words();
-      p.antiphonOnly = true;
+      const img = slide.blocks.find((b) => b.kind === "image" && b.src);
+      if (img) {
+        p.music = img;
+        p.antiphon = words();
+      } else {
+        // No music yet: the words in the middle.
+        p.text = words();
+        p.antiphonOnly = true;
+      }
       return p;
     }
     if (key === "sanctuary.psalm" && isAntiphonSlide(slide)) {
