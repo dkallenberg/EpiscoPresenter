@@ -6,9 +6,10 @@
 # is pushed. When it finishes, the installers are at the bottom of the
 # run's page under "Artifacts".
 #
-# Pushing a version tag also makes a GitHub release with the installers
-# attached: a tag with a label (v0.2.0-beta.1, v0.3.0-rc.1) is marked
-# "Pre-release" (a beta); a plain tag (v0.2.0) is a full release. Set the
+# A version typed in "Release" when running it (or a pushed version tag)
+# also makes a GitHub release, with its tag, and the installers attached: a
+# version with a label (v0.2.0-beta.1, v0.3.0-rc.1) is marked "Pre-release"
+# (a beta); a plain one (v0.2.0) is a full release. Set the
 # version in Cargo.toml and both tauri.conf.json files to match first.
 #
 # The installers are not code-signed: Windows SmartScreen says "Windows
@@ -19,6 +20,11 @@ name: Build installers
 
 on:
   workflow_dispatch:
+    inputs:
+      release:
+        description: "Make a GitHub release with this version (e.g. v0.2.0-beta.1 for a beta, v0.2.0 for a full release); leave empty for the installers only"
+        required: false
+        default: ""
   push:
     tags: ["v*"]
 
@@ -111,7 +117,7 @@ jobs:
 
   release:
     name: Release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release != ''
     needs: [windows, mac]
     runs-on: ubuntu-latest
     permissions:
@@ -124,11 +130,13 @@ jobs:
       - name: Make the release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ inputs.release || github.ref_name }}
+          SHA: ${{ github.sha }}
           REPO: ${{ github.repository }}
         run: |
           ls -l installers
           # v0.2.0-beta.1 → "0.2.0 beta 1"; a label makes it a pre-release.
+          case "$TAG" in v[0-9]*) ;; *) echo "The release must look like v0.2.0 or v0.2.0-beta.1 (got $TAG)"; exit 1 ;; esac
           version="${TAG#v}"
           title="EpiscoPresenter $(echo "${version}" | sed -E 's/-([a-z]+)\.?([0-9]*)/ \1 \2/')"
           pre=""
@@ -140,5 +148,6 @@ jobs:
 
           **Mac** (Apple silicon and Intel): download the \`.dmg\` for each app and drag the app into Applications. The apps are not signed by Apple: if macOS says the app "is damaged and can't be opened", run \`xattr -dr com.apple.quarantine /Applications/EpiscoPresenter.app\` (and EpiscoPlanner.app) in Terminal once.
           NOTES
-          gh release create "$TAG" installers/* --repo "$REPO" --title "$title" --notes-file notes.md --generate-notes $pre
+          # Makes the tag too (on the commit just built) when it is new.
+          gh release create "$TAG" installers/* --repo "$REPO" --target "$SHA" --title "$title" --notes-file notes.md --generate-notes $pre
 

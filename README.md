@@ -95,6 +95,13 @@ After about 20 minutes the run's page lists, under **Artifacts**,
 `mac-installers` (a `.dmg` for each app, for Apple silicon and Intel Macs).
 Pushing a version tag (`v0.2.0`) builds them too.
 
+**Releases and betas.** To publish a version, type it in the **Release** box
+when running **Build installers** (or push the tag): `v0.2.0-beta.1` makes a
+GitHub release marked *Pre-release* (a beta), `v0.2.0` a full release, each
+with the installers attached and kept (Actions downloads expire after 90
+days). Set the same version in `Cargo.toml` and both `tauri.conf.json` files
+first.
+
 The Windows installers are not signed: the first time, Windows SmartScreen
 says **"Windows protected your PC"**; choose **More info → Run anyway**.
 Windows 10 and 11 have the WebView2 runtime the app needs (the installer
