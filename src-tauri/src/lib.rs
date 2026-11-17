@@ -179,6 +179,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
             bulletin::bulletin_styles,
             bulletin::set_cue_bulletin,
             bulletin::set_cue_script,
+            bulletin::set_service_paper,
             bulletin::set_service_time,
             bulletin::bulletin_edit,
             bulletin::bulletin_set_title,

@@ -28,6 +28,7 @@ pub mod music;
 pub mod paste;
 pub mod portable;
 pub mod propers;
+pub mod regular;
 pub mod role;
 pub mod season;
 pub mod service;

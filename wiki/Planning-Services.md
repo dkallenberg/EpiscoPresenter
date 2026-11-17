@@ -20,12 +20,16 @@ in the top bar.
 
 **Schedule services…** opens one window with two choices:
 
-* **One service:** a service on a date and time, of any kind. The title
-  fills itself in from the church year (*The Twenty-Fifth Sunday after
-  Pentecost*); you can change it. Click **Create & open**.
-* **The coming Sundays:** a service for each of the next 1–8 Sundays (4 by
-  default) that doesn't have one yet, at each of the parish's service times
-  that's ticked. Click **Schedule**.
+* **One service:** a service on a date, of any kind. **Time** offers the
+  parish's regular services (below), each bringing its rite, music and
+  bulletin paper, or **Other…** for any time; the **Music** and **Bulletin
+  paper** can be changed for this one. The title fills itself in from the
+  church year (*The Twenty-Fifth Sunday after Pentecost*); you can change
+  it. Click **Create & open**.
+* **Regular services:** each regular service that's ticked, for the next
+  1–8 weeks (4 by default), where there isn't one yet, each with its own
+  rite, music and paper. Click **Schedule**. (For these, the Prayers of the
+  People and Eucharistic Prayer are those last chosen for each rite.)
 
 Both share these settings, which are remembered for next time:
 
@@ -80,6 +84,27 @@ And for any Eucharist:
 * **Baptism:** Holy Baptism, or the Renewal of Baptismal Vows, in place of
   the Creed.
 * **Confirmation, Reception, Reaffirmation**, with the bishop.
+
+## Regular services
+
+**⚙ Settings → Parish details → Services** lists the parish's regular
+services. Each has:
+
+| Setting | |
+| --- | --- |
+| **Day** and **Time** | Sunday at 8:00, Wednesday at 12:10, … |
+| **Name** | Optional: *Early service* |
+| **Rite** | Rite I or Rite II |
+| **Bulletin paper** | The parish's, or its own (an 8:00 bulletin on a letter sheet) |
+| **Music** | The places it has music: Prelude, Entrance Hymn, Hymn of Praise (the Gloria sung), Gradual, Sequence, Offertory Anthem, Offertory Hymn, Communion Hymn, Closing Hymn, Postlude; or **No music** |
+
+A new service follows its music: hymn places it does not use are left out,
+a Gradual and a Sequence hymn go before the Gospel (in that order), the
+Offertory Anthem after the Peace, an unsung Hymn of Praise is the Gloria
+under its own name, and a prelude or postlude not played is left out of the
+bulletin (and off To do). All but the day and time can be changed when a
+service is made. (An older parish file's Sunday service times become
+regular services with the usual music.)
 
 ## Templates
 

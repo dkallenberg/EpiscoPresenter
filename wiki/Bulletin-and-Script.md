@@ -103,9 +103,11 @@ beyond what the parish's use of the translation allows.
 
 ## Paper and printing
 
-* **Paper** (in the toolbar, or Parish details), each sheet folded in half
-  into a booklet: **11 × 17** into 8½ × 11 pages (the default), **8½ × 14
-  (legal)** into 7 × 8½ pages, or **8½ × 11** into 5½ × 8½ pages.
+* **Paper**, each sheet folded in half into a booklet: **11 × 17** into
+  8½ × 11 pages (the default), **8½ × 14 (legal)** into 7 × 8½ pages, or
+  **8½ × 11** into 5½ × 8½ pages. The toolbar's **Paper** is this
+  service's; a regular service can have its own, and Parish details holds
+  the parish's usual one.
 * The service starts on the first page, under the title, in Garamond 12 pt
   with half-inch margins.
 * **Service time** goes on the cover, e.g. *November 9, 2025 at 8 o'clock in
@@ -134,7 +136,7 @@ hymn with a picture prints the picture in place of the words.
 ## Parish details
 
 **⚙ Settings → Parish details…** sets what prints on the cover and back
-page: the parish's name, logo, address, clergy, service times, music
+page: the parish's name, logo, address, staff, regular services, music
 licence notice and a welcome for visitors. You can also choose whether
 speaker labels (*People*, *Celebrant*…) print once per block or on every
 paragraph.

@@ -199,16 +199,18 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   position. **Preacher** offers the parish's preachers from Parish details →
   **Staff & preachers** (or someone else); the bulletin prints *The Sermon — The Very Rev.
   Jane Doe, Rector*, and the slide shows the same.
-* **Service times**: Parish details holds the Sunday service times (e.g.
-  8:00, 10:30). Schedule services offers them for one service, and makes a
-  service at each time that is ticked for the coming Sundays, and every service card shows its
-  time.
+* **Regular services**: Parish details → **Services** holds the parish's
+  regular services, each with its day, time, rite, music places and bulletin
+  paper (see [services.md](services.md#regular-services)). Schedule services
+  offers them for one service and makes each one that is ticked for the
+  weeks ahead; every service card shows its time. The Bulletin tab's
+  **Paper** is this service's (the parish's is the usual one).
 * **Day and night**: **⚙ Settings → Day colours / Night colours** switches the planner's colours
   (at first it follows the computer's setting). EpiscoPresenter is always
   dark.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),
-  address, phone, website, email, the music licence notice, the service
-  times and a welcome for visitors. Its **Staff & preachers** tab lists the
+  address, phone, website, email, the music licence notice and a welcome
+  for visitors; its **Services** tab holds the regular services. Its **Staff & preachers** tab lists the
   clergy, staff and regular preachers (title, name, position), each with a
   **Preaches** tick for those offered as a sermon's preacher; an older
   parish file's Rector, Assistant and Bishop are carried into it. They print on the cover and back page and are kept in

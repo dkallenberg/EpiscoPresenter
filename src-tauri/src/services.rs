@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 use episco_core::bcp::Rite;
 use episco_core::bible::BibleVersion;
 use episco_core::calendar::{liturgical_day, Date, LiturgicalDay};
+use episco_core::regular::{MusicPlace, Weekday};
 use episco_core::service::Loaded;
 use episco_core::{lectionary, propers};
 use episco_core::{
@@ -486,10 +487,80 @@ pub struct ServiceOptions {
     /// dialogue and the Sanctus.
     #[serde(default)]
     pub eucharistic_prayer_item: Option<String>,
+    /// The music places it uses (from its regular service, or chosen for
+    /// this one); `None`: the order's own.
+    #[serde(default)]
+    pub music: Option<Vec<MusicPlace>>,
+    /// The bulletin's paper, when not the parish's.
+    #[serde(default)]
+    pub paper: Option<episco_core::bulletin::BulletinPaper>,
     /// The kind of service (Holy Week, ordinations) and the bishop,
     /// baptism, renewal and confirmation options.
     #[serde(default, flatten)]
     pub occasion: crate::occasions::Options,
+}
+
+/// Fits the order to the music places used: hymns not sung are left out,
+/// a Gradual or Sequence hymn goes before the Gospel and the Offertory
+/// Anthem after the Peace, an unsung Hymn of Praise keeps its own name
+/// (the Gloria, said), and a prelude or postlude not played is left out of
+/// the bulletin.
+fn apply_music(service: &mut Service, music: &[MusicPlace]) {
+    use episco_core::bulletin::BulletinStyle;
+    use MusicPlace as M;
+    let has = |p: MusicPlace| music.contains(&p);
+    let titled = |s: &Service, t: &str| s.cues.iter().position(|c| c.title.eq_ignore_ascii_case(t));
+    for p in [M::EntranceHymn, M::OffertoryHymn, M::CommunionHymn, M::ClosingHymn, M::Gradual, M::Sequence] {
+        if has(p) {
+            continue;
+        }
+        let ids: Vec<String> = service
+            .cues
+            .iter()
+            .filter(|c| c.category == ElementCategory::Hymn && c.title.eq_ignore_ascii_case(p.label()))
+            .map(|c| c.id.clone())
+            .collect();
+        for id in ids {
+            let _ = service.remove_cue(&id);
+        }
+    }
+    if !has(M::HymnOfPraise) {
+        let ids: Vec<String> = service
+            .cues
+            .iter()
+            .filter(|c| c.overrides.title.as_deref() == Some(M::HymnOfPraise.label()))
+            .map(|c| c.id.clone())
+            .collect();
+        for id in ids {
+            let mut o = service.cue(&id).map(|c| c.overrides.clone()).unwrap_or_default();
+            o.title = None;
+            let _ = service.set_overrides(&id, o);
+        }
+    }
+    // Before the Gospel: the Gradual, then the Sequence.
+    if let Some(mut at) = service.cues.iter().position(|c| c.category == ElementCategory::Gospel) {
+        for p in [M::Gradual, M::Sequence] {
+            if has(p) && titled(service, p.label()).is_none() {
+                service.insert_cue(at, Cue::liturgy("", hymn_placeholder(p.label()), None, CueOverrides::default()));
+                at += 1;
+            }
+        }
+    }
+    if has(M::OffertoryAnthem) && titled(service, M::OffertoryAnthem.label()).is_none() {
+        let at = titled(service, "The Peace").map(|i| i + 1).or_else(|| titled(service, M::OffertoryHymn.label()));
+        if let Some(at) = at {
+            let overrides = CueOverrides { title: Some(M::OffertoryAnthem.label().into()), ..Default::default() };
+            let doc = episco_core::music::anthem_document("", "");
+            service.insert_cue(at, Cue::liturgy("", doc, None, overrides));
+        }
+    }
+    let left_out = || Some(episco_core::music::Music::default().with_bulletin(BulletinStyle::Hidden));
+    if !has(M::Prelude) && service.prelude.as_ref().is_none_or(|m| m.is_empty()) {
+        service.prelude = left_out();
+    }
+    if !has(M::Postlude) && service.postlude.as_ref().is_none_or(|m| m.is_empty()) {
+        service.postlude = left_out();
+    }
 }
 
 /// Propers are specific to a day and are not carried into a copy.
@@ -605,8 +676,14 @@ fn create(
         id.as_deref().filter(|i| i.starts_with("user:")).map(|i| crate::library::load(app, i)).transpose()
     };
     let (prayers, prayer) = (parish(&opts.prayers_item)?, parish(&opts.eucharistic_prayer_item)?);
+    let (music, paper) = (opts.music.clone(), opts.paper);
     let mut service = build(date, title, template, opts);
     let mut changed = false;
+    if let Some(music) = &music {
+        apply_music(&mut service, music);
+        changed = true;
+    }
+    service.paper = paper;
     if let Some(doc) = prayers {
         changed |= use_prayers_doc(&mut service, doc);
     }
@@ -663,9 +740,25 @@ pub fn service_create(
     Ok(plan)
 }
 
-/// Creates services for the next `weeks` Sundays from `from` (a date) that
-/// do not have one yet: one for each of `times` ("08:00", "10:30"), or one
-/// a Sunday without times. Returns the new plans.
+/// One regular service to schedule: its day and time, and its defaults.
+#[derive(Debug, Clone, Deserialize)]
+pub struct ScheduleEntry {
+    #[serde(default)]
+    pub day: Weekday,
+    #[serde(default)]
+    pub time: Option<String>,
+    #[serde(default)]
+    pub rite: Option<Rite>,
+    #[serde(default)]
+    pub music: Option<Vec<MusicPlace>>,
+    #[serde(default)]
+    pub paper: Option<episco_core::bulletin::BulletinPaper>,
+}
+
+/// Creates services for the next `weeks` weeks from `from` (a date) that do
+/// not have one yet: one for each of the parish's regular services in
+/// `regular` (its day, time, rite, music and paper), or one for each of
+/// `times` on Sunday, or one a Sunday. Returns the new plans.
 #[tauri::command]
 pub fn services_schedule(
     app: AppHandle,
@@ -674,26 +767,37 @@ pub fn services_schedule(
     template: Option<PathBuf>,
     options: Option<ServiceOptions>,
     times: Option<Vec<String>>,
+    regular: Option<Vec<ScheduleEntry>>,
 ) -> CmdResult<Vec<PathBuf>> {
     let options = options.unwrap_or_default();
     let existing: Vec<(String, Option<String>)> =
         list_services(&app)?.into_iter().filter_map(|s| s.date.map(|d| (d, s.time))).collect();
-    let times: Vec<Option<String>> = match times.filter(|t| !t.is_empty()) {
-        Some(t) => t.into_iter().map(Some).collect(),
-        None => vec![None],
+    let entries: Vec<ScheduleEntry> = match (regular.filter(|r| !r.is_empty()), times.filter(|t| !t.is_empty())) {
+        (Some(r), _) => r,
+        (None, Some(t)) => t
+            .into_iter()
+            .map(|t| ScheduleEntry { day: Weekday::Sunday, time: Some(t), rite: None, music: None, paper: None })
+            .collect(),
+        (None, None) => vec![ScheduleEntry { day: Weekday::Sunday, time: None, rite: None, music: None, paper: None }],
     };
-    let first = parse_date(&from)?.next_sunday();
+    let start = parse_date(&from)?;
     let mut created = Vec::new();
     for w in 0..weeks.min(26) {
-        let date = first.add_days(7 * i64::from(w));
-        let day = date.to_string();
-        for time in &times {
+        for e in &entries {
+            let date = e.day.on_or_after(start).add_days(7 * i64::from(w));
+            let day = date.to_string();
+            let time = e.time.as_deref().map(str::trim).filter(|t| !t.is_empty()).map(String::from);
             // Already planned: a service that day at that time (or, without
-            // times, any service that day).
-            let taken = existing.iter().any(|(d, t)| *d == day && (time.is_none() || t == time));
-            if !taken {
-                created.push(create(&app, date, None, template.as_deref(), options.clone(), time.as_deref())?);
+            // a time, any service that day).
+            let taken = existing.iter().any(|(d, t)| *d == day && (time.is_none() || *t == time));
+            if taken {
+                continue;
             }
+            let mut opts = options.clone();
+            opts.rite = e.rite.or(opts.rite);
+            opts.music = e.music.clone().or(opts.music);
+            opts.paper = e.paper.or(opts.paper);
+            created.push(create(&app, date, None, template.as_deref(), opts, time.as_deref())?);
         }
     }
     Ok(created)
@@ -1327,6 +1431,39 @@ mod tests {
                 std::fs::write(format!("{out}/{name}-{kind}.html"), episco_core::bulletin::to_html(&doc)).unwrap();
             }
         }
+    }
+
+    #[test]
+    fn a_regular_service_uses_only_its_music() {
+        use MusicPlace as M;
+        let date = "2026-11-15".parse().unwrap();
+        // The 8:00: the closing hymn and postlude only.
+        let mut early = build(date, None, None, ServiceOptions::default());
+        apply_music(&mut early, &[M::ClosingHymn, M::Postlude]);
+        let t = titles(&early);
+        for gone in ["Entrance Hymn", "Offertory Hymn", "Communion Hymn", "Hymn of Praise"] {
+            assert!(!t.contains(&gone), "{gone} left out: {t:?}");
+        }
+        assert!(t.contains(&"Closing Hymn"));
+        assert!(t.iter().any(|x| x.contains("Gloria")), "the Gloria said, under its own name: {t:?}");
+        assert_eq!(early.prelude.as_ref().map(|m| m.style()), Some(episco_core::bulletin::BulletinStyle::Hidden));
+        assert!(early.postlude.is_none(), "the postlude waits to be named");
+        // The 10:30: everything, with a Gradual, a Sequence and an anthem.
+        let mut main = build(date, None, None, ServiceOptions::default());
+        apply_music(&mut main, &M::ALL);
+        let t = titles(&main);
+        let gospel = main.cues.iter().position(|c| c.category == ElementCategory::Gospel).unwrap();
+        assert_eq!(&t[gospel - 2..gospel], ["Gradual Hymn", "Sequence Hymn"]);
+        let peace = t.iter().position(|x| *x == "The Peace").unwrap();
+        assert_eq!(t[peace + 1], "Offertory Anthem");
+        assert_eq!(t[peace + 2], "Offertory Hymn");
+        assert!(main.prelude.is_none());
+        // No music.
+        let mut said = build(date, None, None, ServiceOptions::default());
+        apply_music(&mut said, &[]);
+        let t = titles(&said);
+        assert!(M::ALL.iter().all(|p| !t.contains(&p.label())), "{t:?}");
+        assert!(said.prelude.is_some() && said.postlude.is_some(), "both left out of the bulletin");
     }
 
     #[test]

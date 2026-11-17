@@ -97,6 +97,10 @@ pub struct Service {
     /// The preface in use (runtime only, for the windows).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preface_used: Option<String>,
+    /// The bulletin's paper, when not the parish's (from its regular
+    /// service, or chosen in the Bulletin tab).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paper: Option<crate::bulletin::BulletinPaper>,
     /// The prelude: on the stream's welcome slide and the bulletin.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prelude: Option<crate::music::Music>,
@@ -827,6 +831,7 @@ impl Service {
             prelude: plan.prelude.filter(|m| !m.is_unset()),
             postlude: plan.postlude.filter(|m| !m.is_unset()),
             preface: plan.preface.filter(|p| !p.trim().is_empty()),
+            paper: plan.paper,
             ..Default::default()
         };
 
@@ -994,6 +999,7 @@ impl Service {
             prelude: self.prelude.clone().filter(|m| !m.is_unset()),
             postlude: self.postlude.clone().filter(|m| !m.is_unset()),
             preface: self.preface.clone(),
+            paper: self.paper,
             looks: self.looks.clone(),
             cues,
         };
@@ -1057,6 +1063,9 @@ struct ServicePlan {
     /// The Proper Preface's name, or "none" (unset: the date's).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     preface: Option<String>,
+    /// The bulletin's paper, when not the parish's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    paper: Option<crate::bulletin::BulletinPaper>,
     // Tables must follow plain values in TOML.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     prelude: Option<crate::music::Music>,

@@ -11,6 +11,7 @@ import { assetUrl, listen } from "/js/bridge.js";
 import { HONORIFICS, app, call, debounce, el, toast } from "/js/control/util.js";
 import { editMusic, musicStyle, musicText, needsNaming } from "/js/control/prelude.js";
 import { undoButtons } from "/js/control/undo.js";
+import { DAYS, regularEditor } from "/js/control/regular.js";
 
 const STYLES = [
   ["reference", "Reference line", "Title, opening words and page or hymn number"],
@@ -42,10 +43,11 @@ function makeView(kind) {
       ? el(
           "select.doc-paper",
           {
-            title: "The sheet the bulletin is printed on, folded in half (also in Parish details)",
+            title: "The sheet this service's bulletin is printed on, folded in half (the parish's usual one is in Parish details)",
             onchange: async () => {
               const info = await call("parish_get");
-              if (info) await call("parish_set", { info: { ...info, paper: paper.value } });
+              // The parish's own paper: no choice of this service's.
+              await call("set_service_paper", { paper: paper.value === (info?.paper ?? "tabloid") ? null : paper.value });
             },
           },
           // (Folded in half, all of them: the title says so.)
@@ -171,7 +173,7 @@ async function renderTodo(v) {
   const s = app.service;
   if (!s) return v.todo.replaceChildren();
   const parish = (await call("parish_get")) ?? {};
-  if (v.paper && document.activeElement !== v.paper) v.paper.value = parish.paper ?? "tabloid";
+  if (v.paper && document.activeElement !== v.paper) v.paper.value = s.paper ?? parish.paper ?? "tabloid";
   const items = [];
   if (!parish.name) items.push(["Add the parish's name, logo and details", () => openParish()]);
   if (!s.time) items.push(["Set the service time (for the cover)", () => v.time.focus()]);
@@ -558,6 +560,7 @@ async function exportDoc(kind) {
 
 /** The parish details dialog. */
 export async function openParish(pane = "main") {
+  if (typeof pane !== "string") pane = "main"; // called as a click handler
   const info = (await call("parish_get")) ?? {};
   let logo = info.logo ?? null;
   const input = (key, placeholder) => el("input", { value: info[key] ?? "", placeholder });
@@ -581,10 +584,6 @@ export async function openParish(pane = "main") {
         ["letter", "8½ × 11, folded (5½ × 8½ pages)"],
       ].map(([v, l]) => el("option", { value: v, selected: v === (info.paper ?? "tabloid") }, l)),
     ),
-    service_times: el("input", {
-      value: (info.service_times ?? []).map((t) => t.replace(/^0/, "")).join(", "),
-      placeholder: "e.g. 8:00, 10:30",
-    }),
     speaker_labels: el(
       "select",
       {},
@@ -602,6 +601,10 @@ export async function openParish(pane = "main") {
   };
   const removeBtn = el("button", { onclick: () => ((logo = null), showLogo()) }, "Remove");
   const field = (label, node, wide) => el("label.field" + (wide ? ".wide" : ""), {}, el("span", {}, label), node);
+  // The regular services.
+  const services = (info.services ?? []).map((r) => ({ ...r, music: r.music ? [...r.music] : undefined }));
+  const regular = regularEditor(services, () => f.paper.value);
+  f.paper.addEventListener("change", () => regular.render());
   // The clergy, staff and regular preachers.
   const staff = (info.staff ?? []).map((m) => ({ ...m }));
   const staffList = el("div.staff-list");
@@ -625,7 +628,7 @@ export async function openParish(pane = "main") {
   renderStaff();
   // Tabs: the parish and its bulletin, the people.
   const tabs = el("div.seg.parish-tabs");
-  const PANES = [["main", "Parish & bulletin"], ["staff", "Staff & preachers"]];
+  const PANES = [["main", "Parish & bulletin"], ["services", "Services"], ["staff", "Staff & preachers"]];
   const showPane = (k) => {
     tabs.replaceChildren(...PANES.map(([key, label]) => el(`button${key === k ? ".active" : ""}`, { onclick: () => showPane(key) }, label)));
     for (const [key] of PANES) {
@@ -676,8 +679,13 @@ export async function openParish(pane = "main") {
         field("Music licence notice", f.licence, true),
         field("Welcome for visitors", f.welcome, true),
         field("Speaker labels (People, All, Celebrant…) in the bulletin and script", f.speaker_labels),
-        field("Sunday service times (24-hour, e.g. 8:00, 10:30, 17:00)", f.service_times),
-        field("Bulletin paper", f.paper),
+        field("Bulletin paper (unless a service has its own)", f.paper),
+      ),
+      el(
+        "div.parish-pane.parish-services",
+        { hidden: true },
+        el("p.muted.small", {}, "The parish's regular services. Schedule services makes them for the weeks ahead, each with its rite, its music and its bulletin paper; all but the day and time can still be changed when a service is made."),
+        regular.node,
       ),
       el(
         "div.parish-pane.parish-staff",
@@ -697,12 +705,12 @@ export async function openParish(pane = "main") {
             onclick: async () => {
               const out = { logo };
               for (const [k, n] of Object.entries(f)) out[k] = n.value;
-              // "8:00, 10:30" → ["08:00", "10:30"]
-              out.service_times = f.service_times.value
-                .split(/[,;\s]+/)
-                .map((t) => /^(\d{1,2})(?::(\d{2}))?$/.exec(t.trim()))
-                .filter((m) => m && Number(m[1]) < 24 && Number(m[2] ?? 0) < 60)
-                .map((m) => `${m[1].padStart(2, "0")}:${m[2] ?? "00"}`);
+              out.services = services
+                .filter((r) => /^\d{2}:\d{2}$/.test(r.time ?? ""))
+                .map((r) => ({ name: (r.name ?? "").trim(), day: r.day ?? "sunday", time: r.time, rite: r.rite ?? "II", ...(r.music ? { music: r.music } : {}), ...(r.paper ? { paper: r.paper } : {}) }))
+                .sort((a, b) => DAYS.indexOf(a.day) - DAYS.indexOf(b.day) || a.time.localeCompare(b.time));
+              const dropped = services.length - out.services.length;
+              if (dropped) toast(`${dropped} service${dropped === 1 ? "" : "s"} without a time ${dropped === 1 ? "was" : "were"} not kept.`, "warn");
               out.staff = staff
                 .map((m) => ({ honorific: (m.honorific ?? "").trim(), name: (m.name ?? "").trim(), title: (m.title ?? "").trim(), preaches: m.preaches !== false }))
                 .filter((m) => m.name);

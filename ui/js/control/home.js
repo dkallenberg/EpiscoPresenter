@@ -5,6 +5,7 @@ import { EUCHARISTIC_PRAYERS, PRAYERS_FORMS, parishTexts } from "/js/control/par
 import { invoke, listen } from "/js/bridge.js";
 import { app, call, el, reportWarnings, toast } from "/js/control/util.js";
 import { openParish } from "/js/control/bulletin.js";
+import { PAPERS, USUAL_MUSIC, musicChecks, regularLabel, regularSummary } from "/js/control/regular.js";
 import { openConnection } from "/js/control/connection.js";
 import { openLibrarySettings, storageInfo } from "/js/control/storage.js";
 
@@ -19,7 +20,8 @@ const SWATCH = {
 
 let services = [];
 /** The parish's usual service times ("08:00", "10:30"), from Parish details. */
-let parishTimes = [];
+let parishServices = [];
+let parishPaper = "tabloid";
 
 /** "08:00" → "8:00 am". */
 export function timeLabel(t) {
@@ -94,7 +96,8 @@ export async function showHome() {
   let parish;
   [services, templates, parish] = await Promise.all([call("services_list"), call("templates_list"), call("parish_get")]);
   parishInfo = parish ?? {};
-  parishTimes = parish?.service_times ?? [];
+  parishServices = parish?.services ?? [];
+  parishPaper = parish?.paper ?? "tabloid";
   node = app.mode === "presenter" ? await call("node_info") : null;
   services ??= [];
   templates ??= [];
@@ -401,24 +404,39 @@ function serviceOptions() {
   fillPrayers();
   loadTexts();
   const field = (label, input) => el("label.field", {}, el("span", {}, label), input);
+  // Rite, Prayers and Eucharistic Prayer: hidden when each regular service
+  // brings its own rite (the prayers are then those last chosen for it).
+  const perRite = [field("Rite", rite), field("Prayers of the People", prayers), field("Eucharistic Prayer", ep)];
+  const own = (v) => v.startsWith("user:");
+  const choices = (r, p, e) => ({
+    rite: r,
+    track: Number(track.value),
+    bible: bible.value,
+    prayers: p && !own(p) ? p : null,
+    prayers_item: own(p) ? p : null,
+    eucharistic_prayer: e && !own(e) ? e : null,
+    eucharistic_prayer_item: own(e) ? e : null,
+  });
   return {
     row: el(
       "div",
       {},
-      el("div.home-row.four", {}, field("Rite", rite), field("Readings", track), field("Bible", bible), field("Prayers of the People", prayers)),
-      el("div.home-row.four", {}, field("Eucharistic Prayer", ep)),
+      el("div.home-row.four", {}, perRite[0], field("Readings", track), field("Bible", bible), perRite[1]),
+      el("div.home-row.four", {}, perRite[2]),
     ),
-    value: () => {
-      const own = (v) => v.startsWith("user:");
-      return {
-        rite: rite.value,
-        track: Number(track.value),
-        bible: bible.value,
-        prayers: prayers.value && !own(prayers.value) ? prayers.value : null,
-        prayers_item: own(prayers.value) ? prayers.value : null,
-        eucharistic_prayer: ep.value && !own(ep.value) ? ep.value : null,
-        eucharistic_prayer_item: own(ep.value) ? ep.value : null,
-      };
+    value: () => choices(rite.value, prayers.value, ep.value),
+    /** The choices for a service in rite `r` (its prayers as last chosen for that rite). */
+    valueFor: (r) => choices(r, recall(`svc.prayers.${r}`, recall("svc.prayers", "")), recall(`svc.ep.${r}`, "")),
+    /** Sets the rite (a regular service's). */
+    setRite: (r) => {
+      if (rite.value === r) return;
+      rite.value = r;
+      remember("svc.rite", r);
+      loadTexts();
+    },
+    /** Each regular service brings its own rite: hide the rite's choices. */
+    perService: (on) => {
+      for (const f of perRite) f.hidden = on;
     },
   };
 }
@@ -598,14 +616,33 @@ export function openScheduler(mode = lastMode()) {
     applyKind();
     setTitle();
   });
+  // The time: one of the parish's regular services (which also brings its
+  // rite, music and paper, all still changeable here), or another time.
   const time = el(
     "select",
-    { onchange: () => (otherTime.hidden = time.value !== "other") },
+    { onchange: () => pickTime() },
     el("option", { value: "" }, "No time"),
-    parishTimes.map((t, i) => el("option", { value: t, selected: i === 0 }, timeLabel(t))),
+    parishServices.map((r, i) => el("option", { value: `r:${i}`, selected: i === 0 }, regularLabel(r))),
     el("option", { value: "other" }, "Other…"),
   );
   const otherTime = el("input", { type: "time", hidden: true });
+  const music = musicChecks(USUAL_MUSIC);
+  const paperSel = el(
+    "select",
+    {},
+    el("option", { value: "" }, `The parish's (${PAPERS.find(([v]) => v === parishPaper)?.[1] ?? "11 × 17"})`),
+    PAPERS.map(([v, l]) => el("option", { value: v }, `${l}, folded`)),
+  );
+  const musicRow = el("div.home-row.music-row", {}, el("div.field", {}, el("span", {}, "Music"), music.node), field("Bulletin paper", paperSel));
+  const regularOf = () => (time.value.startsWith("r:") ? parishServices[Number(time.value.slice(2))] : null);
+  function pickTime() {
+    otherTime.hidden = time.value !== "other";
+    const r = regularOf();
+    if (!r) return;
+    opts.setRite(r.rite ?? "II");
+    music.set(r.music ?? USUAL_MUSIC);
+    paperSel.value = r.paper ?? "";
+  }
   const updateDay = async () => {
     const day = date.value ? await invoke("liturgical_info", { date: date.value }).catch(() => null) : null;
     info.textContent = day ? `${day.season} · ${day.color} · Year ${day.year}${day.proper ? ` · Proper ${day.proper}` : ""}` : "";
@@ -616,9 +653,9 @@ export function openScheduler(mode = lastMode()) {
   date.addEventListener("change", updateDay);
 
   // ---- the coming Sundays ----
-  const weeks = el("select", {}, [1, 2, 3, 4, 5, 6, 8].map((n) => el("option", { value: n, selected: n === 4 }, `${n} Sunday${n === 1 ? "" : "s"}`)));
-  // One service for each parish time that is ticked.
-  const schedTimes = parishTimes.map((t) => ({ t, box: el("input", { type: "checkbox", checked: true }) }));
+  const weeks = el("select", {}, [1, 2, 3, 4, 5, 6, 8].map((n) => el("option", { value: n, selected: n === 4 }, `${n} week${n === 1 ? "" : "s"}`)));
+  // One service for each regular service that is ticked.
+  const schedTimes = parishServices.map((r) => ({ r, box: el("input", { type: "checkbox", checked: true }) }));
   // "A deacon is serving" applies to the Sundays too: the same setting.
   const deacon = el("input", {
     type: "checkbox",
@@ -636,6 +673,7 @@ export function openScheduler(mode = lastMode()) {
     el("div.home-row.date-time", {}, field("Date", date), field("Time", el("div.time-pick", {}, time, otherTime)), field("Title", title)),
     info,
     occasion.row,
+    musicRow,
   );
   const sundays = el(
     "div.sched-sundays",
@@ -643,17 +681,18 @@ export function openScheduler(mode = lastMode()) {
     el(
       "p.muted.small",
       {},
-      "A service for each coming Sunday that does not have one yet, named for the day in the church year, with its Collect, readings and psalm from the lectionary.",
+      "Each of the parish's regular services for the weeks ahead, where there is not one yet: named for the day in the church year, with its Collect, readings and psalm from the lectionary, and its own rite, music and bulletin paper.",
     ),
     el("div.home-row", {}, field("How far ahead", weeks)),
     schedTimes.length
       ? el(
-          "div.home-row.checks.sched-times",
+          "div.sched-times",
           {},
-          el("span.muted.small", {}, "A service at"),
-          schedTimes.map(({ t, box }) => el("label.field.inline.check", {}, box, el("span", {}, timeLabel(t)))),
+          schedTimes.map(({ r, box }) =>
+            el("label.check.sched-regular", {}, box, el("span", {}, el("b", {}, regularLabel(r)), el("span.muted.small", {}, ` · ${regularSummary(r, parishPaper)}`))),
+          ),
         )
-      : el("p.muted.small", {}, "Add the parish's service times in ⚙ Settings → Parish details to schedule a service for each."),
+      : el("p.muted.small", {}, "No regular services yet: one service is made each Sunday. Add the parish's regular services in ⚙ Settings → Parish details → Services."),
     el("div.home-row.checks.sched-deacon", {}, el("label.field.inline.check", { title: "With no deacon, the Deacon's parts are labelled Priest" }, deacon, el("span", {}, "A deacon is serving"))),
   );
   const go = el("button.primary", { onclick: () => (mode === "one" ? create() : schedule()) });
@@ -666,6 +705,9 @@ export function openScheduler(mode = lastMode()) {
     template.disabled = own;
     template.title = own ? "This service uses its own Prayer Book order" : "";
     opts.row.hidden = mode === "one" && kind === "event";
+    musicRow.hidden = kind === "event";
+    // Each regular service brings its own rite.
+    opts.perService(mode !== "one" && schedTimes.length > 0);
   }
   const show = (m) => {
     mode = m;
@@ -676,7 +718,7 @@ export function openScheduler(mode = lastMode()) {
     sundays.hidden = m === "one";
     go.textContent = m === "one" ? "Create & open" : "Schedule";
     tabs.replaceChildren(
-      ...[["one", "One service"], ["sundays", "The coming Sundays"]].map(([k, l]) =>
+      ...[["one", "One service"], ["sundays", "Regular services"]].map(([k, l]) =>
         el(`button${k === m ? ".active" : ""}`, { onclick: () => show(k) }, l),
       ),
     );
@@ -689,8 +731,8 @@ export function openScheduler(mode = lastMode()) {
     const plan = await call("service_create", {
       date: date.value,
       title: title.value || null,
-      time: (time.value === "other" ? otherTime.value : time.value) || null,
-      ...startFrom(template, { ...opts.value(), ...occasion.value() }),
+      time: (time.value === "other" ? otherTime.value : regularOf()?.time) || null,
+      ...startFrom(template, { ...opts.value(), ...occasion.value(), music: kind === "event" ? null : music.value(), paper: paperSel.value || null }),
     });
     if (plan) {
       close();
@@ -699,15 +741,25 @@ export function openScheduler(mode = lastMode()) {
     }
   };
   const schedule = async () => {
-    const made = await call("services_schedule", {
-      from: now,
-      weeks: Number(weeks.value),
-      times: schedTimes.filter((x) => x.box.checked).map((x) => x.t),
-      // The deacon setting applies to every Sunday too.
-      ...startFrom(template, { ...opts.value(), no_deacon: occasion.value().no_deacon }),
-    });
-    if (made === undefined) return;
-    toast(made.length ? `Scheduled ${made.length} service${made.length === 1 ? "" : "s"}` : "Those Sundays already have services");
+    const no_deacon = occasion.value().no_deacon;
+    const chosen = schedTimes.filter((x) => x.box.checked).map((x) => x.r);
+    if (schedTimes.length && !chosen.length) return toast("Tick at least one service", "warn");
+    // Each rite's services together, with the prayers last chosen for it.
+    const rites = chosen.length ? [...new Set(chosen.map((r) => r.rite ?? "II"))] : [null];
+    let made = [];
+    for (const rite of rites) {
+      const list = chosen.filter((r) => (r.rite ?? "II") === rite);
+      const got = await call("services_schedule", {
+        from: now,
+        weeks: Number(weeks.value),
+        regular: list.map((r) => ({ day: r.day ?? "sunday", time: r.time, rite: r.rite ?? "II", music: r.music ?? null, paper: r.paper ?? null })),
+        // The deacon setting applies to every service too.
+        ...startFrom(template, { ...(rite ? opts.valueFor(rite) : opts.value()), no_deacon }),
+      });
+      if (got === undefined) return;
+      made = made.concat(got);
+    }
+    toast(made.length ? `Scheduled ${made.length} service${made.length === 1 ? "" : "s"}` : "Those services are already scheduled");
     close();
     showHome();
   };
@@ -729,6 +781,7 @@ export function openScheduler(mode = lastMode()) {
   );
   document.body.append(overlay);
   show(mode);
+  pickTime();
   updateDay();
 }
 

@@ -107,3 +107,13 @@
 
 /* A psalm verse before an antiphon: "Antiphon" at the right margin. */
 .doc .verse .ln .tail { float: right; padding-left: 1em; text-indent: 0; }
+
+/* Parish details → Services: the regular services. */
+.regular-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; max-height: 52vh; overflow: auto; }
+.regular-card { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.regular-row { display: grid; grid-template-columns: 120px 120px minmax(0, 1fr) 100px 170px 32px; gap: 8px; align-items: end; }
+.regular-row input, .regular-row select { min-width: 0; width: 100%; }
+.music-checks { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; text-transform: none; letter-spacing: 0; }
+.music-checks label.check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; white-space: nowrap; }
+.music-checks input[type=checkbox] { width: auto; flex: none; margin: 0; }
+.music-checks .no-music { font-style: italic; }

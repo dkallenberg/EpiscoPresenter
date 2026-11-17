@@ -7,7 +7,7 @@ The control window has three panes: the **service timeline** (left), the
 
 | Shows | Does |
 | --- | --- |
-| ☰ Services | The Services screen: upcoming services, **Schedule services…** (one service, or the coming Sundays), Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
+| ☰ Services | The Services screen: upcoming services, **Schedule services…** (one service, or the regular services), Open file…, Example. It also opens when the app starts. See [services.md](services.md). |
 | The service | Its title, date and time. |
 | Save state | **Saved ✓** or **Saving…**, since services save themselves. For the example (or a copy), **Not saved yet · Keep this service** adds it to your services. |
 | 🖥 and 📡 (screen icons, right end) | One icon for each screen this computer drives: the monitor for the sanctuary screen and the broadcast icon for the live stream (one computer shows both; with two computers, each shows its own). **Red** while that screen is closed, **green** while it is open; hover for where it is. Click for the **Output screens** card: open, close or move them. (EpiscoPresenter only.) |
@@ -23,7 +23,7 @@ The control window has three panes: the **service timeline** (left), the
 | | Slide layouts… | Where text, titles and music go on each kind of slide, their fonts, and how much text a slide holds. See [layouts.md](layouts.md). |
 | | Connection to the other computer… | The sanctuary and live-stream computers (below). |
 | Parish | Parish library folder… | The shared parish library folder. Marked ⚠ (and the ⚙ button too) when it cannot be found. |
-| | Parish details… | (EpiscoPlanner) Name, clergy, service times and bulletin options. |
+| | Parish details… | (EpiscoPlanner) Name, regular services, staff and preachers, and bulletin options. |
 | This computer | Day / Night colours | (EpiscoPlanner) Light or dark screens. |
 
 The right end shows the connection in plain words: **One computer**,

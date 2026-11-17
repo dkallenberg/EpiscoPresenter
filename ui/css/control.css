@@ -544,10 +544,9 @@ body.planner .hint.planner-hint { display: block; }
 .home-row.date-time { grid-template-columns: 150px auto 1fr; }
 .time-pick { display: flex; gap: 4px; }
 /* "Other…" opens a time box beside the list: the column grows for it. */
-.time-pick select { width: 130px; flex: 0 0 auto; }
+.time-pick select { width: auto; min-width: 130px; max-width: 250px; flex: 0 0 auto; }
 .time-pick input { width: 120px; flex: 0 0 auto; }
 .svc-time { font-size: 12px; font-weight: 600; color: var(--accent); }
-.sched-times { align-items: center; margin-top: 4px; }
 
 /* The slide maker (Editor) */
 .maker { display: flex; flex-direction: column; gap: 10px; }
@@ -702,3 +701,9 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 .shows-grid th, .shows-grid td { padding: 4px 12px; text-align: center; font-weight: normal; }
 .shows-grid thead th { font-size: 12px; color: var(--muted); }
 .shows-grid tbody th { text-align: left; font-weight: 600; padding-left: 0; }
+
+/* Schedule services: the music places and paper for one service; the regular services to make. */
+.scheduler .music-row { grid-template-columns: 1fr 200px; align-items: start; }
+.sched-times { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 8px 0; }
+.sched-regular { display: flex; gap: 8px; align-items: baseline; justify-content: flex-start; text-align: left; cursor: pointer; }
+.sched-regular input[type=checkbox] { width: auto; flex: none; }

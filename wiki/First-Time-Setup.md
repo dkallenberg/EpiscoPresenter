@@ -52,11 +52,13 @@ app keeps working from this computer's copy until it can.
 * the parish's name, place, cover title and logo
 * address, phone, website and email
 * the music licence notice (for example your OneLicense number)
-* the Sunday service times (for example 8:00 and 10:30)
 * a welcome for visitors
 * the bulletin paper size
 
-and, on its **Staff & preachers** tab, the clergy, staff and regular
+on its **Services** tab, the parish's regular services: day, time, rite,
+bulletin paper and the music each one has (see
+[Planning services](Planning-Services#regular-services)); and, on its
+**Staff & preachers** tab, the clergy, staff and regular
 preachers: title, name and position, with **Preaches** ticked for those
 offered as the preacher in a sermon's details. **+ Add a person** adds
 one, ✕ removes one.
@@ -93,7 +95,7 @@ If one computer runs both the sanctuary screen and the live stream, choose
 **One computer is enough**. If the live stream runs on its own computer,
 see [Two computers](Two-Computers).
 
-## 5. Plan the coming Sundays (EpiscoPlanner)
+## 5. Plan the coming weeks (EpiscoPlanner)
 
-Click **Schedule services…** and choose **The coming Sundays**. See
+Click **Schedule services…** and choose **Regular services**. See
 [Planning services](Planning-Services).

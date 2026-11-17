@@ -5,7 +5,7 @@ A typical week for a parish with an 8:00 and a 10:30 service.
 ## Early in the week (EpiscoPlanner)
 
 1. **☰ Services.** If the coming Sunday isn't listed, click **Schedule
-   services… → The coming Sundays**. The services are made with the day's
+   services… → Regular services**. The services are made with the day's
    name, colour, collect, readings and psalm already in place.
 2. **Open the service** and look at **To do** beside the bulletin. It lists
    what's still needed, and each line opens the place to fix it:

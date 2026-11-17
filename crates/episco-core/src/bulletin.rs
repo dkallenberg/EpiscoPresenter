@@ -89,8 +89,12 @@ pub struct ParishInfo {
     pub speaker_labels: SpeakerLabels,
     /// The sheet the bulletin is printed on and folded.
     pub paper: BulletinPaper,
-    /// The parish's usual service times on a Sunday, "08:00", "10:30".
+    /// The parish's regular services: day, time, rite, music, paper.
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub services: Vec<crate::regular::RegularService>,
+    /// Older parish files: Sunday service times ("08:00"), read into
+    /// `services` by [`ParishInfo::normalized`], never written.
+    #[serde(skip_serializing)]
     pub service_times: Vec<String>,
     /// The parish's clergy, staff and regular preachers; those who preach
     /// are offered in a sermon's details.
@@ -126,6 +130,10 @@ impl ParishInfo {
         self.rector = Clergy::default();
         self.assistant = Clergy::default();
         self.bishop = Clergy::default();
+        if self.services.is_empty() {
+            self.services = self.service_times.iter().map(|t| crate::regular::RegularService::sunday_at(t)).collect();
+        }
+        self.service_times.clear();
         self
     }
 
@@ -996,6 +1004,8 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool, root: Option<&Path>) -> 
 
 /// The congregation's bulletin for a service.
 pub fn bulletin(service: &Service, parish: &ParishInfo) -> Doc {
+    // The service's own paper (from its regular service), else the parish's.
+    let parish = &ParishInfo { paper: service.paper.unwrap_or(parish.paper), ..parish.clone() };
     let entries = prelude_entry(service, false)
         .into_iter()
         .chain(
@@ -1757,6 +1767,12 @@ mod tests {
         assert!(sc.entries[0].pieces.iter().any(|p| matches!(p, Piece::Rubric { .. })), "the script keeps rubrics");
         assert!(sc.entries[2].pieces[0] == Piece::PageBreak, "the Great Thanksgiving starts a page");
         assert!(sc.back.is_none());
+
+        // A service's own paper (from its regular service) wins over the parish's.
+        assert_eq!(b.back.as_ref().unwrap().paper, BulletinPaper::Tabloid);
+        let mut legal = s.clone();
+        legal.paper = Some(BulletinPaper::Legal);
+        assert_eq!(bulletin(&legal, &parish).back.unwrap().paper, BulletinPaper::Legal);
 
         let html = to_html(&b);
         assert!(html.contains("<span class=\"ref\">BCP 323</span>") || html.contains("Collect of the Day"));

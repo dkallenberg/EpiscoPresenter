@@ -14,17 +14,44 @@ When the app opens, it shows **Services**. Open it again any time with
 * **Schedule services…** opens one window with two choices (it opens on the
   one used last):
   * **One service**: a service for a date and time, of any kind (the
-    Eucharist, Holy Week, an ordination, an event). The title fills in from
-    the church year (for example, *The Twenty-Fifth Sunday after Pentecost*);
-    you can change it. **Create & open**.
-  * **The coming Sundays**: a service for each of the next 1–8 Sundays (4 by
-    default, about a month) that doesn't have one yet, at each of the
-    parish's service times that is ticked. **Schedule**.
+    Eucharist, Holy Week, an ordination, an event). **Time** offers the
+    parish's regular services (below), which bring their rite, music and
+    bulletin paper, or **Other…** for any time. Its **Music** and
+    **Bulletin paper** can be changed for this service. The title fills in
+    from the church year (for example, *The Twenty-Fifth Sunday after
+    Pentecost*); you can change it. **Create & open**.
+  * **Regular services**: each of the parish's regular services that is
+    ticked, for the next 1–8 weeks (4 by default), where there is not one
+    yet, each with its own rite, music and paper. **Schedule**. With no
+    regular services set, one service is made each Sunday.
 
   The settings both share (whether a deacon is serving, what to start from,
-  rite, readings, Bible and Prayers of the People) appear once.
+  readings, Bible; for one service the rite, Prayers of the People and
+  Eucharistic Prayer) appear once. For regular services the Prayers and
+  Eucharistic Prayer are those last chosen for each one's rite.
 * **Open file…** opens a service plan from anywhere, and **Example** loads the
   built-in example.
+
+### Regular services
+
+**⚙ Settings → Parish details → Services** lists the parish's regular
+services. Each has:
+
+| Setting | |
+| --- | --- |
+| **Day** and **Time** | Sunday at 8:00, Wednesday at 12:10, … |
+| **Name** | Optional: *Early service* |
+| **Rite** | Rite I or Rite II |
+| **Bulletin paper** | The parish's, or its own (an 8:00 bulletin on a letter sheet) |
+| **Music** | The places it has music: Prelude, Entrance Hymn, Hymn of Praise (the Gloria sung), Gradual, Sequence, Offertory Anthem, Offertory Hymn, Communion Hymn, Closing Hymn, Postlude; or **No music** |
+
+A new service follows its music: hymn places it does not use are left out,
+a Gradual and a Sequence hymn go before the Gospel (in that order), the
+Offertory Anthem after the Peace, an unsung Hymn of Praise is the Gloria
+under its own name, and a prelude or postlude not played is left out of the
+bulletin (and off To do). All but the day and time can be changed when a
+service is made. (An older parish file's Sunday service times become
+regular services with the usual music.)
 
 ### Rite, readings and Bible
 

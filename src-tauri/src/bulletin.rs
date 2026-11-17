@@ -181,6 +181,16 @@ pub fn set_cue_bulletin(engine: State<'_, Engine>, id: String, style: Option<Bul
     })
 }
 
+/// Sets this service's bulletin paper (`None`: the parish's).
+#[tauri::command]
+pub fn set_service_paper(engine: State<'_, Engine>, paper: Option<bulletin::BulletinPaper>) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        s.paper = paper;
+        s.modified = true;
+        Ok(())
+    })
+}
+
 /// Sets how a hymn appears in the script (`None`: its default).
 #[tauri::command]
 pub fn set_cue_script(engine: State<'_, Engine>, id: String, style: Option<BulletinStyle>) -> CmdResult<()> {
