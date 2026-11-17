@@ -656,6 +656,7 @@ pub fn build_document_in(item: &ProperItem, day: Option<&str>, rite: crate::bcp:
                 antiphon_every: item.antiphon_every,
                 verses_per_slide: 2,
                 placed: false,
+                after_verses: None,
             };
             return psalm_document(&item.citation, Some(&item.citation), &item.verses, &opts, &[]);
         }
@@ -742,7 +743,7 @@ pub fn arrange_gospel(doc: &LiturgyDocument, music: Option<Option<(String, Strin
         music_slide = m.map(|(src, alt)| {
             vec![
                 Block::Heading { level: 1, text: GOSPEL_MUSIC.into() },
-                Block::Image { src, alt, fit: None, words: false },
+                Block::Image { src, alt, fit: None, words: false, words_lines: None },
             ]
         });
     }
@@ -788,6 +789,10 @@ pub struct PsalmOptions {
     /// `antiphon_after`) instead of every N verses.
     #[serde(default)]
     pub placed: bool,
+    /// The verses the antiphon follows, as typed ("4, 8, 12"): in place of
+    /// every N verses or where placed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after_verses: Option<String>,
     /// Verses per slide.
     #[serde(default = "two")]
     pub verses_per_slide: u32,
@@ -799,8 +804,19 @@ fn two() -> u32 {
 
 impl Default for PsalmOptions {
     fn default() -> Self {
-        PsalmOptions { antiphon: None, antiphon_every: 0, placed: false, verses_per_slide: 2 }
+        PsalmOptions { antiphon: None, antiphon_every: 0, placed: false, after_verses: None, verses_per_slide: 2 }
     }
+}
+
+/// Verse numbers typed as a list: "4, 8, 12", "4 & 8", "4 and 8".
+pub fn verse_list(typed: &str) -> Vec<String> {
+    typed
+        .replace(" and ", ",")
+        .split([',', '&', ';', ' '])
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(String::from)
+        .collect()
 }
 
 /// Section heading and speaker role of an antiphon.
@@ -825,7 +841,9 @@ pub fn antiphon_blocks(text: &str, images: &[Block]) -> Vec<Block> {
 /// sung by the choir (plain) or the people (bold): as the verse says, else
 /// alternating, starting with the choir. The antiphon, if any, is shown at
 /// the start, at the end, and after every `antiphon_every` verses (or where
-/// the verses say, with `placed`). `images` (the antiphon's music line) go
+/// the verses say, with `placed`, or after the verses `after_verses` names).
+/// The verse after an antiphon always goes back to the choir; with
+/// `after_verses` the verses alternate from there. `images` (the antiphon's music line) go
 /// on the antiphon slides, or before the verses when there is no antiphon.
 pub fn psalm_document(
     title: &str,
@@ -843,7 +861,10 @@ pub fn psalm_document(
     let antiphon = opts.antiphon.as_deref().map(str::trim).filter(|a| !a.is_empty());
     if let Some(a) = antiphon {
         meta.extra.push(("antiphon".into(), a.replace('\n', " / ")));
-        if opts.placed {
+        let after = opts.after_verses.as_deref().map(verse_list).unwrap_or_default();
+        if !after.is_empty() {
+            meta.extra.push(("antiphon_after_verses".into(), after.join(", ")));
+        } else if opts.placed {
             meta.extra.push(("antiphon_placed".into(), "true".into()));
         } else if opts.antiphon_every > 0 {
             meta.extra.push(("antiphon_every".into(), opts.antiphon_every.to_string()));
@@ -868,20 +889,37 @@ pub fn psalm_document(
     }
     let per = opts.verses_per_slide.max(1) as usize;
     let every = opts.antiphon_every as usize;
+    let after = opts.after_verses.as_deref().map(verse_list).unwrap_or_default();
     let mut on_slide = 0;
+    // Verses since the last antiphon (the one at the start counts).
+    let mut since = 0;
     for (i, verse) in verses.iter().enumerate() {
         let antiphon_here = i > 0
             && antiphon.is_some()
-            && if opts.placed { verses[i - 1].antiphon_after } else { every > 0 && i % every == 0 };
+            && if !after.is_empty() {
+                after.iter().any(|v| v.eq_ignore_ascii_case(verses[i - 1].number.trim()))
+            } else if opts.placed {
+                verses[i - 1].antiphon_after
+            } else {
+                every > 0 && i % every == 0
+            };
         if antiphon_here {
             push_antiphon(&mut blocks);
             blocks.push(Block::Heading { level: 1, text: section.clone() });
             on_slide = 0;
+            since = 0;
         } else if on_slide == per {
             blocks.push(Block::SlideBreak);
             on_slide = 0;
         }
-        let people = verse.people.unwrap_or(i % 2 == 1);
+        let people = match antiphon {
+            // After an antiphon the choir sings.
+            Some(_) if since == 0 => false,
+            Some(_) if !after.is_empty() => since % 2 == 1,
+            Some(_) => verse.people.unwrap_or(since % 2 == 1),
+            None => verse.people.unwrap_or(i % 2 == 1),
+        };
+        since += 1;
         let lines = verse.lines.iter().map(|l| if people { bold(l) } else { vec![Span::plain(l.clone())] }).collect();
         blocks.push(Block::Paragraph { role: Some(Role::Custom(verse.number.clone())), lines });
         on_slide += 1;
@@ -974,6 +1012,7 @@ pub fn psalm_options(doc: &LiturgyDocument) -> PsalmOptions {
         antiphon: first_antiphon(doc).or_else(|| doc.meta.extra("antiphon").map(String::from)),
         antiphon_every: num("antiphon_every").unwrap_or(0),
         placed: doc.meta.extra("antiphon_placed") == Some("true"),
+        after_verses: doc.meta.extra("antiphon_after_verses").map(String::from),
         verses_per_slide: num("verses_per_slide").unwrap_or(2),
     }
 }
@@ -985,8 +1024,12 @@ pub fn rearrange_psalm_with(doc: &LiturgyDocument, opts: &PsalmOptions, verses: 
     let images = psalm_images(doc);
     let mut out = psalm_document(&doc.meta.title, doc.meta.citation.as_deref(), verses, opts, &images);
     let mut meta = doc.meta.clone();
-    meta.extra
-        .retain(|(k, _)| !matches!(k.as_str(), "antiphon" | "antiphon_every" | "antiphon_placed" | "verses_per_slide"));
+    meta.extra.retain(|(k, _)| {
+        !matches!(
+            k.as_str(),
+            "antiphon" | "antiphon_every" | "antiphon_placed" | "antiphon_after_verses" | "verses_per_slide"
+        )
+    });
     meta.extra.append(&mut out.meta.extra);
     meta.category = Some(ElementCategory::Psalm);
     out.meta = meta;
@@ -1253,11 +1296,45 @@ Matthew 25:1–13
     }
 
     #[test]
+    fn antiphon_after_the_verses_typed_then_the_choir() {
+        let verses: Vec<PsalmVerse> =
+            (1..=8).map(|n| PsalmVerse::new(n.to_string(), vec![format!("Verse {n}")])).collect();
+        let opts = PsalmOptions {
+            antiphon: Some("Sing to the Lord".into()),
+            after_verses: Some("3 & 6".into()),
+            ..PsalmOptions::default()
+        };
+        let doc = psalm_document("Psalm 96", Some("Psalm 96"), &verses, &opts, &[]);
+        // (verse, people) in order, with the antiphons.
+        let mut seq = Vec::new();
+        for b in &doc.blocks {
+            match b {
+                Block::Heading { text, .. } if text == ANTIPHON => seq.push("A".to_string()),
+                Block::Paragraph { role: Some(Role::Custom(n)), lines } if n != ANTIPHON => {
+                    seq.push(format!("{n}{}", if lines[0][0].bold { "p" } else { "c" }))
+                }
+                _ => {}
+            }
+        }
+        assert_eq!(seq, ["A", "1c", "2p", "3c", "A", "4c", "5p", "6c", "A", "7c", "8p", "A"]);
+        assert_eq!(doc.meta.extra("antiphon_after_verses"), Some("3, 6"));
+        // Kept when rearranged.
+        let again = rearrange_psalm(&doc, &psalm_options(&doc));
+        assert_eq!(again.blocks, doc.blocks);
+    }
+
+    #[test]
     fn choir_or_people_and_antiphons_where_placed_survive_rearranging() {
         let verses: Vec<PsalmVerse> = (1..=6)
             .map(|n| PsalmVerse::new(n.to_string(), vec![format!("Verse {n} *"), "second half".into()]))
             .collect();
-        let image = Block::Image { alt: "Antiphon".into(), src: "/media/antiphon.png".into(), fit: None, words: false };
+        let image = Block::Image {
+            alt: "Antiphon".into(),
+            src: "/media/antiphon.png".into(),
+            fit: None,
+            words: false,
+            words_lines: None,
+        };
         let opts = PsalmOptions { antiphon: Some("Sing to the Lord".into()), ..PsalmOptions::default() };
         let mut doc = psalm_document("Psalm 96", Some("Psalm 96"), &verses, &opts, std::slice::from_ref(&image));
         // The operator marks verse 3 as the people's and adds an antiphon
@@ -1283,9 +1360,11 @@ Matthew 25:1–13
         let headings: Vec<String> = again.slides().iter().map(|s| s.heading.clone().unwrap_or_default()).collect();
         assert_eq!(headings, vec!["Antiphon", "Psalm 96", "Psalm 96", "Antiphon", "Psalm 96", "Psalm 96", "Antiphon"]);
         assert_eq!(psalm_images(&again).len(), 1, "the music line is not duplicated");
+        // Kept, except that the verse after the new antiphon (4) goes back
+        // to the choir.
         assert_eq!(
             psalm_verses(&again).iter().map(|v| v.people).collect::<Vec<_>>(),
-            who.iter().map(|w| Some(*w)).collect::<Vec<_>>()
+            [false, true, true, false, false, true].map(Some)
         );
         assert!(psalm_options(&again).placed);
     }

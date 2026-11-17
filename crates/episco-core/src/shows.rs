@@ -10,7 +10,9 @@
 //! (`music_on: bulletin, script, sanctuary, stream`; `none` for nowhere).
 //!
 //! The words a picture carries are the text after it up to the next
-//! heading, slide break or picture. Rubrics are always kept.
+//! heading, slide break or picture, or only its next N lines of dialogue
+//! (`{words=N}`; the lines after them are spoken and shown as usual).
+//! Rubrics are always kept and do not count.
 
 use crate::document::{Block, FrontMatter, LiturgyDocument};
 
@@ -88,18 +90,32 @@ pub fn shown(doc: &LiturgyDocument, place: Place) -> Vec<bool> {
     let music = music_on(&doc.meta, place);
     let words = words_on(&doc.meta, place);
     let mut under = false;
+    // Lines of dialogue the music still carries (None: all to the end of the slide).
+    let mut left: Option<u16> = None;
     doc.blocks
         .iter()
         .map(|b| match b {
-            Block::Image { words: w, .. } => {
+            Block::Image { words: w, words_lines, .. } => {
                 under = *w;
+                left = *words_lines;
                 !*w || music
             }
             Block::Heading { .. } | Block::SlideBreak | Block::OutputBreak { .. } => {
                 under = false;
                 true
             }
-            Block::Paragraph { role, .. } => !under || words || role.as_ref().is_some_and(|r| r.is_rubric()),
+            Block::Paragraph { role, .. } => {
+                if role.as_ref().is_some_and(|r| r.is_rubric()) {
+                    return true;
+                }
+                if under && left == Some(0) {
+                    under = false;
+                }
+                if under {
+                    left = left.map(|n| n - 1);
+                }
+                !under || words
+            }
         })
         .collect()
 }
@@ -136,6 +152,19 @@ mod tests {
         let none: LiturgyDocument =
             ACCLAMATION.replace("type: acclamation\n", "type: acclamation\nwords_on: none\n").parse().unwrap();
         assert_eq!(shown(&none, Place::Sanctuary), [false, false, false, true, true]);
+    }
+
+    #[test]
+    fn music_can_carry_only_its_first_lines() {
+        let text = ACCLAMATION
+            .replace("{words}", "{words=1}")
+            .replace("[People] **And", "[Rubric] *The people respond*\n[People] **And");
+        let doc: LiturgyDocument = text.parse().unwrap();
+        assert!(matches!(&doc.blocks[0], Block::Image { words: true, words_lines: Some(1), .. }));
+        // Image, Celebrant (in the music), rubric, People (spoken), break, Celebrant.
+        assert_eq!(shown(&doc, Place::Bulletin), [true, false, true, true, true, true]);
+        assert_eq!(shown(&doc, Place::Sanctuary), [false, true, true, true, true, true]);
+        assert!(crate::ewm::to_string(&doc).contains("![](a.png){words=1}\n"));
     }
 
     #[test]

@@ -75,7 +75,8 @@ edition, a OneLicense or CCLI reprint licence…).
 
 A hymn item in the service is named for its **place**: *Entrance Hymn*,
 *Offertory Hymn*, *Communion Hymn*, *Closing Hymn*. The hymn itself is
-named in the Editor's **Hymn title** and **Hymn #**. Naming the hymn never
+named in the Editor's **Hymn title** and **Hymn #** (and **Verses**, e.g.
+*1, 2*, shown as *Hymn 56, vss 1 & 2*). Naming the hymn never
 renames its place.
 
 ![The Editor on the Entrance Hymn: its stanzas, with the hymn's own title and number below](images/editor-hymn.png)
@@ -131,7 +132,7 @@ Select the psalm and open the **Psalm layout** panel:
 | Antiphon music | A picture of the antiphon's music line, from the `music/Antiphon` folder. Printed in the bulletin and script; on both screens, the sanctuary with the words under it. |
 | Musical setting | A picture of the chant or tone, from `music/Setting`. Printed in the bulletin and script under the antiphon, and shown on the live stream with every verse. |
 | Antiphon words | The antiphon's text, sung by all. |
-| Antiphon | Where it repeats: start and end, every 2/3/4/6 verses, or where you put it. |
+| Antiphon | Where it repeats: start and end, after the verses you type (e.g. 4, 8), every 2/3/4/6 verses, or where you put it. The verse after each antiphon goes back to the Choir. |
 | Slides | Verses per slide (1–4). |
 
 Click **Apply** to rebuild the slides. Beside each verse, **Choir /
@@ -211,7 +212,9 @@ The usual rule is then:
 so the printed pages don't repeat the words, the congregation reads large
 words in the church, and people at home see both. "The words" are the text
 after the picture on its slide, up to the next heading, slide break or
-picture; rubrics are always kept.
+picture; rubrics are always kept. If the music has only the first lines
+(say two), type **2** in **Lines in the music** beside the tick: the lines
+after those are spoken and shown as usual.
 
 ![The Editor for a sung Opening Acclamation: Where it shows, then the music picture marked This music includes the words after it, then the Celebrant's and People's lines](images/music-with-words.jpg)
 

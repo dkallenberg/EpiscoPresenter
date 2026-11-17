@@ -152,9 +152,9 @@ pub fn parse(src: &str) -> Result<Parsed, ParseError> {
             parser.blocks.push(Block::Heading { level, text: text.to_string() });
             continue;
         }
-        if let Some((alt, src, fit, words)) = parse_image(line) {
+        if let Some((alt, src, fit, words, words_lines)) = parse_image(line) {
             parser.close();
-            parser.blocks.push(Block::Image { alt: alt.to_string(), src: src.to_string(), fit, words });
+            parser.blocks.push(Block::Image { alt: alt.to_string(), src: src.to_string(), fit, words, words_lines });
             continue;
         }
         if let Some((role, rest)) = parse_role_tag(line) {
@@ -283,22 +283,26 @@ fn parse_heading(line: &str) -> Option<(u8, &str)> {
     (!text.is_empty()).then_some((hashes as u8, text))
 }
 
-fn parse_image(line: &str) -> Option<(&str, &str, Option<String>, bool)> {
+type ParsedImage<'a> = (&'a str, &'a str, Option<String>, bool, Option<u16>);
+
+fn parse_image(line: &str) -> Option<ParsedImage<'_>> {
     // Optional words in `{…}` after the picture: how it fits a made slide
-    // (`![alt](src){width}`) and `words` (music carrying its own words).
-    let (line, fit, words) = match line.strip_suffix('}').and_then(|l| l.rsplit_once("){")) {
+    // (`![alt](src){width}`) and `words` (music carrying its own words),
+    // or `words=2` (carrying the next two lines of dialogue).
+    let (line, fit, words, lines) = match line.strip_suffix('}').and_then(|l| l.rsplit_once("){")) {
         Some((head, f)) => {
             let f = f.to_ascii_lowercase();
             let fit = f.split_whitespace().find(|w| matches!(*w, "center" | "width" | "height" | "full"));
-            let words = f.split_whitespace().any(|w| w == "words");
-            (&line[..head.len() + 1], fit.map(String::from), words)
+            let words = f.split_whitespace().find(|w| *w == "words" || w.starts_with("words="));
+            let lines = words.and_then(|w| w.strip_prefix("words=")).and_then(|n| n.parse().ok()).filter(|n| *n > 0);
+            (&line[..head.len() + 1], fit.map(String::from), words.is_some(), lines)
         }
-        None => (line, None, false),
+        None => (line, None, false, None),
     };
     let inner = line.strip_prefix("![")?.strip_suffix(')')?;
     let (alt, src) = inner.split_once("](")?;
     let src = src.trim();
-    (!src.is_empty() && !alt.contains(']')).then_some((alt.trim(), src, fit, words))
+    (!src.is_empty() && !alt.contains(']')).then_some((alt.trim(), src, fit, words, lines))
 }
 
 /// Recognises a leading `[Role]` tag. Returns the role and the remaining text.
@@ -371,8 +375,12 @@ pub fn to_string(doc: &LiturgyDocument) -> String {
                 out.push_str(text);
                 out.push('\n');
             }
-            Block::Image { alt, src, fit, words } => {
-                let extra: Vec<&str> = fit.as_deref().into_iter().chain(words.then_some("words")).collect();
+            Block::Image { alt, src, fit, words, words_lines } => {
+                let carries = match words_lines {
+                    Some(n) => format!("words={n}"),
+                    None => "words".into(),
+                };
+                let extra: Vec<&str> = fit.as_deref().into_iter().chain(words.then_some(carries.as_str())).collect();
                 if extra.is_empty() {
                     out.push_str(&format!("![{alt}]({src})\n"));
                 } else {
@@ -492,7 +500,8 @@ Text
                 alt: "Hymn 436 refrain".into(),
                 src: "scores/h436-refrain.png".into(),
                 fit: None,
-                words: false
+                words: false,
+                words_lines: None
             }
         );
         assert!(matches!(&doc.blocks[4], Block::Heading { level: 2, .. }));
@@ -580,7 +589,7 @@ Text
                 Block::speech(Role::Reader, ["line one", "---", "*star*"]),
                 Block::Heading { level: 2, text: "Section".into() },
                 Block::SlideBreak,
-                Block::Image { alt: "score".into(), src: "a b.png".into(), fit: None, words: false },
+                Block::Image { alt: "score".into(), src: "a b.png".into(), fit: None, words: false, words_lines: None },
             ],
         };
         let reparsed = parse(&to_string(&doc)).unwrap().document;

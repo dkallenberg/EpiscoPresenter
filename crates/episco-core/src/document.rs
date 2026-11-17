@@ -41,6 +41,50 @@ pub struct FrontMatter {
     pub extra: Vec<(String, String)>,
 }
 
+/// Front matter key: the stanzas of a hymn to be sung, as typed ("1, 2",
+/// "1-3 & 6").
+pub const HYMN_VERSES: &str = "verses";
+
+/// "1, 2" → "vss 1 & 2"; "3" → "v 3"; "1-3, 6" → "vss 1-3 & 6". Numbers
+/// and ranges may be separated by commas, "&", "and" or spaces. Anything
+/// else is kept as typed ("vss " and the text).
+pub fn verses_label(typed: &str) -> Option<String> {
+    let typed = typed.trim();
+    // A typed "vss" / "verses" in front is dropped (it is added back).
+    let typed = ["verses ", "verse ", "vss. ", "vss ", "vs. ", "vs ", "v. ", "v "]
+        .iter()
+        .find_map(|p| typed.get(..p.len()).filter(|h| h.eq_ignore_ascii_case(p)).map(|_| typed[p.len()..].trim()))
+        .unwrap_or(typed);
+    if typed.is_empty() {
+        return None;
+    }
+    let parts: Vec<String> = typed
+        .replace(" and ", ",")
+        .split([',', '&', ' ', ';'])
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .map(|p| p.replace(['\u{2013}', '\u{2014}'], "-"))
+        .collect();
+    let ok = parts.iter().all(|p| {
+        let mut ends = p.split('-');
+        let a = ends.next().unwrap_or("");
+        let b = ends.next();
+        ends.next().is_none()
+            && !a.is_empty()
+            && a.chars().all(|c| c.is_ascii_digit())
+            && b.is_none_or(|b| !b.is_empty() && b.chars().all(|c| c.is_ascii_digit()))
+    });
+    if !ok {
+        return Some(format!("vss {typed}"));
+    }
+    let single = parts.len() == 1 && !parts[0].contains('-');
+    let list = match parts.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} & {last}", rest.join(", ")),
+        _ => parts.join(""),
+    };
+    Some(format!("{} {list}", if single { "v" } else { "vss" }))
+}
+
 impl FrontMatter {
     /// Explicit colour, else the season's customary colour.
     pub fn effective_color(&self) -> Option<LiturgicalColor> {
@@ -56,14 +100,27 @@ impl FrontMatter {
         self.category.unwrap_or_default()
     }
 
+    /// "Hymn 56", or with the stanzas to be sung "Hymn 56, vss 1 & 2"
+    /// (front matter `verses: 1, 2`). None without a hymn number.
+    pub fn hymn_reference(&self) -> Option<String> {
+        let n = self.hymn_number.as_deref().map(str::trim).filter(|n| !n.is_empty())?;
+        Some(match self.extra(HYMN_VERSES).and_then(verses_label) {
+            Some(v) => format!("Hymn {n}, {v}"),
+            None => format!("Hymn {n}"),
+        })
+    }
+
     /// Text for a lower-third info badge, e.g. `Hymn 436: Lift Up Your Heads`
     /// or `First Reading: Joshua 24:1-3a`.
     pub fn lower_third_caption(&self) -> String {
-        match (self.effective_category(), &self.hymn_number, &self.citation) {
-            (ElementCategory::Hymn, Some(n), _) if self.title.is_empty() || self.title == format!("Hymn {n}") => {
-                format!("Hymn {n}")
+        match (self.effective_category(), self.hymn_reference(), &self.citation) {
+            (ElementCategory::Hymn, Some(r), _)
+                if self.title.is_empty()
+                    || self.hymn_number.as_deref().is_some_and(|n| self.title == format!("Hymn {n}")) =>
+            {
+                r
             }
-            (ElementCategory::Hymn, Some(n), _) => format!("Hymn {n}: {}", self.title),
+            (ElementCategory::Hymn, Some(r), _) => format!("{r}: {}", self.title),
             (_, _, Some(c)) if self.title.is_empty() => c.clone(),
             (_, _, Some(c)) if self.title.contains(c.as_str()) => self.title.clone(),
             (_, _, Some(c)) => format!("{}: {c}", self.title),
@@ -129,6 +186,12 @@ pub enum Block {
         /// the sanctuary shows the words, the stream both.
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
         words: bool,
+        /// With `words`: how many lines of dialogue after it the music
+        /// carries (written `{words=2}`); the rest are spoken. None: all of
+        /// them up to the next heading, slide break or picture. Rubrics do
+        /// not count.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        words_lines: Option<u16>,
     },
     /// A lone `---` in the body — an explicit slide break.
     SlideBreak,
@@ -329,6 +392,25 @@ impl LiturgyDocument {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn hymn_verses() {
+        use super::verses_label as v;
+        assert_eq!(v("1, 2").as_deref(), Some("vss 1 & 2"));
+        assert_eq!(v("1 & 2").as_deref(), Some("vss 1 & 2"));
+        assert_eq!(v("1,2,4").as_deref(), Some("vss 1, 2 & 4"));
+        assert_eq!(v("1-3, 6").as_deref(), Some("vss 1-3 & 6"));
+        assert_eq!(v("3").as_deref(), Some("v 3"));
+        assert_eq!(v("vss 1 and 2").as_deref(), Some("vss 1 & 2"));
+        assert_eq!(v(" ").as_deref(), None);
+        assert_eq!(v("last two").as_deref(), Some("vss last two"));
+        let mut m = super::FrontMatter { hymn_number: Some("56".into()), ..Default::default() };
+        m.category = Some(super::ElementCategory::Hymn);
+        m.extra.push(("verses".into(), "1, 2".into()));
+        assert_eq!(m.hymn_reference().as_deref(), Some("Hymn 56, vss 1 & 2"));
+        m.title = "Lo! He comes".into();
+        assert_eq!(m.lower_third_caption(), "Hymn 56, vss 1 & 2: Lo! He comes");
+    }
+
     use super::*;
 
     #[test]

@@ -568,7 +568,10 @@ pub fn library_save_cue(
     crate::sync::soon();
     let service = engine.service().ok_or("no service is loaded")?;
     let cue = service.cue(&id).ok_or("no such cue")?;
-    let doc = cue.document().ok_or("announcements cues cannot be saved to the library")?;
+    let mut doc = cue.document().ok_or("announcements cues cannot be saved to the library")?.clone();
+    // The verses sung are this service's choice, not the hymn's.
+    doc.meta.extra.retain(|(k, _)| k != episco_core::document::HYMN_VERSES);
+    let doc = &doc;
     let dir = user_dir(&app)?;
     // A Prayer Book item (or a copy of one): saved as a version of it.
     if let Some(name) = doc.meta.extra(BASED_ON).filter(|n| BUILTIN.iter().any(|(b, _)| b == n)) {

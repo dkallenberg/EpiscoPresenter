@@ -97,6 +97,12 @@ never under its place, so the same hymn can open the service one week and
 close it the next. A hymn with neither a number nor its own title cannot be
 saved to the library until it is given one.
 
+**The verses sung.** Type them in the Editor's **Verses** (*1, 2* or
+*1-3, 6*) and the hymn is shown as *Hymn 56, vss 1 & 2* (*v 3* for one) in
+the bulletin and script and on the screens' captions. Leave it empty when
+every verse is sung. It belongs to this service: Save to Library leaves it
+out.
+
 **A picture of the hymn.** The Editor's **Hymn words** has **Picture of the
 hymn**: a picture of its music and words (from `music/Hymn`). The bulletin
 (in Full text) and the script print the picture in place of the words; the
@@ -119,7 +125,12 @@ words after it** under the picture in the Editor. The usual rule is then:
 | Stream | ✓ | ✓ |
 
 The words are the text after the picture on its slide (up to the next
-heading, slide break or picture); rubrics are always kept. For an item that
+heading, slide break or picture); rubrics are always kept. When the music
+carries only the first few lines (the Sursum Corda sung, then the preface
+said), type how many in **Lines in the music** beside the tick: only that
+many lines of dialogue after the picture count as its words (rubrics don't
+count), and the lines after them are spoken and shown everywhere as usual.
+Empty means all of them. For an item that
 should be different, open **Where it shows** in the Editor and tick the
 places for the music and for the words; **Back to the usual** clears it.
 The choice is saved with the item (`music_on:` and `words_on:` in its front
@@ -303,7 +314,7 @@ Select the psalm and open the **Editor**. The **Psalm layout** panel has:
 | Antiphon music | The music line for the antiphon, from `music/Antiphon`. It is printed in the bulletin and script (without the words) and shown on both screens; the sanctuary shows the words under it. |
 | Musical setting | An image of the psalm's setting (chant or tone), from `music/Setting`. It is printed in the bulletin and script under the antiphon, and shown on the live stream between the gold title box and the text bar on every slide of the psalm. |
 | Antiphon words | The antiphon's text (sung by all), bold. |
-| Antiphon | Where it repeats: *start & end*, *every 2/3/4/6 verses*, or *where placed* (keep the antiphons you put in by hand). |
+| Antiphon | Where it repeats: *start & end*, *after verses…* (type the verse numbers it follows, e.g. *4, 8*), *every 2/3/4/6 verses*, or *where placed* (keep the antiphons you put in by hand). The verse after each antiphon goes back to the Choir. |
 | Slides | Verses per slide (1–4). |
 
 **Apply** rebuilds the slides from the numbered verses, keeping who sings

@@ -234,10 +234,25 @@ function autoFit(box, min = 0.5) {
 
 const extra = (cue, key) => cue.content.document?.meta.extra?.find(([k]) => k === key)?.[1];
 
+/** The stanzas of a hymn to be sung, as typed ("1, 2") → "vss 1 & 2"
+ *  ("3" → "v 3"); as crates/episco-core/src/document.rs verses_label. */
+function versesLabel(typed) {
+  const t = (typed ?? "").trim().replace(/^(v|vs|vss|verse|verses)\.?\s+/i, "").trim();
+  if (!t) return "";
+  const parts = t.replace(/ and /g, ",").split(/[,&; ]+/).filter(Boolean).map((p) => p.replace(/[\u2013\u2014]/g, "-"));
+  if (!parts.every((p) => /^\d+(-\d+)?$/.test(p))) return `vss ${t}`;
+  const single = parts.length === 1 && !parts[0].includes("-");
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} & ${parts.at(-1)}` : parts[0];
+  return `${single ? "v" : "vss"} ${list}`;
+}
+
 /** Reference shown at the right of a header: "Hymn 436", "BCP 355". */
 function reference(cue) {
   const meta = cue.content.document?.meta ?? {};
-  if (meta.hymn_number) return `Hymn ${meta.hymn_number}`;
+  if (meta.hymn_number) {
+    const v = versesLabel(extra(cue, "verses"));
+    return v ? `Hymn ${meta.hymn_number}, ${v}` : `Hymn ${meta.hymn_number}`;
+  }
   return meta.citation ?? "";
 }
 

@@ -603,8 +603,8 @@ pub fn incipit(cue: &Cue) -> Option<String> {
 /// What goes on the right of an item's line: "BCP 323", "Hymn 414", a composer, a preacher.
 fn reference(cue: &Cue) -> Option<String> {
     let meta = &cue.document()?.meta;
-    if let Some(n) = meta.hymn_number.as_deref().filter(|n| !n.is_empty()) {
-        return Some(format!("Hymn {n}"));
+    if let Some(r) = meta.hymn_reference() {
+        return Some(r);
     }
     // The preacher and their position: "The Rev. Jane Doe, Rector".
     if let Some(p) = meta.extra("preacher").filter(|v| !v.trim().is_empty()) {
@@ -1871,6 +1871,7 @@ mod tests {
             antiphon: Some("We will recount".into()),
             antiphon_every: 2,
             placed: false,
+            after_verses: None,
             verses_per_slide: 2,
         };
         let img = vec![Block::Image {
@@ -1878,6 +1879,7 @@ mod tests {
             alt: "Antiphon".into(),
             fit: None,
             words: false,
+            words_lines: None,
         }];
         let mut doc = psalm_document("Psalm 78:1-7", Some("Psalm 78:1-7"), &verses, &opts, &img);
         doc.meta.extra.push(("setting_image".into(), st.to_string_lossy().into_owned()));

@@ -395,7 +395,20 @@ function metaForm(c) {
         ? anthemFields(c)
         : [field("Title", textInput("title", "Title"), ".wide")];
   if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
-  if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
+  if (type === "hymn") {
+    // The stanzas sung ("1, 2" shows as "Hymn 56, vss 1 & 2").
+    const verses = el("input", {
+      value: extraOf(ed.doc, "verses") ?? "",
+      placeholder: "all, or e.g. 1, 2",
+      title: "The verses to be sung, e.g. 1, 2 or 1-3, 6: shown as “Hymn 56, vss 1 & 2” in the bulletin, script and on the screens",
+      disabled: app.readonly,
+      oninput: (e) => {
+        setExtra("verses", e.target.value.trim() || null);
+        changed();
+      },
+    });
+    fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Verses", verses), field("Tune", textInput("tune")));
+  }
   // Less used: the kind of item, its season and colour, the file itself.
   const more = [
     field(
@@ -524,14 +537,30 @@ function imageField(label, src, onPick, hint, music = null) {
 function psalmPanel(c) {
   const verses = ed.doc.blocks.filter(isVerse).length;
   const placedNow = extraOf(ed.doc, "antiphon_placed") === "true";
+  const afterNow = extraOf(ed.doc, "antiphon_after_verses") ?? "";
   const antiphon = el("input", { value: firstAntiphonText(), placeholder: "Antiphon (sung by all), or leave empty", disabled: app.readonly });
   const every = el(
     "select",
     { disabled: app.readonly },
-    [["placed", "Where placed"], [0, "Start & end"], [2, "+ every 2 verses"], [3, "+ every 3 verses"], [4, "+ every 4 verses"], [6, "+ every 6 verses"]].map(([v, l]) =>
-      el("option", { value: v, selected: placedNow ? v === "placed" : String(v) === (extraOf(ed.doc, "antiphon_every") ?? "0") }, l),
+    [["after", "+ after verses…"], ["placed", "Where placed"], [0, "Start & end"], [2, "+ every 2 verses"], [3, "+ every 3 verses"], [4, "+ every 4 verses"], [6, "+ every 6 verses"]].map(([v, l]) =>
+      el("option", { value: v, selected: afterNow ? v === "after" : placedNow ? v === "placed" : String(v) === (extraOf(ed.doc, "antiphon_every") ?? "0") }, l),
     ),
   );
+  // The verse numbers the antiphon follows; the verse after it goes back to the Choir.
+  const after = el("input", {
+    value: afterNow,
+    placeholder: "e.g. 4, 8, 12",
+    title: "The antiphon is sung after these verses (and at the start and end). The verse after each antiphon goes back to the Choir.",
+    disabled: app.readonly,
+    style: "width: 9em",
+  });
+  const afterField = field("After verses", after);
+  const showAfter = () => (afterField.style.display = every.value === "after" ? "" : "none");
+  every.addEventListener("change", () => {
+    showAfter();
+    if (every.value === "after") after.focus();
+  });
+  showAfter();
   const per = el(
     "select",
     { disabled: app.readonly },
@@ -546,12 +575,15 @@ function psalmPanel(c) {
   const apply = async () => {
     await flush(true);
     const placed = every.value === "placed";
+    const afterVerses = every.value === "after" ? after.value.trim() : "";
+    if (every.value === "after" && !afterVerses) return toast("Type the verse numbers the antiphon follows, e.g. 4, 8.", "warn");
     const n = await call("psalm_arrange", {
       id: c.id,
       options: {
         antiphon: antiphon.value.trim() || null,
-        antiphon_every: placed ? 0 : Number(every.value),
+        antiphon_every: placed || afterVerses ? 0 : Number(every.value),
         placed,
+        after_verses: afterVerses || null,
         verses_per_slide: Number(per.value),
       },
       versesText: paste.value.trim() || null,
@@ -606,13 +638,14 @@ function psalmPanel(c) {
       {},
       field("Antiphon words", antiphon),
       field("Antiphon", every),
+      afterField,
       field("Slides", per),
       el("button.primary", { disabled: app.readonly, onclick: apply }, "Apply"),
     ),
     el(
       "p.muted.small",
       {},
-      "Apply rebuilds the slides from the verses, keeping who sings each verse. Or place antiphons by hand: ♫ Antiphon between verses copies the first antiphon there. Choose Choir or People beside each verse; the people’s verses are bold.",
+      "Apply rebuilds the slides from the verses, keeping who sings each verse; the verse after each antiphon goes back to the Choir. Or place antiphons by hand: ♫ Antiphon between verses copies the first antiphon there. Choose Choir or People beside each verse; the people’s verses are bold.",
     ),
   );
 }
@@ -773,7 +806,7 @@ function showsPanel() {
     el(
       "div.reading-row",
       {},
-      el("span.muted.small", {}, "For music marked “includes the words after it”: the words are the text after it on its slide."),
+      el("span.muted.small", {}, "For music marked “includes the words after it”: the words are the text after it on its slide, or only as many lines as “Lines in the music” says."),
       own && !app.readonly
         ? el("button.small", {
             onclick: () => {
@@ -1308,13 +1341,39 @@ function blockRow(b, i, paraIndex) {
             disabled: app.readonly,
             onchange: (e) => {
               if (e.target.checked) b.words = true;
-              else delete b.words;
+              else {
+                delete b.words;
+                delete b.words_lines;
+              }
               changed();
               refreshShows();
+              renderBlocks(undefined, i);
             },
           }),
           "This music includes the words after it",
         ),
+        b.words
+          ? el(
+              "label.field.inline.words-lines",
+              { title: "How many lines of dialogue after the picture are sung to this music (rubrics don't count). The lines after them are spoken and shown as usual. Empty: everything up to the next slide break." },
+              el("span", {}, "Lines in the music"),
+              el("input", {
+                type: "number",
+                min: 1,
+                step: 1,
+                value: b.words_lines ?? "",
+                placeholder: "all",
+                disabled: app.readonly,
+                style: "width: 5em",
+                onchange: (e) => {
+                  const n = Math.floor(Number(e.target.value));
+                  if (n > 0) b.words_lines = n;
+                  else delete b.words_lines;
+                  changed();
+                },
+              }),
+            )
+          : null,
         preview,
       ),
       rowTools(i),

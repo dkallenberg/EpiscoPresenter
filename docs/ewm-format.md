@@ -133,7 +133,7 @@ Text with no tag forms a block with no speaker.
 | `--- stream` / `--- sanctuary` | A slide break on that screen only. |
 | Leading tabs (or every three spaces) on a line | Indent: one step each, as the Prayer Book sets the Creed and the Lord's Prayer. |
 | `![alt text](path/to/image.png)` alone on a line | Sheet-music snippet or other image, shown full-width. |
-| `![alt](music.png){words}` | Music that includes the words after it on its slide: printed in the bulletin and script without the words again; the sanctuary shows the words, the stream both (see `music_on` / `words_on`). |
+| `![alt](music.png){words}` | Music that includes the words after it on its slide: printed in the bulletin and script without the words again; the sanctuary shows the words, the stream both (see `music_on` / `words_on`). `{words=2}`: only the next two lines of dialogue (rubrics don't count); the rest are spoken. |
 | `<!-- comment -->` | Ignored. May span several lines. |
 
 A line that would otherwise be read as syntax can be escaped with a leading
