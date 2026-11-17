@@ -17,12 +17,19 @@ A typical week for a parish with an 8:00 and a 10:30 service.
      paste its words in the **Editor**. See [Editing items](Editing-Items#hymns).
    * **The preacher.** Select **The Sermon** and choose the preacher in the
      Editor.
+   * **The prelude and postlude.** Click **♪ Prelude** at the top of the
+     service list (**♪ Postlude** at the bottom) and give the title and
+     composer.
+   * **The psalm's music** (if it's sung with an antiphon): in the psalm's
+     **Psalm layout**, choose the antiphon and the setting. See
+     [Editing items](Editing-Items#the-psalm).
 3. Make any other changes: a different Eucharistic Prayer, a seasonal
    blessing, an announcement slide, a video. See
    [Editing items](Editing-Items) and
    [Slides, events and video](Slides-Events-and-Video).
 4. On the **Bulletin** tab, click **Export to Word**, check it, and print.
 5. On the **Script** tab, **Export to Word** makes the officiant's copy.
+   Click a hymn there to choose how much of it the script prints.
 
 ## By Saturday (EpiscoPlanner)
 

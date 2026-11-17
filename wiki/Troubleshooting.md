@@ -47,25 +47,40 @@ The item only has its place's name (*Entrance Hymn*). Fill in **Hymn #** or
 
 * In the planner, check the service is marked **✓ Ready**.
 * On the presentation computer, check **⚙ Settings → Parish library folder…**
-  is the same shared folder, and that Google Drive is running and the folder
-  is **Available offline**.
+  is the same shared folder. Hover over it: it should say it is in step.
+  With a folder synced by Google Drive for desktop, check Drive is running
+  and the folder is **Available offline**.
 * Give it a minute: services are checked for about once a minute.
 
-### ⚠ on ⚙ Settings, or "the folder can't be found"
+### ⚠ or a gold ⚙ gear, or "the folder can't be found"
 
-The parish library folder can't be reached, usually because Google Drive
-isn't running or isn't signed in. Start it; the app picks the folder up
-again by itself.
+The parish library folder can't be reached. Hover over **⚙ Settings →
+Parish library folder…** to see why. With the app connected to Google Drive
+itself, it's usually no internet, or the sign-in has lapsed: open
+**Parish library folder…** and **Sign in with Google…** again. With Google
+Drive for desktop, it isn't running or isn't signed in. Either way the app
+keeps working from this computer's copy and catches up by itself.
 
 ### The app takes a long time to start with a Google Drive folder
 
-Google Drive for desktop normally downloads a file only when it's opened,
+Connecting the app to Google Drive itself avoids this: it keeps a whole
+copy on the computer (see [First-time setup](First-Time-Setup)). With
+Google Drive for desktop, Drive normally downloads a file only when it's opened,
 so a folder of many small files is slow the first time. On each computer,
 right-click the parish library folder in Finder (or Explorer) and choose
 **Google Drive → Available offline**, or set Google Drive to **Mirror
 files** in its preferences. The apps also remember the list of services and
 library items on each computer and re-read only what has changed, so the
 first start after an update is the slowest.
+
+### No "Restart to update" note appears
+
+The apps look for a newer version about ten seconds after they start, so
+leave the app open a moment. The note appears only once the new version is
+fully downloaded. If there's still nothing, install the newest version by
+hand from the
+[Releases page](https://github.com/dkallenberg/EpiscoPresenter/releases)
+(see [Installing](Installing#updating)).
 
 ### The two computers won't connect
 

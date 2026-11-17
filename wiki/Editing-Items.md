@@ -18,7 +18,15 @@ second after you stop typing, and the service saves itself.
 
 From top to bottom:
 
-1. **The words.** Each row is a block of text with its speaker
+1. **Appearance**: the background and layout on each screen (see
+   [Slide layouts and backgrounds](Slide-Layouts-and-Backgrounds)).
+2. **The title**, and the citation or hymn number. **Name in the service
+   list** gives the item a different name in this service only.
+3. **A panel for the kind of item**: the reading's text, the psalm's
+   layout, the Gospel's music, the hymn's words, the Eucharistic Prayer's
+   Sanctus and Preface, or the preacher; and **Where it shows** for music
+   that includes its words (below).
+4. **The words.** Each row is a block of text with its speaker
    (Celebrant, People, Deacon, Reader, All, Rubric…). The speaker sets the
    colour and style: the People's parts are bold, and rubrics are red
    italics and never shown on the screens.
@@ -30,12 +38,6 @@ From top to bottom:
    * A slide break can apply to **Both screens**, the **Sanctuary only** or
      the **Live stream only**.
    * **⌘B / ⌘I** (Ctrl on Windows) for bold and italic.
-2. **The title**, and the citation or hymn number. **Name in the service
-   list** gives the item a different name in this service only.
-3. **A panel for the kind of item**: the reading's text, the psalm's
-   layout, the Gospel's music, the hymn's words or the preacher.
-4. **Appearance**: the background and layout on each screen (see
-   [Slide layouts and backgrounds](Slide-Layouts-and-Backgrounds)).
 
 **Save to Library** keeps a copy of the item for later services.
 
@@ -99,6 +101,13 @@ renames its place.
    it. The library keeps it by number and title, so it can be the entrance
    hymn this week and the closing hymn next time.
 
+**A picture of the hymn.** If you have the hymn as a picture, music and
+words together, choose it in **Hymn words → Picture of the hymn** (from the
+`music/Hymn` folder). The bulletin (when the hymn is set to *Full text*)
+and the script print the picture in place of the words; the screens still
+show the words. How a hymn appears in the script is chosen on the Script
+tab (see [Bulletin and script](Bulletin-and-Script#the-script)).
+
 To bring many hymns into the library at once, see
 [Library and media](Library-and-Media#hymns).
 
@@ -119,8 +128,8 @@ Select the psalm and open the **Psalm layout** panel:
 
 | Setting | Does |
 | --- | --- |
-| Antiphon music | A picture of the antiphon's music line, from the media library. |
-| Musical setting (stream) | A picture of the chant or tone, shown on the live stream with every verse. |
+| Antiphon music | A picture of the antiphon's music line, from the `music/Antiphon` folder. Printed in the bulletin and script; on both screens, the sanctuary with the words under it. |
+| Musical setting | A picture of the chant or tone, from `music/Setting`. Printed in the bulletin and script under the antiphon, and shown on the live stream with every verse. |
 | Antiphon words | The antiphon's text, sung by all. |
 | Antiphon | Where it repeats: start and end, every 2/3/4/6 verses, or where you put it. |
 | Slides | Verses per slide (1–4). |
@@ -132,6 +141,20 @@ between two verses puts the antiphon there.
 If a psalm has no verses, paste them into **Paste verses** (each verse
 starting with its number) and click **Apply**.
 
+**In the bulletin and script** a psalm with an antiphon prints as it's
+sung: *The Cantor introduces the antiphon, which is then repeated by the
+People.*, the antiphon's music and the setting, *The People are invited to
+join the Choir singing the verses printed in boldface.*, then the verses,
+the people's in bold, with **Antiphon** at the right margin at the end of
+each verse the antiphon follows.
+
+![Psalm 78 in the bulletin: the rubrics, the antiphon's music and the psalm tone, then the verses with Antiphon at the right margin (the music lines are stand-ins)](images/psalm-print.jpg)
+
+**On the sanctuary screen** an antiphon's slide has the psalm (*Psalm
+78:1-7*) at the top left and **Antiphon** at the right, then the music line
+with the words under it. A psalm without an antiphon names itself at the
+top of its first verses.
+
 ## The Gospel
 
 The Gospel's slides run in the order they're used: the music line (if any),
@@ -140,7 +163,8 @@ title slide, the text (if shown) and *The Gospel of the Lord* / *Praise to
 you, Lord Christ*.
 
 **Music before the Gospel → Choose…** puts a picture of the Alleluia or
-Gospel acclamation on the first slide. The music you choose becomes the
+Gospel acclamation (from the `music/Gospel Acclamation` folder) on the
+first slide. The music you choose becomes the
 parish's usual one for new services. **Put the slides in order** fixes the
 order after editing by hand.
 
@@ -167,6 +191,35 @@ In a whole **Eucharistic Prayer** (A–D, I or II), the Sanctus is inside
 the prayer: select the prayer in the Editor and use its **Sanctus** row,
 **Said** or **Sung**. Sung, the Sanctus gets a slide of its own shown like
 a hymn; the rest of the prayer looks as before.
+
+## Music that includes its words
+
+Some music pictures already have the words printed under the notes: a
+sung Opening Acclamation, a Sanctus, a Fraction Anthem. Put the picture
+first on its slide (**♪ Music**) and the words after it as usual
+(*Celebrant: Blessed be God…* / *People: And blessed be his kingdom…*).
+Then tick **This music includes the words after it** under the picture.
+The usual rule is then:
+
+| | Music | Words |
+| --- | --- | --- |
+| Bulletin | ✓ | — |
+| Script | ✓ | — |
+| Sanctuary | — | ✓ |
+| Live stream | ✓ | ✓ |
+
+so the printed pages don't repeat the words, the congregation reads large
+words in the church, and people at home see both. "The words" are the text
+after the picture on its slide, up to the next heading, slide break or
+picture; rubrics are always kept.
+
+![The Editor for a sung Opening Acclamation: Where it shows, then the music picture marked This music includes the words after it, then the Celebrant's and People's lines](images/music-with-words.jpg)
+
+For an item that should be different, open **Where it shows** and tick the
+places for the music and for the words; **Back to the usual** clears it.
+The choice is kept with the item, so a parish version in the Library keeps
+it too. (A psalm's antiphon and the music before the Gospel keep their own
+layout, described above.)
 
 ## The sermon
 

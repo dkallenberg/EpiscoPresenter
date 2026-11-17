@@ -36,8 +36,8 @@ Both share these settings, which are remembered for next time:
 | **Rite** | Rite II (the default) or Rite I. |
 | **Readings** | Track 1 or Track 2, for the Season after Pentecost. |
 | **Bible** | NRSVue or NRSV, for the reading texts. |
-| **Prayers of the People** | Forms I–VI, the Rite I prayer, or *usual for the rite*. |
-| **Eucharistic Prayer** | *Dialogue and Sanctus only*, or a whole prayer: A–D (Rite II), I or II (Rite I). A whole prayer includes the Sanctus and the Proper Preface. |
+| **Prayers of the People** | Forms I–VI, the Rite I prayer, *usual for the rite*, or the parish's own (see [Library and media](Library-and-Media#the-parishs-own-prayers-of-the-people-and-eucharistic-prayers)). |
+| **Eucharistic Prayer** | *Dialogue and Sanctus only*, or a whole prayer: A–D (Rite II), I or II (Rite I), or the parish's own. A whole prayer includes the Sanctus and the Proper Preface. |
 
 All of these can be changed later for one service in **⚙ Settings →
 Service settings**.
@@ -51,7 +51,9 @@ Kyrie in Advent and Lent), Salutation, **the propers**, Sermon, Nicene Creed,
 Prayers of the People, Confession, Absolution, Peace, Offertory Hymn, the
 Great Thanksgiving, Sanctus, Lord's Prayer, Breaking of the Bread,
 Invitation, Communion Hymn, Postcommunion Prayer, announcements, Closing
-Hymn and Dismissal.
+Hymn and Dismissal. The **Prelude** and **Postlude** have their places at
+the top and bottom of the service list, waiting for the music's title and
+composer.
 
 **The propers are added for you** from the lectionary: the Collect of the
 Day, the readings and psalm (of the chosen track) and the Gospel, with the

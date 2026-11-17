@@ -4,12 +4,16 @@ The **Library** tab holds everything you can reuse: Prayer Book texts,
 the parish's own items and hymns, and pictures and videos.
 
 Every computer keeps its own copy of the library and keeps it in step with
-the shared parish library folder: at start-up and every half minute it
-fetches what the other computers have added, changed or removed (each
-computer writes a change log in the shared folder) and sends its own
-changes. A hymn imported on the presentation computer reaches the
-planners, and the other way round, within a minute or so (plus however long
-Google Drive takes).
+the shared parish library folder: at start-up, every 15 seconds, and a
+couple of seconds after anything is saved, it fetches what the other
+computers have added, changed or removed (each computer writes a change log
+in the shared folder) and sends its own changes. A hymn imported on the
+presentation computer reaches the planners, and the other way round, within
+a minute or so.
+
+Under the list the Library says how this computer's copy stands: **✓ In
+step with the other computers** and when it last checked, **⇣ changes still
+downloading**, or **⚠** and why when the shared folder can't be reached.
 
 ## Items
 
@@ -24,6 +28,11 @@ slide on both screens.
   change the library.
 * In the Editor, **Save to Library** keeps the selected item for later
   services.
+
+**Copies of the same item.** An item in the library more than once (the
+same hymn number, or the same kind and title) is marked **×2** in the list.
+Select it to see the others and click **Keep this one** to remove the rest.
+Services keep their own words, so nothing else changes.
 
 ### Versions of Prayer Book texts
 
@@ -51,7 +60,15 @@ Hymns in the library are kept by **number and title**, never by their place
 in a service, so the same hymn can be the entrance hymn one week and the
 closing hymn the next. To use one, select the hymn slot in the service
 (e.g. *Closing Hymn*), select the hymn in the Library and click **Use for
-Closing Hymn**.
+Closing Hymn**. Double-clicking the hymn does the same while the slot is
+still empty; otherwise a double-click adds the hymn after it. The slot keeps
+its name (*Closing Hymn*) and the hymn's own title and number go in the
+bulletin.
+
+**A picture of the hymn.** In the Editor's **Hymn words**, **Picture of the
+hymn** takes a picture of the hymn's music and words (from the `music/Hymn`
+folder). The bulletin (in Full text) and the script print the picture in
+place of the words; the screens show the words.
 
 ![The Library: a saved hymn selected while the Offertory Hymn slot is selected in the service, with Use for Offertory Hymn](images/library.png)
 
@@ -75,7 +92,25 @@ Eucharistic Prayers of *Enriching Our Worship*, for example):
 
    *Presider and People* or *All* is said together (bold). Lines in
    [brackets] become rubrics.
-4. **Add to library**, then look it over in the Editor.
+4. Choose its **type** (a prayer, *Prayers of the People*, a *Eucharistic
+   Prayer*, …) and **rite** (Rite I, Rite II or Either).
+5. **Add to library**, then look it over in the Editor.
+
+### The parish's own Prayers of the People and Eucharistic Prayers
+
+A Eucharistic Prayer in the library, and a prayer marked as **Prayers of
+the People**, are offered beside the Prayer Book's when services are made
+(**Schedule services**, under *The parish's own*) and in **⚙ Settings →
+Service settings** for the open service, for services in its rite.
+
+* To mark a prayer already in the library, select it and tick **Prayers of
+  the People** under its name.
+* A parish Eucharistic Prayer takes the place of the dialogue and the
+  separate Sanctus (it has both). *Dialogue and Sanctus only* in Service
+  settings puts them back.
+* The day's Proper Preface goes in where the prayer says "Here a Proper
+  Preface is sung or said…", or after the presider's first words following
+  "It is right to give … thanks and praise".
 
 ## Propers
 
@@ -95,7 +130,6 @@ one to:
 * **Add (sanctuary only)**, to show it on the sanctuary screen while the
   stream shows the camera,
 * use it as the **background** of the selected item,
-* make it a psalm's musical setting,
 * rename or delete it.
 
 ### Tags
@@ -105,3 +139,18 @@ Type tags under a picture's name (for example *Advent*, *music*,
 removes one. The **Tags** chips above the pictures show only those with a
 tag, and the search finds names and tags. The picture chooser used for
 music lines and slide pictures has the same search and tags.
+
+## Music folders
+
+Pictures of music are kept apart from the media, in the parish library's
+`music` folder, one folder for each use:
+
+* `music/Antiphon`: psalm antiphons;
+* `music/Setting`: the chants and tones psalm verses are sung to;
+* `music/Gospel Acclamation`: the Alleluia or acclamation before the Gospel;
+* `music/Hymn`: pictures of hymns, music and words.
+
+The Editor's **Choose…** for each of these opens its folder: pick a
+picture, or **Import…** to add new ones. **From the media library…** takes
+one added there earlier. See [Editing items](Editing-Items) for the psalm
+and for music that includes its words.

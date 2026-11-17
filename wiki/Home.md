@@ -10,9 +10,15 @@ Two desktop apps (Mac and Windows) for Episcopal worship:
   **sanctuary screen** and the **live-stream overlay**, from one computer or
   from two computers kept in step.
 
-Both apps share one **parish library folder** (for example a shared Google
-Drive folder), so a service planned in EpiscoPlanner is ready on the
-presentation computer on Sunday morning.
+Both apps share one **parish library folder**, usually a shared Google
+Drive folder that the apps reach themselves (no Google Drive for desktop
+needed), so a service planned in EpiscoPlanner is ready on the
+presentation computer on Sunday morning. Each computer works from its own
+copy, so the internet can't hold up a service.
+
+Download the apps from the
+[Releases page](https://github.com/dkallenberg/EpiscoPresenter/releases);
+after that they keep themselves up to date.
 
 ![EpiscoPresenter during a service: the service list, the slides, and what the sanctuary screen and the live stream are showing](images/presenter.png)
 

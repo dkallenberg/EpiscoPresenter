@@ -10,17 +10,23 @@ officiant's copy.
 
 Beside the bulletin, **To do** lists what the service still needs: the
 parish's details, the service time, the announcements' Google Slides link,
-a reading's text, a hymn not yet chosen, the preacher's name. Click a line
+a reading's text, a hymn not yet chosen, the preacher's name, and the
+prelude and postlude until they are named. Click a line
 to go to the place to fix it. It reads **Nothing left to do ✓** when the
 service is ready.
 
-## The prelude and anthems
+## The prelude, postlude and anthems
 
 * **The prelude** heads the bulletin: *Prelude — Adagio — Johann Sebastian
   Bach, arr. by Homer Whitfield*. Click **♪ Prelude** at the top of the
   service list, or the Prelude line at the top of the bulletin (it says *Add
   the title and composer* until you do; that isn't printed). It's also on
   the live stream's welcome before the service.
+* **The postlude** closes the bulletin, set the same way: **♪ Postlude** at
+  the bottom of the service list.
+* Under **In the bulletin**, each can print in full, as just the word
+  *Prelude* (or *Postlude*), or be left out. The script always names the
+  piece.
 * **A choir anthem** is an item of its own: **+ Add → Choir anthem…**, with
   its name in the service (e.g. *Offertory Anthem*), title and composer. It
   prints like a hymn: *Offertory Anthem — Ave verum corpus — W. A.
@@ -43,6 +49,18 @@ The usual choice for each kind of item is underlined: Prayer Book texts as
 reference lines, hymns as title and number, the sermon and announcements as
 titles, and the readings, psalm, collect and prayers in full. Choosing the
 usual one again clears your choice.
+
+## Music in the bulletin
+
+* **The psalm** prints as it's sung: how the people join in, the
+  antiphon's music and the setting, the people's verses in bold, and
+  **Antiphon** at the right margin where it comes back. See
+  [Editing items](Editing-Items#the-psalm).
+* **Music that includes its words** (a sung acclamation or Sanctus, marked
+  in the Editor) prints the music without the words again. See
+  [Editing items](Editing-Items#music-that-includes-its-words).
+* **A hymn with a picture** prints the picture in place of its words when it
+  is set to *Full text*.
 
 ## Editing in place
 
@@ -85,14 +103,18 @@ beyond what the parish's use of the translation allows.
 
 ## Paper and printing
 
-* **Paper:** **11 × 17, folded** into 8½ × 11 pages (the default), or 8½ ×
-  11 folded into 5½ × 8½ pages.
+* **Paper** (in the toolbar, or Parish details), each sheet folded in half
+  into a booklet: **11 × 17** into 8½ × 11 pages (the default), **8½ × 14
+  (legal)** into 7 × 8½ pages, or **8½ × 11** into 5½ × 8½ pages.
+* The service starts on the first page, under the title, in Garamond 12 pt
+  with half-inch margins.
 * **Service time** goes on the cover, e.g. *November 9, 2025 at 8 o'clock in
   the morning*, with the Sunday's name from the date.
 * **Export to Word** saves a `.docx` (in the library's `bulletins` folder,
   named like `2025-11-09 0800 Bulletin.docx`) and opens it. It's set up for
-  **book fold**: on a two-sided printer Word prints the pages in booklet
-  order to fold in half. Make last touches in Word if you like.
+  **book fold**: Word shows one page at a time and prints two on each side
+  of the sheet, in booklet order. Print on both sides, flipping on the short
+  edge, and fold the stack in half. Make last touches in Word if you like.
   (LibreOffice and Google Docs ignore book fold.)
 
 ## The script
@@ -100,6 +122,14 @@ beyond what the parish's use of the translation allows.
 The **Script** tab has every word of every item, the rubrics in red, in
 large type on letter paper, with the Great Thanksgiving starting a new
 page. **Export to Word** works the same way.
+
+**Hymns in the script** have the bulletin's choices. Click a hymn on the
+Script tab and choose in the bar above it: **Reference line**, **Full
+text**, **Responses only**, **Title only** or **Left out**. The usual is
+the full text (just its line while the hymn has no words or picture). A
+hymn with a picture prints the picture in place of the words.
+
+![The Script tab with the Entrance Hymn selected and the In the script bar above it](images/script-hymn.jpg)
 
 ## Parish details
 

@@ -44,8 +44,14 @@ Hover the words for the address and the delay between the computers.
 ## Using the live-stream computer
 
 The live-stream computer shows the same window but follows the sanctuary
-computer. It can press Next and Prev, use the buttons, and send stage
-messages. Edit the service on the sanctuary computer.
+computer. **Both computers have every control**: Next and Prev, clicking a
+slide, Clear Text, Blackout, Before the service and stage messages. Edit
+the service on the sanctuary computer.
+
+To keep two operators from undoing each other, a change made on one
+computer holds the other computer's controls for **one second**: anything
+pressed there in that second is ignored. A click on a slide always goes
+through, and so do stage messages.
 
 ## If it won't connect
 

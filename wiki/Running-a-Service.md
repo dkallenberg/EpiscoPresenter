@@ -20,8 +20,8 @@ EpiscoPresenter's window has three parts:
 Until the first item is shown, **Before the service** runs: the
 announcements slides loop on the sanctuary screen, and the live stream
 shows its welcome: the service, date and time, "Welcome to" the parish (its
-name from **Parish details**), and the prelude (from **⚙ Settings →
-Service settings → Prelude**).
+name from **Parish details**), and the prelude (set with **♪ Prelude** at
+the top of the service list, or **⚙ Settings → Service settings**).
 
 ## The choir anthem
 
@@ -42,7 +42,19 @@ lower third: the name above, and the title and composer in the bar.
 A presentation clicker that sends Page Up / Page Down works too.
 
 **NOW / NEXT** under the previews name the slide on screen and the one
-coming. In the **Slides** tab the slide on screen has a red frame.
+coming. In the **Slides** tab the slide on screen has a red frame and moves
+to the second row whenever it changes, so the slide before is just above it
+and the slides coming up are in view below.
+
+### The end of a reading
+
+A reading shown by its title (the reader reads from the book) has a step of
+its own between the title and *The Word of the Lord*, for the operator
+only. The screens keep the title; the step's card (dashed, *End of the
+reading · only here*) and **NOW** show the last words of the passage under
+**Listen for**. Press **Next** when the reader gets to those words, and the
+response comes up on time. The step is there once the reading's text is in
+the service; without the text the title goes straight to the response.
 
 **Next** moves both screens together. The live stream sometimes fits two
 of the sanctuary's slides on one (or splits a long one), so at some steps

@@ -10,19 +10,40 @@ Everything the parish shares lives in one folder: services, saved prayers
 and hymns, pictures and videos, slide layouts, parish details and exported
 bulletins.
 
-* Use a folder that everyone can reach, for example a shared **Google
-  Drive** folder synced to each computer with *Google Drive for desktop*.
-* Choose it in **⚙ Settings → Parish library folder…**. The app also asks
-  for **your name**, which is shown to others as who changed what.
-* An empty folder is set up for you the first time.
-* **This computer only** keeps everything on this computer instead.
+Choose it in **⚙ Settings → Parish library folder…**. The app also asks
+for **your name**, which is shown to others as who changed what. There are
+three ways to keep the folder:
 
-On the **presentation computer**, mark the shared folder **Available
-offline** in Google Drive, so services are on the computer before Sunday.
+* **Google Drive** (recommended): the app reaches the parish folder in
+  Google Drive itself, without Google Drive for desktop. On the **Google
+  Drive** tab:
+  1. **Add the client file…**: the parish's Google client file (a `.json`
+     file), from whoever set up the parish's Google project.
+  2. **Sign in with Google…**: your browser opens Google's sign-in. Google
+     says *"Google hasn't verified this app"*: click **Advanced**, then
+     **Go to EpiscoPresenter (unsafe)**, then **Continue**. It's the
+     parish's own project.
+  3. **Choose the folder…**: click the parish folder. It must already be
+     shared with your Google account.
 
-If the folder can't be found (for example, Google Drive isn't running),
-**⚙ Settings** shows ⚠ and the app works from this computer's own copy
-until the folder is back.
+  Click **Start**. The app copies the whole folder to the computer (a few
+  minutes the first time) and keeps it in step with Drive every few
+  seconds. The parish's Google project is set up once, in about 15
+  minutes: see `docs/google-drive.md` in the project.
+* **A folder on this computer**: a folder that everyone can reach some
+  other way, for example one synced by *Google Drive for desktop* or
+  Dropbox. On the presentation computer, mark it **Available offline** so
+  services are on the computer before Sunday.
+* **This computer only** keeps everything on this computer.
+
+An empty folder is set up for you the first time. Either way each computer
+works from its own copy, so a slow or missing internet connection never
+holds up a service; changes go both ways as soon as they can.
+
+Hover over **⚙ Settings → Parish library folder…** to see whether this
+computer's copy is in step (*In step with Google Drive · 2 minutes ago*).
+If it can't reach the folder or Google, the **⚙** gear turns gold and the
+app keeps working from this computer's copy until it can.
 
 ## 2. Parish details (EpiscoPlanner)
 
