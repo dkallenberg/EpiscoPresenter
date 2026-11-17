@@ -14,7 +14,7 @@ import { saveCueToLibrary } from "/js/control/library.js";
 import { undoButtons } from "/js/control/undo.js";
 import { lookCards, lookPanel, openServiceSettings } from "/js/control/looks.js";
 import { pickMedia, pickMusic } from "/js/control/media.js";
-import { app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
+import { HONORIFICS, app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
 
 const SEND_DELAY_MS = 350;
 
@@ -903,8 +903,6 @@ function gospelMusicPanel(c) {
 
 // ----- the sermon -----
 
-/** Clergy styles offered for the preacher's title. */
-export const HONORIFICS = ["The Rev.", "The Very Rev.", "The Rt. Rev.", "The Most Rev.", "The Ven.", "The Rev. Canon", "The Rev. Dr.", "The Rev. Deacon", "Br.", "Sr.", "Dr.", "Mr.", "Ms.", "Mrs."];
 
 /** The preacher: title ("The Very Rev."), name and position, or one of the
  *  parish's clergy (Parish details). Shown on the slide, bulletin and script. */
@@ -915,28 +913,27 @@ function sermonPanel(c) {
   const honorific = input("preacher_honorific", "The Rev.", { list: listId, className: "honorific" });
   const name = input("preacher", "e.g. Jane Doe");
   const job = input("preacher_title", "e.g. Rector");
-  const who = el(
-    "select",
-    { disabled: app.readonly, onchange: () => pick() },
-    [["", "Choose…"], ["rector", "Rector"], ["assistant", "Assistant"], ["bishop", "Bishop"], ["other", "Someone else"]].map(([v, l]) => el("option", { value: v }, l)),
-  );
-  let clergy = {};
-  const defaults = { rector: "Rector", assistant: "Assistant Rector", bishop: "Bishop" };
+  const who = el("select", { disabled: app.readonly, onchange: () => pick() }, el("option", { value: "" }, "Choose…"), el("option", { value: "other" }, "Someone else"));
+  // The parish's preachers (Parish details → Staff & preachers).
+  let preachers = [];
   const full = (p) => [p?.honorific, p?.name].filter((x) => x?.trim()).join(" ");
   call("parish_get").then((p) => {
-    clergy = p ?? {};
-    for (const o of who.options) if (clergy[o.value]?.name) o.textContent = `${o.textContent}: ${full(clergy[o.value])}`;
-    const now = Object.keys(defaults).find((k) => clergy[k]?.name && clergy[k].name === name.value);
-    if (now) who.value = now;
-    else if (name.value) who.value = "other";
+    preachers = (p?.staff ?? []).filter((m) => m.preaches !== false && m.name?.trim());
+    who.replaceChildren(
+      el("option", { value: "" }, preachers.length ? "Choose…" : "Choose… (add preachers in Parish details)"),
+      ...preachers.map((m, i) => el("option", { value: String(i) }, [full(m), m.title].filter(Boolean).join(", "))),
+      el("option", { value: "other" }, "Someone else"),
+    );
+    const now = preachers.findIndex((m) => m.name.trim() === name.value.trim());
+    who.value = now >= 0 ? String(now) : name.value ? "other" : "";
   });
   const pick = () => {
     const k = who.value;
-    if (k in defaults) {
-      honorific.value = clergy[k]?.honorific ?? "";
-      name.value = clergy[k]?.name ?? "";
-      job.value = clergy[k]?.title || defaults[k];
-      if (!name.value) toast(`Add the ${defaults[k].toLowerCase()}'s name in ⚙ Settings → Parish details to fill it in.`, "warn");
+    const m = preachers[Number(k)];
+    if (k !== "" && k !== "other" && m) {
+      honorific.value = m.honorific ?? "";
+      name.value = m.name ?? "";
+      job.value = m.title ?? "";
       update();
     } else if (k === "other") {
       honorific.value = name.value = job.value = "";
@@ -966,7 +963,7 @@ function sermonPanel(c) {
     el("summary", {}, "The preacher", el("span.muted.small", {}, name.value ? ` · ${[honorific.value, name.value].filter(Boolean).join(" ")}` : " · not chosen")),
     el("datalist", { id: listId }, HONORIFICS.map((h) => el("option", { value: h }))),
     el("div.reading-row.sermon-row", {}, field("Preacher", who), field("Title", honorific), field("Name", name), field("Position", job)),
-    el("p.muted.small", {}, "Title is the person's style (The Rev., The Very Rev., The Rt. Rev. …): choose one or type your own. The clergy are set once in ⚙ Settings → Parish details."),
+    el("p.muted.small", {}, "Title is the person's style (The Rev., The Very Rev., The Rt. Rev. …): choose one or type your own. The parish's preachers are set once in ⚙ Settings → Parish details → Staff & preachers."),
   );
 }
 

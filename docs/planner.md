@@ -196,8 +196,8 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   them, To do says *Name the anthem*.
 * **The sermon**: in the Editor, the sermon item has the preacher's title
   (*The Rev.*, *The Very Rev.*, *The Rt. Rev.* … or your own), name and
-  position. **Preacher** offers the Rector, Assistant and Bishop from Parish
-  details (or someone else); the bulletin prints *The Sermon — The Very Rev.
+  position. **Preacher** offers the parish's preachers from Parish details →
+  **Staff & preachers** (or someone else); the bulletin prints *The Sermon — The Very Rev.
   Jane Doe, Rector*, and the slide shows the same.
 * **Service times**: Parish details holds the Sunday service times (e.g.
   8:00, 10:30). Schedule services offers them for one service, and makes a
@@ -208,9 +208,10 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   dark.
 * **Parish details…**: name, place, cover title, logo (PNG or JPEG),
   address, phone, website, email, the music licence notice, the service
-  times, the clergy (Rector, Assistant, Bishop: title, name and position)
-  and a welcome
-  for visitors. They print on the cover and back page and are kept in
+  times and a welcome for visitors. Its **Staff & preachers** tab lists the
+  clergy, staff and regular preachers (title, name, position), each with a
+  **Preaches** tick for those offered as a sermon's preacher; an older
+  parish file's Rector, Assistant and Bishop are carried into it. They print on the cover and back page and are kept in
   `parish.json` in the library folder, so everyone shares them (a logo from
   elsewhere is copied in as `parish-logo.png`).
 * **Export bulletin to Word** saves a `.docx` (suggested in the library's

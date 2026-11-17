@@ -223,8 +223,9 @@ layout, described above.)
 
 ## The sermon
 
-Select **The Sermon**. **Preacher** offers the Rector, Assistant and Bishop
-from Parish details, or someone else, with their title (*The Rev.*, *The
+Select **The Sermon**. **Preacher** offers the parish's preachers (those
+ticked **Preaches** in Parish details → **Staff & preachers**), or someone
+else, with their title (*The Rev.*, *The
 Very Rev.*…) and position. The bulletin prints *The Sermon — The Very Rev.
 Jane Doe, Rector* and the slide shows the same.
 

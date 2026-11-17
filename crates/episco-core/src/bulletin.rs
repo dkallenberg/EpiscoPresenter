@@ -92,10 +92,66 @@ pub struct ParishInfo {
     /// The parish's usual service times on a Sunday, "08:00", "10:30".
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub service_times: Vec<String>,
-    /// The clergy, offered as preachers in a sermon's details.
+    /// The parish's clergy, staff and regular preachers; those who preach
+    /// are offered in a sermon's details.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub staff: Vec<StaffMember>,
+    /// Older parish files had three fixed places: read into `staff` by
+    /// [`ParishInfo::normalized`], never written.
+    #[serde(skip_serializing)]
     pub rector: Clergy,
+    #[serde(skip_serializing)]
     pub assistant: Clergy,
+    #[serde(skip_serializing)]
     pub bishop: Clergy,
+}
+
+impl ParishInfo {
+    /// The details with an older file's Rector, Assistant and Bishop moved
+    /// into the staff list (as preachers).
+    pub fn normalized(mut self) -> ParishInfo {
+        if self.staff.is_empty() {
+            let old = [
+                (std::mem::take(&mut self.rector), "Rector"),
+                (std::mem::take(&mut self.assistant), "Assistant Rector"),
+                (std::mem::take(&mut self.bishop), "Bishop"),
+            ];
+            for (c, usual) in old {
+                if !c.name.trim().is_empty() {
+                    let title = if c.title.trim().is_empty() { usual.to_string() } else { c.title };
+                    self.staff.push(StaffMember { honorific: c.honorific, name: c.name, title, preaches: true });
+                }
+            }
+        }
+        self.rector = Clergy::default();
+        self.assistant = Clergy::default();
+        self.bishop = Clergy::default();
+        self
+    }
+
+    /// Those offered as preachers.
+    pub fn preachers(&self) -> impl Iterator<Item = &StaffMember> {
+        self.staff.iter().filter(|m| m.preaches && !m.name.trim().is_empty())
+    }
+}
+
+/// One of the parish's clergy, staff or regular preachers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StaffMember {
+    /// Their style or title: "The Rev.", "The Very Rev.", "Dr.".
+    pub honorific: String,
+    pub name: String,
+    /// Their position, printed after the name ("Rector", "Deacon").
+    pub title: String,
+    /// Offered as a preacher in a sermon's details.
+    pub preaches: bool,
+}
+
+impl Default for StaffMember {
+    fn default() -> Self {
+        StaffMember { honorific: String::new(), name: String::new(), title: String::new(), preaches: true }
+    }
 }
 
 /// The sheet a bulletin is printed on, folded in half into a booklet.
@@ -1538,10 +1594,19 @@ mod tests {
                 reference: Some("The Very Rev. Jane Doe, Rector".into()),
             }
         );
-        let p: ParishInfo =
-            serde_json::from_str(r#"{"name": "St. X", "rector": {"name": "The Rev. Jane Doe", "title": "Rector"}}"#)
-                .unwrap();
-        assert_eq!(p.rector.title, "Rector");
+        // An older file's fixed places become the staff list.
+        let p: ParishInfo = serde_json::from_str::<ParishInfo>(
+            r#"{"name": "St. X", "rector": {"name": "Jane Doe", "honorific": "The Rev."}, "assistant": {"name": ""}}"#,
+        )
+        .unwrap()
+        .normalized();
+        assert_eq!(p.staff.len(), 1);
+        assert_eq!((p.staff[0].title.as_str(), p.staff[0].preaches), ("Rector", true));
+        let json = serde_json::to_string(&p).unwrap();
+        assert!(json.contains("\"staff\"") && !json.contains("\"rector\""), "{json}");
+        let mut p = p;
+        p.staff.push(StaffMember { name: "Pat Organist".into(), preaches: false, ..Default::default() });
+        assert_eq!(p.preachers().count(), 1);
         assert_eq!(
             preacher_line(Some("The Rt. Rev."), "John Smith", Some("Bishop of the Diocese")),
             "The Rt. Rev. John Smith, Bishop of the Diocese"

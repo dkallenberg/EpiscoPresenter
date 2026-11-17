@@ -8,7 +8,7 @@
 // edit is written back to the item, so the slides change with it.
 
 import { assetUrl, listen } from "/js/bridge.js";
-import { app, call, debounce, el, toast } from "/js/control/util.js";
+import { HONORIFICS, app, call, debounce, el, toast } from "/js/control/util.js";
 import { editMusic, musicStyle, musicText, needsNaming } from "/js/control/prelude.js";
 import { undoButtons } from "/js/control/undo.js";
 
@@ -557,7 +557,7 @@ async function exportDoc(kind) {
 }
 
 /** The parish details dialog. */
-export async function openParish() {
+export async function openParish(pane = "main") {
   const info = (await call("parish_get")) ?? {};
   let logo = info.logo ?? null;
   const input = (key, placeholder) => el("input", { value: info[key] ?? "", placeholder });
@@ -602,26 +602,47 @@ export async function openParish() {
   };
   const removeBtn = el("button", { onclick: () => ((logo = null), showLogo()) }, "Remove");
   const field = (label, node, wide) => el("label.field" + (wide ? ".wide" : ""), {}, el("span", {}, label), node);
-  // The clergy, offered as preachers in a sermon's details.
-  const clergy = {};
-  const clergyRow = (key, label, title) => {
-    const c = (clergy[key] = {
-      honorific: el("input", { value: info[key]?.honorific ?? "", placeholder: key === "bishop" ? "The Rt. Rev." : "The Rev.", list: "parish-honorifics" }),
-      name: el("input", { value: info[key]?.name ?? "", placeholder: "e.g. Jane Doe" }),
-      title: el("input", { value: info[key]?.title || title, placeholder: title }),
-    });
-    return el("div.clergy-row", {}, el("span.clergy-label", {}, label), c.honorific, c.name, c.title);
+  // The clergy, staff and regular preachers.
+  const staff = (info.staff ?? []).map((m) => ({ ...m }));
+  const staffList = el("div.staff-list");
+  const renderStaff = () => {
+    staffList.replaceChildren(
+      el("div.staff-row.staff-head", {}, el("span", {}, "Title"), el("span", {}, "Name"), el("span", {}, "Position"), el("span", { title: "Offered as the preacher for a sermon" }, "Preaches"), el("span")),
+      ...staff.map((m, i) =>
+        el(
+          "div.staff-row",
+          {},
+          el("input", { value: m.honorific ?? "", placeholder: "The Rev.", list: "parish-honorifics", oninput: (e) => (m.honorific = e.target.value) }),
+          el("input", { value: m.name ?? "", placeholder: "e.g. Jane Doe", oninput: (e) => (m.name = e.target.value) }),
+          el("input", { value: m.title ?? "", placeholder: "e.g. Rector, Deacon, Seminarian", oninput: (e) => (m.title = e.target.value) }),
+          el("input", { type: "checkbox", checked: m.preaches !== false, title: "Offered as the preacher for a sermon", onchange: (e) => (m.preaches = e.target.checked) }),
+          el("button.small.staff-remove", { title: "Remove", onclick: () => (staff.splice(i, 1), renderStaff()) }, "✕"),
+        ),
+      ),
+      ...(staff.length ? [] : [el("p.muted.small", {}, "No one yet. Add the clergy, other staff and anyone who preaches regularly.")]),
+    );
+  };
+  renderStaff();
+  // Tabs: the parish and its bulletin, the people.
+  const tabs = el("div.seg.parish-tabs");
+  const PANES = [["main", "Parish & bulletin"], ["staff", "Staff & preachers"]];
+  const showPane = (k) => {
+    tabs.replaceChildren(...PANES.map(([key, label]) => el(`button${key === k ? ".active" : ""}`, { onclick: () => showPane(key) }, label)));
+    for (const [key] of PANES) {
+      const pane = overlay.querySelector(`.parish-${key}`);
+      if (pane) pane.hidden = key !== k;
+    }
   };
   const overlay = el(
     "div.modal-overlay",
     { onmousedown: (e) => e.target === overlay && overlay.remove() },
     el(
-      "div.modal.wide",
+      "div.modal.wide.parish-modal",
       {},
-      el("h3", {}, "Parish details and bulletin options"),
-      el("p.muted.small", {}, "Printed on the bulletin's cover and back page. Kept in the parish library folder, so everyone shares them."),
+      el("h3", {}, "Parish details"),
+      tabs,
       el(
-        "div.parish-grid",
+        "div.parish-grid.parish-pane.parish-main",
         {},
         field("Parish name", f.name),
         field("Place", f.place),
@@ -657,15 +678,14 @@ export async function openParish() {
         field("Speaker labels (People, All, Celebrant…) in the bulletin and script", f.speaker_labels),
         field("Sunday service times (24-hour, e.g. 8:00, 10:30, 17:00)", f.service_times),
         field("Bulletin paper", f.paper),
-        el(
-          "div.field.wide",
-          {},
-          el("span", {}, "Clergy (offered as preachers for the sermon): title, name and position"),
-          el("datalist", { id: "parish-honorifics" }, ["The Rev.", "The Very Rev.", "The Rt. Rev.", "The Most Rev.", "The Ven.", "The Rev. Canon", "The Rev. Dr.", "The Rev. Deacon"].map((h) => el("option", { value: h }))),
-          clergyRow("rector", "Rector", "Rector"),
-          clergyRow("assistant", "Assistant", "Assistant Rector"),
-          clergyRow("bishop", "Bishop", "Bishop"),
-        ),
+      ),
+      el(
+        "div.parish-pane.parish-staff",
+        { hidden: true },
+        el("p.muted.small", {}, "The clergy, staff and regular preachers. Those ticked under Preaches are offered as the preacher in a sermon's details; “Someone else” is there for a visitor."),
+        el("datalist", { id: "parish-honorifics" }, HONORIFICS.map((h) => el("option", { value: h }))),
+        staffList,
+        el("button.small", { onclick: () => (staff.push({ honorific: "", name: "", title: "", preaches: true }), renderStaff(), staffList.querySelector(".staff-row:last-of-type input:nth-child(2)")?.focus()) }, "+ Add a person"),
       ),
       el(
         "div.modal-actions",
@@ -683,7 +703,9 @@ export async function openParish() {
                 .map((t) => /^(\d{1,2})(?::(\d{2}))?$/.exec(t.trim()))
                 .filter((m) => m && Number(m[1]) < 24 && Number(m[2] ?? 0) < 60)
                 .map((m) => `${m[1].padStart(2, "0")}:${m[2] ?? "00"}`);
-              for (const [k, c] of Object.entries(clergy)) out[k] = { honorific: c.honorific.value.trim(), name: c.name.value.trim(), title: c.title.value.trim() };
+              out.staff = staff
+                .map((m) => ({ honorific: (m.honorific ?? "").trim(), name: (m.name ?? "").trim(), title: (m.title ?? "").trim(), preaches: m.preaches !== false }))
+                .filter((m) => m.name);
               if (await call("parish_set", { info: out })) {
                 overlay.remove();
                 toast("Parish details saved");
@@ -697,7 +719,8 @@ export async function openParish() {
   );
   showLogo();
   document.body.append(overlay);
-  f.name.focus();
+  showPane(pane);
+  if (pane === "main") f.name.focus();
 }
 
 export function initBulletin() {

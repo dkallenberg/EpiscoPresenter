@@ -142,3 +142,6 @@ export const app = {
     this.emit("selection");
   },
 };
+
+/** Clergy styles offered for a person's title (the preacher, the staff). */
+export const HONORIFICS = ["The Rev.", "The Very Rev.", "The Rt. Rev.", "The Most Rev.", "The Ven.", "The Rev. Canon", "The Rev. Dr.", "The Rev. Deacon", "Br.", "Sr.", "Dr.", "Mr.", "Ms.", "Mrs."];

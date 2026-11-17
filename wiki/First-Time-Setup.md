@@ -53,9 +53,13 @@ app keeps working from this computer's copy until it can.
 * address, phone, website and email
 * the music licence notice (for example your OneLicense number)
 * the Sunday service times (for example 8:00 and 10:30)
-* the clergy: Rector, Assistant and Bishop, with title, name and position
 * a welcome for visitors
 * the bulletin paper size
+
+and, on its **Staff & preachers** tab, the clergy, staff and regular
+preachers: title, name and position, with **Preaches** ticked for those
+offered as the preacher in a sermon's details. **+ Add a person** adds
+one, ✕ removes one.
 
 Everyone using the parish library sees the same details.
 

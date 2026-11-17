@@ -25,8 +25,9 @@ fn load_parish(app: &AppHandle) -> ParishInfo {
     parish_path(app)
         .ok()
         .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str(&s).ok())
+        .and_then(|s| serde_json::from_str::<ParishInfo>(&s).ok())
         .unwrap_or_default()
+        .normalized()
 }
 
 /// The parish details as last read, for the stream's welcome slide.
