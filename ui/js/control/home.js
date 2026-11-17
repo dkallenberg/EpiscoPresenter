@@ -450,12 +450,13 @@ function serviceOptions() {
 /**
  * The kind of service (Holy Week days and ordinations have their own Prayer
  * Book order) and the options: a bishop presiding, Holy Baptism or the
- * Renewal of Baptismal Vows, Confirmation.
+ * Renewal of Baptismal Vows, Confirmation; at a Marriage or a Burial, whether
+ * there is a Communion.
  */
 function occasionOptions(onKind) {
   let picked = false; // the operator chose a kind; stop following the date
   const kind = el("select", {
-    title: "Holy Week services and ordinations use their own Prayer Book order",
+    title: "Holy Week services, ordinations, marriages and burials use their own Prayer Book order",
     onchange: () => {
       picked = true;
       changed();
@@ -484,16 +485,20 @@ function occasionOptions(onKind) {
     [["", "No baptism"], ["baptism", "Holy Baptism"], ["renewal", "Renewal of Baptismal Vows"]].map(([v, l]) => el("option", { value: v }, l)),
   );
   const confirmation = el("input", { type: "checkbox", onchange: () => { if (confirmation.checked) bishop.checked = true; changed(); } });
+  const communion = el("input", { type: "checkbox", onchange: () => changed() });
+  const communionCheck = el("label.field.inline.check", {}, communion, el("span", {}, "With Holy Communion"));
   const note = el("p.muted.small.occasion-note");
   const labels = new Map();
   const changed = () => {
     const k = kind.value || "eucharist";
     const ordination = k.startsWith("ordination");
     const event = k === "event";
+    const pastoral = k === "marriage" || k === "burial";
+    communionCheck.style.display = pastoral ? "" : "none";
     if (ordination) bishop.checked = true;
     bishop.disabled = ordination || event;
     deacon.disabled = event;
-    const noBaptism = ["ash_wednesday", "good_friday", "holy_saturday", "palm_sunday", "maundy_thursday"].includes(k) || ordination || event;
+    const noBaptism = ["ash_wednesday", "good_friday", "holy_saturday", "palm_sunday", "maundy_thursday"].includes(k) || ordination || event || pastoral;
     baptismal.disabled = confirmation.disabled = noBaptism;
     if (noBaptism) {
       baptismal.value = "";
@@ -501,7 +506,9 @@ function occasionOptions(onKind) {
     }
     note.textContent = event
       ? "Not a service: it starts with one blank item of slides. Make slides in the Editor, or add pictures, a PDF, Google Slides or a web video with + Add."
-      : k === "easter_vigil"
+      : pastoral
+        ? `${k === "marriage" ? "The Marriage" : "The Burial (in the service's rite)"} with the Prayer Book's readings${communion.checked ? ", then the Offertory and Communion with the proper postcommunion prayer" : ""}. Change the readings as the family chooses.`
+        : k === "easter_vigil"
         ? "The Vigil renews the baptismal vows unless there is a baptism."
         : ordination
           ? "The bishop presides: the ordination's own texts, the Litany for Ordinations and the Prayer Book's readings."
@@ -532,7 +539,7 @@ function occasionOptions(onKind) {
       "div.occasion",
       {},
       el("div.home-row", {}, field("Service", kind), field("Baptism", baptismal)),
-      el("div.home-row.checks", {}, check(bishop, "A bishop presides"), check(deacon, "A deacon is serving"), check(confirmation, "Confirmation, Reception, Reaffirmation")),
+      el("div.home-row.checks", {}, check(bishop, "A bishop presides"), check(deacon, "A deacon is serving"), check(confirmation, "Confirmation, Reception, Reaffirmation"), communionCheck),
       note,
     ),
     load,
@@ -544,6 +551,7 @@ function occasionOptions(onKind) {
       baptismal: baptismal.value || null,
       confirmation: confirmation.checked,
       no_deacon: !deacon.checked,
+      communion: communion.checked,
     }),
   };
 }

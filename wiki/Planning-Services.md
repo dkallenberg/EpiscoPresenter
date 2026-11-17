@@ -73,6 +73,9 @@ choose the hymns.
   Saturday** and **the Great Vigil of Easter**, suggested from the date,
   each in the Prayer Book's own order.
 * **Ordination** of a deacon, priest or bishop.
+* **The Celebration and Blessing of a Marriage** and **the Burial of the
+  Dead** (in Rite I or Rite II), each with or without Holy Communion (tick
+  **With Holy Communion**).
 * **Event (not a service)** for a meeting, concert or dinner: it starts
   with one blank item of slides. See
   [Slides, events and video](Slides-Events-and-Video).

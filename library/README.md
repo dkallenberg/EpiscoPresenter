@@ -12,7 +12,9 @@ compiled into the app.
   Wednesday (264-269), Palm Sunday, Maundy Thursday, Good Friday, Holy
   Saturday and the Great Vigil of Easter (270-295), the anthem "In the midst
   of life" (492), and the Ordinations of a Bishop, Priest and Deacon with the
-  Litany for Ordinations (512-551), converted from www.bcponline.org (see
+  Litany for Ordinations (512-551), the Celebration and Blessing of a
+  Marriage (423-432) and the Burial of the Dead, Rite One (`burial-1-*`,
+  469-489) and Rite Two (`burial-2-*`, 491-505), converted from www.bcponline.org (see
   tools/bcp/). `bishop: true` marks the bishop's parts; `bulletin: full`
   prints them in full in bulletins.
 * `bcp/psalter.txt` — the Psalter, one verse per line, from the CC0 XML

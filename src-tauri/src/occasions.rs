@@ -9,6 +9,8 @@
 //! Prayers for the Candidates, the Thanksgiving over the Water and the
 //! Baptism; the Renewal of Baptismal Vows (BCP 292) takes the place of the
 //! Creed; Confirmation (BCP 413) follows the same pattern with the bishop.
+//! Marriage (BCP 423) and the Burial of the Dead (BCP 469, 491) have their
+//! own orders, with or without the Holy Communion.
 
 use episco_core::bcp::{self, Rite};
 use episco_core::calendar::{easter, liturgical_day, Date};
@@ -35,13 +37,17 @@ pub enum Occasion {
     OrdinationDeacon,
     OrdinationPriest,
     OrdinationBishop,
+    /// The Celebration and Blessing of a Marriage (BCP 423).
+    Marriage,
+    /// The Burial of the Dead, in the service's rite (BCP 469, 491).
+    Burial,
     /// Not a service (a meeting, a concert, a parish dinner): one blank
     /// item of slides to make.
     Event,
 }
 
 impl Occasion {
-    pub const ALL: [Occasion; 11] = [
+    pub const ALL: [Occasion; 13] = [
         Occasion::Eucharist,
         Occasion::AshWednesday,
         Occasion::PalmSunday,
@@ -52,6 +58,8 @@ impl Occasion {
         Occasion::OrdinationDeacon,
         Occasion::OrdinationPriest,
         Occasion::OrdinationBishop,
+        Occasion::Marriage,
+        Occasion::Burial,
         Occasion::Event,
     ];
 
@@ -67,12 +75,19 @@ impl Occasion {
             Occasion::OrdinationDeacon => "The Ordination of a Deacon",
             Occasion::OrdinationPriest => "The Ordination of a Priest",
             Occasion::OrdinationBishop => "The Ordination of a Bishop",
+            Occasion::Marriage => "The Celebration and Blessing of a Marriage",
+            Occasion::Burial => "The Burial of the Dead",
             Occasion::Event => "Event (not a service)",
         }
     }
 
     pub fn is_ordination(self) -> bool {
         matches!(self, Occasion::OrdinationDeacon | Occasion::OrdinationPriest | Occasion::OrdinationBishop)
+    }
+
+    /// A pastoral office (Marriage, Burial): the Holy Communion is optional.
+    pub fn is_pastoral(self) -> bool {
+        matches!(self, Occasion::Marriage | Occasion::Burial)
     }
 
     /// The title for a new service (None: the day's name).
@@ -124,6 +139,9 @@ pub struct Options {
     /// No deacon is serving: a priest says the Deacon's parts.
     #[serde(default)]
     pub no_deacon: bool,
+    /// A Marriage or Burial with the Holy Communion.
+    #[serde(default)]
+    pub communion: bool,
 }
 
 fn lib(rite: Rite, name: &str) -> Option<Cue> {
@@ -249,6 +267,50 @@ pub fn order(o: Options, rite: Rite, prayers: Option<crate::services::PrayersFor
             v.push(closing);
             v
         }
+        Occasion::Marriage => {
+            let mut v = vec![
+                hymn_cue("Entrance Hymn"),
+                occ("marriage-opening"),
+                occ("marriage-consent"),
+                occ("marriage-collect"),
+                // The readings go here.
+                sermon,
+                occ("marriage-vows"),
+                occ("marriage-prayers"),
+                // The Blessing of the Marriage ends with the Peace.
+                occ("marriage-blessing"),
+            ];
+            match o.communion {
+                true => v.extend(table(rite, occ("marriage-postcommunion"), true)),
+                // Without Communion the wedding party leaves after the Peace.
+                false => v.push(hymn_cue("Closing Hymn")),
+            }
+            v
+        }
+        Occasion::Burial => {
+            let n = if rite == Rite::One { 1 } else { 2 };
+            let part = |p: &str| occ(&format!("burial-{n}-{p}"));
+            let mut v = vec![
+                part("anthems"),
+                part("collects"),
+                // The readings go here.
+                sermon,
+                part("creed"),
+                // "If there is not to be a Communion, the Lord's Prayer is
+                // said here" (BCP 480, 495).
+                (!o.communion).then(|| lib(rite, "lords-prayer")).flatten(),
+                part("prayers"),
+            ];
+            if o.communion {
+                v.push(lib(rite, "the-peace"));
+                let mut t = table(rite, part("postcommunion"), false);
+                // The Commendation follows the postcommunion prayer.
+                t.pop();
+                v.extend(t);
+            }
+            v.extend([part("commendation"), part("procession"), part("committal")]);
+            v
+        }
     };
     v.retain(Option::is_some);
     Some(v.into_iter().flatten().collect())
@@ -319,6 +381,20 @@ pub fn fixed_propers(o: Occasion, date: Date, rite: Rite) -> Option<Vec<Cue>> {
             reading(Psalm, "Psalm 43"),
             reading(SecondReading, "1 Peter 5:1-4"),
             reading(Gospel, "Matthew 9:35-38"),
+        ],
+        // Marriage (BCP 426) and Burial (BCP 470, 494): one of the
+        // Prayer Book's choices for each; the readings are the family's choice.
+        Occasion::Marriage => vec![
+            reading(FirstReading, "Genesis 1:26-28"),
+            reading(Psalm, "Psalm 128"),
+            reading(SecondReading, "1 Corinthians 13:1-13"),
+            reading(Gospel, "John 15:9-12"),
+        ],
+        Occasion::Burial => vec![
+            reading(FirstReading, "Isaiah 25:6-9"),
+            reading(Psalm, "Psalm 23"),
+            reading(SecondReading, "Revelation 21:2-7"),
+            reading(Gospel, "John 14:1-6"),
         ],
         Occasion::OrdinationBishop => vec![
             reading(FirstReading, "Isaiah 61:1-8"),
@@ -415,6 +491,10 @@ pub fn apply(s: &mut Service, o: Options) {
         Some("Easter".into())
     } else if o.occasion.is_ordination() {
         Some("Apostles and Ordinations".into())
+    } else if o.occasion == Occasion::Marriage {
+        Some("Marriage".into())
+    } else if o.occasion == Occasion::Burial {
+        Some("Commemoration of the Dead".into())
     } else if o.baptismal == Some(Baptismal::Baptism) || o.confirmation {
         Some("Baptism".into())
     } else {
@@ -456,13 +536,15 @@ pub fn apply(s: &mut Service, o: Options) {
     let baptism_done = has(s, "baptism-presentation");
     let confirmation_done = has(s, "confirmation") || has(s, "baptism-confirmation");
     let renewal_done = has(s, "renewal-of-vows");
+    let pastoral = o.occasion.is_pastoral();
     let o = Options {
         baptismal: match o.baptismal {
+            _ if pastoral => None,
             Some(Baptismal::Baptism) if baptism_done => None,
             Some(Baptismal::Renewal) if renewal_done || baptism_done => None,
             b => b,
         },
-        confirmation: o.confirmation && !confirmation_done,
+        confirmation: o.confirmation && !confirmation_done && !pastoral,
         ..o
     };
     match (o.baptismal, o.confirmation) {
@@ -533,7 +615,13 @@ pub fn apply(s: &mut Service, o: Options) {
     }
 
     // The bishop blesses the people (BCP 523), before the dismissal.
-    if bishop && !o.occasion.is_ordination() && !matches!(o.occasion, Occasion::GoodFriday | Occasion::HolySaturday) {
+    // (At a Marriage or a Burial the bishop may bless the people where the
+    // rubrics allow; the Bishop's Blessing is in the Library.)
+    if bishop
+        && !o.occasion.is_ordination()
+        && !o.occasion.is_pastoral()
+        && !matches!(o.occasion, Occasion::GoodFriday | Occasion::HolySaturday)
+    {
         add_bishops_blessing(s);
     }
 }
@@ -549,7 +637,17 @@ pub fn service_add_baptismal(
 ) -> Result<(), String> {
     engine.edit_service(|s| {
         let bishop = s.bishop || confirmation;
-        apply(s, Options { occasion: Occasion::Eucharist, bishop, baptismal, confirmation, no_deacon: s.no_deacon });
+        apply(
+            s,
+            Options {
+                occasion: Occasion::Eucharist,
+                bishop,
+                baptismal,
+                confirmation,
+                no_deacon: s.no_deacon,
+                communion: false,
+            },
+        );
         s.modified = true;
         s.rebuild_all();
         Ok(())

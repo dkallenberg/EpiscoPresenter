@@ -1,7 +1,8 @@
 # Prayer Book pages → library items
 
 How `library/occasions/*.ewm` were made (Holy Baptism, Confirmation, the
-Renewal of Vows, Ash Wednesday, Holy Week, the Easter Vigil, ordinations),
+Renewal of Vows, Ash Wednesday, Holy Week, the Easter Vigil, ordinations,
+Marriage and Burial),
 from the 1979 Book of Common Prayer (public domain) at www.bcponline.org.
 
 1. Download the pages, keeping the site's folders, into `pages/`
@@ -23,5 +24,9 @@ from the 1979 Book of Common Prayer (public domain) at www.bcponline.org.
 Then, by hand: `bulletin: full` in each item's front matter (the
 congregation needs these texts printed), `type: prayer` for the two Passion
 announcements, and `episcopal-blessing.ewm` (BCP 523) and
-`in-the-midst-of-life.ewm` (BCP 492). Check every item against the printed
+`in-the-midst-of-life.ewm` (BCP 492). The Marriage and Burial drafts
+(`PastoralOffices/marriage.html`, `BurialI.html`, `BurialII.html`) were
+largely rewritten by hand: speakers (Man, Woman, Giver), the responses the
+page leaves out ("I will."), the Lord's Prayer, anthems set as lines, and
+`burial-1-creed.ewm` (the Rite I Apostles' Creed, BCP 53). Check every item against the printed
 book before relying on it; the tests only check that they parse.

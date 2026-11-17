@@ -749,7 +749,11 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
         .unwrap_or_else(|| day.name.clone());
     service.date = Some(date.to_string());
     service.season = Some(day.season);
-    service.color = Some(day.color);
+    // Marriages and burials are white whatever the season.
+    service.color = Some(match opts.occasion.occasion.is_pastoral() {
+        true => episco_core::season::LiturgicalColor::White,
+        false => day.color,
+    });
     service.plan_path = None;
     service.rebuild_all();
     service
@@ -1665,6 +1669,62 @@ mod tests {
         }
     }
 
+    #[test]
+    fn marriage_and_burial() {
+        use crate::occasions::{Occasion, Options};
+        use episco_core::season::LiturgicalColor;
+        let make = |occasion, communion, rite| {
+            build(
+                "2027-06-12".parse().unwrap(),
+                None,
+                None,
+                ServiceOptions { rite: Some(rite), ..with(Options { occasion, communion, ..Default::default() }) },
+            )
+        };
+        let cites = |s: &Service, c: &str| {
+            s.cues.iter().any(|x| x.document().and_then(|d| d.meta.citation.as_deref()).is_some_and(|x| x.contains(c)))
+        };
+
+        let wedding = make(Occasion::Marriage, false, Rite::Two);
+        let t = titles(&wedding);
+        assert_eq!(wedding.title, "The Celebration and Blessing of a Marriage");
+        assert_eq!(wedding.color, Some(LiturgicalColor::White));
+        assert!(before(&t, "Marriage: The Declaration of Consent", "Marriage: The Collect"));
+        assert!(before(&t, "Marriage: The Collect", "The Holy Gospel"), "{t:?}");
+        assert!(before(&t, "The Sermon", "Marriage: The Vows"));
+        assert!(before(&t, "Marriage: The Prayers", "Marriage: The Blessing and the Peace"));
+        assert!(cites(&wedding, "John 15:9-12"));
+        assert!(!t.contains(&"Offertory Hymn") && !t.contains(&"Collect of the Day"), "{t:?}");
+        assert!(!t.contains(&"The Peace"), "the blessing ends with the Peace: {t:?}");
+
+        let mass = make(Occasion::Marriage, true, Rite::Two);
+        let t = titles(&mass);
+        assert!(before(&t, "Marriage: The Blessing and the Peace", "Offertory Hymn"));
+        assert!(t.contains(&"Marriage: Postcommunion Prayer") && t.contains(&"Dismissal (Let us go forth)"), "{t:?}");
+        assert_eq!(mass.preface.as_deref(), Some("Marriage"));
+
+        let funeral = make(Occasion::Burial, false, Rite::Two);
+        let t = titles(&funeral);
+        assert_eq!(funeral.title, "The Burial of the Dead");
+        assert_eq!(t[0], "Burial: The Anthems");
+        assert!(before(&t, "Burial: The Collect", "The Holy Gospel"));
+        assert!(before(&t, "The Apostles' Creed (Burial)", "The Lord's Prayer"));
+        assert!(before(&t, "The Lord's Prayer", "Burial: The Prayers"));
+        assert!(before(&t, "Burial: The Prayers", "Burial: The Commendation"));
+        assert!(before(&t, "Burial: The Commendation", "Burial: The Committal"));
+        assert!(!t.contains(&"Offertory Hymn") && cites(&funeral, "John 14:1-6"), "{t:?}");
+
+        let requiem = make(Occasion::Burial, true, Rite::One);
+        let t = titles(&requiem);
+        assert_eq!(t[0], "Burial: The Anthems (Rite I)");
+        assert!(!t.contains(&"The Lord's Prayer") || before(&t, "Offertory Hymn", "The Lord's Prayer"), "{t:?}");
+        assert!(before(&t, "Burial: The Prayers (Rite I)", "The Peace"));
+        assert!(before(&t, "Burial: Postcommunion Prayer (Rite I)", "Burial: The Commendation (Rite I)"));
+        assert!(!t.contains(&"Closing Hymn"), "{t:?}");
+        assert_eq!(requiem.preface.as_deref(), Some("Commemoration of the Dead"));
+        assert_eq!(requiem.rite, Some(Rite::One));
+    }
+
     /// With EPISCO_SAMPLE_OUT set, writes bulletins and scripts of the
     /// special services there, to look at.
     #[test]
@@ -1682,6 +1742,8 @@ mod tests {
             ("ordination-priest", "2027-06-12", Options { occasion: Occasion::OrdinationPriest, ..Default::default() }),
             ("vigil", "2027-03-27", Options { occasion: Occasion::EasterVigil, ..Default::default() }),
             ("holy-saturday", "2027-03-27", Options { occasion: Occasion::HolySaturday, ..Default::default() }),
+            ("marriage", "2027-06-12", Options { occasion: Occasion::Marriage, communion: true, ..Default::default() }),
+            ("burial", "2027-06-12", Options { occasion: Occasion::Burial, ..Default::default() }),
         ] {
             let s = build(date.parse().unwrap(), None, None, with(o));
             for (kind, doc) in [
