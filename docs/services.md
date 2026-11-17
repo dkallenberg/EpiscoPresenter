@@ -67,7 +67,7 @@ made before this have no Prayers of the People: add a form from the Library.
 order. Ash Wednesday, Palm Sunday, Maundy Thursday, Good Friday and Holy
 Saturday are suggested from the date. The Great Vigil of Easter and the
 **Event (not a service)** starts with one blank item of slides instead of
-an order (see [slides-and-video.md](slides-and-video.md)). Ordinations of a Deacon, Priest or Bishop are chosen by hand. These use the
+an order (see [slides-and-video.md](slides-and-video.md)). Ordinations of a Deacon, Priest or Bishop, **Marriage** and **Burial** are chosen by hand. These use the
 Prayer Book's own order instead of a template:
 
 | Service | Order (BCP) |
@@ -79,6 +79,16 @@ Prayer Book's own order instead of a template:
 | Holy Saturday (283) | Collect, readings, sermon, "In the midst of life" |
 | Great Vigil of Easter (285) | Service of Light, Exsultet, Liturgy of the Word, the Renewal of Baptismal Vows (or Holy Baptism), "Alleluia. Christ is risen" and Collect, Epistle, Psalm 114, the Gospel of the year, the Eucharist |
 | Ordinations (512-551) | Opening, Presentation, Litany for Ordinations, Collect, readings (the Prayer Book's first choices), sermon, Creed (deacons and priests), Examination, Consecration, the Peace, the Eucharist, After Communion with the new minister's blessing and dismissal |
+| Marriage (423) | Entrance Hymn, the Exhortation, the Declaration of Consent, Collect, readings (Genesis 1:26-28, Psalm 128, 1 Corinthians 13, John 15:9-12), sermon, the Vows and Rings, the Prayers (with the Lord's Prayer), the Blessing of the Marriage and the Peace, Closing Hymn; **With Holy Communion**: the Eucharist from the Offertory with the Marriage postcommunion prayer and dismissal |
+| Burial of the Dead (469, 491) | In the service's rite: the Anthems, Collect, readings (Isaiah 25:6-9, Psalm 23, Revelation 21:2-7, John 14:1-6), sermon, Apostles' Creed, Lord's Prayer, the Prayers, the Commendation, the anthem as the body is borne, the Committal; **With Holy Communion**: the Peace and the Eucharist (no Lord's Prayer before the Prayers) with the Burial postcommunion prayer, before the Commendation |
+
+Marriage and Burial are white and use the proper preface (Marriage,
+Commemoration of the Dead) when there is a Communion. Their readings are
+one of the Prayer Book's choices; change them to the family's. The
+Consecration of a Grave and the Additional Prayers (BCP 487-489, 503-505)
+are in the Library. Baptism and Confirmation are not offered with them,
+and a presiding bishop's blessing is not added automatically (add the
+Bishop's Blessing from the Library where the rubrics allow it).
 
 * **A bishop presides**: on the slides, bulletin and script the
   Celebrant's and Priest's parts are labelled *Bishop* (the texts are not
