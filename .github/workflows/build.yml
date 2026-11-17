@@ -72,7 +72,8 @@ jobs:
         shell: bash
         run: |
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo '{"bundle":{"createUpdaterArtifacts":true}}' > updater-on.json
+            # The CLI checks each signature against the config's public key.
+            node -e 'require("fs").writeFileSync("updater-on.json", JSON.stringify({bundle: {createUpdaterArtifacts: true}, plugins: {updater: {pubkey: process.env.EPISCO_UPDATE_PUBKEY.trim()}}}))'
             echo "UPDATER=--config updater-on.json" >> "$GITHUB_ENV"
           fi
       - name: Build EpiscoPresenter
@@ -124,7 +125,8 @@ jobs:
       - name: Update signing
         run: |
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo '{"bundle":{"createUpdaterArtifacts":true}}' > updater-on.json
+            # The CLI checks each signature against the config's public key.
+            node -e 'require("fs").writeFileSync("updater-on.json", JSON.stringify({bundle: {createUpdaterArtifacts: true}, plugins: {updater: {pubkey: process.env.EPISCO_UPDATE_PUBKEY.trim()}}}))'
             echo "UPDATER=--config updater-on.json" >> "$GITHUB_ENV"
             echo "BUNDLES=app,dmg" >> "$GITHUB_ENV"
           else
