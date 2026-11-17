@@ -908,7 +908,7 @@ dependencies = [
 
 [[package]]
 name = "episco-core"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -919,7 +919,7 @@ dependencies = [
 
 [[package]]
 name = "episco-presenter"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "base64 0.22.1",
  "episco-core",
@@ -942,7 +942,7 @@ dependencies = [
 
 [[package]]
 name = "episco-sync"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "axum",
  "episco-core",
