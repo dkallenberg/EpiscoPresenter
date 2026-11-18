@@ -64,3 +64,9 @@ body.planner.day .bible-file-row { background: var(--panel-2); }
 body.planner.day .badge.dupe { background: #f6e3bd; color: #7a5410; }
 body.planner.day .lib-dupes { background: #fbf3e2; border-color: #e3c98f; }
 body.planner.day .lib-sync.warn { color: #9a5b00; }
+
+/* Selected buttons keep their look over the day buttons' white. */
+body.planner.day .chip.active, body.planner.day .chip.active:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); }
+body.planner.day .lyt-type.active { border-color: var(--accent); color: var(--accent); }
+body.planner.day .drive-folder.on, body.planner.day .drive-folder.on:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); }
+body.planner.day .ready-toggle.on { border-color: #2f7a46; color: #1f6b38; background: #e6f4ea; }
