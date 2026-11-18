@@ -97,6 +97,16 @@ edition, a OneLicense or CCLI reprint licence, …):
   slot it is). Double-clicking the hymn does the same when the selected
   slot is still empty; otherwise a double-click adds the hymn after it.
 
+**Verses sung.** A hymn with numbered verses has **Verses sung** in the
+Editor's **Hymn words**: a tick for each verse, all ticked to start. Untick
+a verse that is not sung and it is left out of the slides, the bulletin
+and the script, with the refrain after it; its words stay in the hymn, so
+ticking it brings it back, and **All** ticks them all again. The choice is
+this service's only (a hymn from the Library starts with every verse). The
+bulletin's line says which verses: *Entrance Hymn — Lift Up Your Heads ·
+Hymn 436, vs. 1–3 & 5* (one verse: *v. 2*). It is kept in the service plan
+(`verses = [1, 2, 3, 5]`).
+
 **Hymn books.** A hymn's **Book** (in the Editor, beside **Hymn #**) says
 which book its number is in: *The Hymnal 1982* (the usual), *Wonder, Love,
 and Praise*, *Lift Every Voice and Sing II*, *Voices Found*, *My Heart Sings

@@ -266,6 +266,9 @@ pub struct CueOverrides {
     /// hymn (and kept a slide of its own).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub sanctus_sung: bool,
+    /// A hymn's verses sung (by number); `None`: all of them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verses: Option<Vec<u32>>,
 }
 
 /// What a cue needs from its service to resolve its derived fields.
@@ -437,6 +440,7 @@ impl Cue {
     fn fit_slides(&mut self, ctx: &BuildContext) {
         let category = self.category;
         let sanctus_is_sung = self.overrides.sanctus_sung;
+        let verses = self.overrides.verses.clone();
         let sanctuary_key = crate::fit::slide_type(Output::Sanctuary, self.sanctuary.layout, category);
         let stream_key = crate::fit::slide_type(Output::Stream, self.stream.layout, category);
         let CueContent::Liturgy { document, slides, stream_slides, stream_at, .. } = &mut self.content else {
@@ -468,6 +472,11 @@ impl Cue {
             .then(|| sanctus_sung(document))
             .flatten();
         let document: &LiturgyDocument = sung.as_ref().unwrap_or(document);
+        // A hymn's verses not sung are left out.
+        let only = (category == ElementCategory::Hymn)
+            .then(|| verses.as_deref().map(|v| crate::hymn::sung_verses(document, v)))
+            .flatten();
+        let document: &LiturgyDocument = only.as_ref().unwrap_or(document);
         let fitted = crate::fit::fit(document, sanctuary, stream, &keep);
         *slides = fitted.steps;
         *stream_slides = fitted.stream;
@@ -873,6 +882,7 @@ impl Service {
                 bulletin: pc.bulletin.as_deref().and_then(crate::bulletin::BulletinStyle::parse),
                 script: pc.script.as_deref().and_then(crate::bulletin::BulletinStyle::parse),
                 sanctus_sung: pc.sanctus_sung,
+                verses: pc.verses,
             };
             let cue = match (&pc.file, pc.announcements) {
                 (Some(_), Some(_)) => return Err(cue_err("a cue may have `file` or `announcements`, not both".into())),
@@ -997,6 +1007,7 @@ impl Service {
                     bulletin: cue.overrides.bulletin.map(|b| b.key().to_string()),
                     script: cue.overrides.script.map(|b| b.key().to_string()),
                     sanctus_sung: cue.overrides.sanctus_sung,
+                    verses: cue.overrides.verses.clone(),
                     sanctuary: cue.overrides.looks.sanctuary.clone(),
                     stream: cue.overrides.looks.stream.clone(),
                 })
@@ -1122,6 +1133,9 @@ struct PlanCue {
     /// The Sanctus within a Eucharistic Prayer is sung.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     sanctus_sung: bool,
+    /// A hymn's verses sung (unset: all).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    verses: Option<Vec<u32>>,
     #[serde(default, skip_serializing_if = "Look::is_empty")]
     sanctuary: Look,
     #[serde(default, skip_serializing_if = "Look::is_empty")]

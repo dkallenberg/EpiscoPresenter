@@ -667,8 +667,18 @@ pub fn incipit(cue: &Cue) -> Option<String> {
 /// What goes on the right of an item's line: "BCP 323", "Hymn 414", a composer, a preacher.
 fn reference(cue: &Cue) -> Option<String> {
     let meta = &cue.document()?.meta;
-    if let Some(n) = crate::hymn::number_label(meta) {
-        return Some(n);
+    // A hymn: its number, and the verses sung when not all ("Hymn 436, vs. 1–3 & 5").
+    let verses = cue
+        .overrides
+        .verses
+        .as_deref()
+        .filter(|_| cue.category == ElementCategory::Hymn)
+        .and_then(|v| crate::hymn::verses_label(v, &crate::hymn::verse_numbers(cue.document()?)));
+    match (crate::hymn::number_label(meta), verses) {
+        (Some(n), Some(v)) => return Some(format!("{n}, {v}")),
+        (Some(n), None) => return Some(n),
+        (None, Some(v)) => return Some(v),
+        (None, None) => {}
     }
     // The preacher and their position: "The Rev. Jane Doe, Rector".
     if let Some(p) = meta.extra("preacher").filter(|v| !v.trim().is_empty()) {
@@ -809,7 +819,13 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
     // Only a slide break since the last piece (not a heading, rubric …).
     let mut after_break = false;
     // Music carrying its own words: the music or the words, by the item's rule.
-    let shown = crate::shows::shown(doc, if script { Place::Script } else { Place::Bulletin });
+    let mut shown = crate::shows::shown(doc, if script { Place::Script } else { Place::Bulletin });
+    // A hymn's verses not sung.
+    if let Some(v) = cue.overrides.verses.as_deref().filter(|_| cue.category == ElementCategory::Hymn) {
+        for (s, keep) in shown.iter_mut().zip(crate::hymn::verses_kept(doc, v)) {
+            *s &= keep;
+        }
+    }
     for (i, b) in doc.blocks.iter().enumerate() {
         if Some(i) == last_break {
             text_at = out.len();
@@ -1840,6 +1856,27 @@ mod tests {
         assert!(!b.contains("cover") && b.contains("Almighty God.") && b.contains("data-src=\"0:0\""), "{b}");
         let s = item_html(&c, DocKind::Script, None);
         assert!(s.contains("class=\"doc script\"") && s.contains("Then the Gloria"), "{s}");
+    }
+
+    #[test]
+    fn a_hymn_with_some_verses_sung() {
+        let mut s = Service::default();
+        s.insert_cue(0, cue("---\ntitle: Lift Up Your Heads\ntype: hymn\nhymn_number: 436\n---\n[1] One\n\n---\n\n[2] Two\n\n---\n\n[3] Three\n\n---\n\n[4] Four\n\n---\n\n[5] Five\n"));
+        s.cues[0].overrides.title = Some("Entrance Hymn".into());
+        s.cues[0].overrides.verses = Some(vec![1, 2, 3, 5]);
+        s.cues[0].overrides.bulletin = Some(BulletinStyle::Full);
+        s.rebuild_all();
+        let b = bulletin(&s, &ParishInfo::default());
+        let Piece::Line { reference, .. } = &b.entries[0].pieces[0] else { panic!() };
+        assert_eq!(reference.as_deref(), Some("Hymn 436, vs. 1\u{2013}3 & 5"));
+        let verses: Vec<&str> = b.entries[0]
+            .pieces
+            .iter()
+            .filter_map(|p| if let Piece::Verse { number, .. } = p { Some(number.as_str()) } else { None })
+            .collect();
+        assert!(!verses.contains(&"4") && verses.contains(&"5"), "{verses:?}");
+        let CueContent::Liturgy { slides, .. } = &s.cues[0].content else { panic!() };
+        assert_eq!(slides.len(), 4, "four slides");
     }
 
     #[test]

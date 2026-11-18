@@ -107,6 +107,16 @@ renames its place.
    it. The library keeps it by number and title, so it can be the entrance
    hymn this week and the closing hymn next time.
 
+**Verses sung.** A hymn with numbered verses has **Verses sung** in the
+Editor's **Hymn words**: a tick for each verse, all ticked to start. Untick
+a verse that is not sung and it is left out of the slides, the bulletin
+and the script, with the refrain after it; its words stay in the hymn, so
+ticking it brings it back, and **All** ticks them all again. The choice is
+this service's only (a hymn from the Library starts with every verse). The
+bulletin's line says which verses: *Entrance Hymn — Lift Up Your Heads ·
+Hymn 436, vs. 1–3 & 5* (one verse: *v. 2*). It is kept in the service plan
+(`verses = [1, 2, 3, 5]`).
+
 **A picture of the hymn.** If you have the hymn as a picture, music and
 words together, choose it in **Hymn words → Picture of the hymn** (from the
 `music/Hymn` folder). The bulletin (when the hymn is set to *Full text*)

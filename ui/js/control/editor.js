@@ -143,7 +143,8 @@ export function initEditor() {
 /** True while the focus is in a text field of the editor. */
 function typing() {
   const a = document.activeElement;
-  return Boolean(a && root.contains(a) && (a.matches("input, textarea, select") || a.isContentEditable));
+  // (A tick box is a choice made, not typing.)
+  return Boolean(a && root.contains(a) && (a.matches("input:not([type=checkbox]):not([type=radio]), textarea, select") || a.isContentEditable));
 }
 
 /** Shows `c` in the editor. Unless `force`, keeps local edits in progress and
@@ -180,7 +181,7 @@ function load(c, force) {
 
 /** How an item is shown, apart from its words: its kind (a Sanctus said or
  *  sung) and a prayer's Sanctus sung. */
-const shapeOf = (c) => `${c.category}|${c.overrides?.sanctus_sung ? "sung" : ""}`;
+const shapeOf = (c) => `${c.category}|${c.overrides?.sanctus_sung ? "sung" : ""}|${(c.overrides?.verses ?? []).join(",")}`;
 
 // ---------- rendering ----------
 
@@ -847,6 +848,45 @@ function refreshShows() {
   if (slot) slot.replaceChildren(...[showsPanel()].filter(Boolean));
 }
 
+/** Which verses are sung in this service (the others are left out of the
+ *  slides, bulletin and script; the bulletin's line says "vs. 1–3 & 5"). */
+function versesSung(c) {
+  const all = [...new Set(ed.doc.blocks.filter((b) => b.kind === "paragraph" && /^\d+$/.test((b.role ?? "").trim())).map((b) => Number(b.role)))].sort((a, b) => a - b);
+  if (all.length < 2) return null;
+  const sung = new Set(c.overrides?.verses ?? all);
+  const save = () => {
+    const list = all.filter((n) => sung.has(n));
+    if (!list.length) return toast("At least one verse is sung.", "warn");
+    call("set_cue_overrides", { id: c.id, overrides: { ...c.overrides, verses: list.length === all.length ? null : list } });
+  };
+  return el(
+    "div.reading-row.verses-sung",
+    { title: "Untick a verse that is not sung: it is left out of the slides, the bulletin and the script (its words stay in the hymn)." },
+    el("span.image-field-label", {}, "Verses sung"),
+    all.map((n) =>
+      el(
+        "label.check",
+        {},
+        el("input", {
+          type: "checkbox",
+          checked: sung.has(n),
+          disabled: app.readonly,
+          onchange: (e) => {
+            if (e.target.checked) sung.add(n);
+            else sung.delete(n);
+            save();
+          },
+        }),
+        el("span", {}, String(n)),
+      ),
+    ),
+    c.overrides?.verses ? el("button.link.small", { disabled: app.readonly, onclick: () => call("set_cue_overrides", { id: c.id, overrides: { ...c.overrides, verses: null } }) }, "All") : null,
+  );
+}
+
+/** The hymn whose Hymn words section is open (kept across redraws). */
+let hymnOpen = null;
+
 function hymnPanel(c) {
   const stanzas = ed.doc.blocks.filter((b) => b.kind === "paragraph" && b.role !== "Rubric").length;
   const credit = (key, label, placeholder) =>
@@ -880,7 +920,8 @@ function hymnPanel(c) {
   };
   return el(
     "details.section.reading-panel.hymn-panel",
-    { open: stanzas <= 1 },
+    // Open while empty; otherwise as the operator left it for this item.
+    { open: stanzas <= 1 || hymnOpen === c.id, ontoggle: (e) => (hymnOpen = e.target.open ? c.id : null) },
     el("summary", {}, "Hymn words", el("span.muted.small", {}, stanzas > 1 ? ` · ${stanzas} stanzas` : " · not entered yet")),
     stanzas <= 1
       ? el(
@@ -891,6 +932,7 @@ function hymnPanel(c) {
           ` and click “Use for ${c.title}”.`,
         )
       : null,
+    versesSung(c),
     imageField(
       "Picture of the hymn",
       extraOf(ed.doc, "hymn_image") ?? null,

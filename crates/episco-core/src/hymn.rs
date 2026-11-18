@@ -221,6 +221,94 @@ pub fn is_slot_title(title: &str) -> bool {
             && words.get(1).is_some_and(|w| ["at", "after", "before", "during", "of", "for"].contains(w)))
 }
 
+// ---- the verses sung -------------------------------------------------------
+
+fn verse_of(b: &Block) -> Option<u32> {
+    match b {
+        Block::Paragraph { role: Some(crate::role::Role::Custom(n)), .. } => n.trim().parse().ok(),
+        _ => None,
+    }
+}
+
+/// The hymn's verse numbers, in order ("1", "2" …).
+pub fn verse_numbers(doc: &LiturgyDocument) -> Vec<u32> {
+    let mut out: Vec<u32> = doc.blocks.iter().filter_map(verse_of).collect();
+    out.sort_unstable();
+    out.dedup();
+    out
+}
+
+/// For each block, whether it is sung when only `verses` are: a verse
+/// with what follows it (its second half, the refrain after it …) up to the
+/// next verse. What comes before the first verse (a refrain sung first, an
+/// introduction), an Outro and rubrics are always kept.
+pub fn verses_kept(doc: &LiturgyDocument, verses: &[u32]) -> Vec<bool> {
+    let mut current: Option<bool> = None;
+    doc.blocks
+        .iter()
+        .map(|b| {
+            if let Some(n) = verse_of(b) {
+                current = Some(verses.contains(&n));
+                return current.unwrap_or(true);
+            }
+            match b {
+                Block::Paragraph { role: Some(r), .. }
+                    if r.is_rubric() || ["intro", "outro"].contains(&r.label().to_lowercase().as_str()) =>
+                {
+                    true
+                }
+                Block::Paragraph { .. } => current.unwrap_or(true),
+                _ => true,
+            }
+        })
+        .collect()
+}
+
+/// The hymn with only `verses` (no stray slide breaks where the others were).
+pub fn sung_verses(doc: &LiturgyDocument, verses: &[u32]) -> LiturgyDocument {
+    let kept = verses_kept(doc, verses);
+    let mut blocks: Vec<Block> = Vec::new();
+    for (b, keep) in doc.blocks.iter().zip(kept) {
+        if !keep {
+            continue;
+        }
+        let is_break = matches!(b, Block::SlideBreak | Block::OutputBreak { .. });
+        if is_break && blocks.last().is_none_or(|l| matches!(l, Block::SlideBreak | Block::OutputBreak { .. })) {
+            continue;
+        }
+        blocks.push(b.clone());
+    }
+    while blocks.last().is_some_and(|l| matches!(l, Block::SlideBreak | Block::OutputBreak { .. })) {
+        blocks.pop();
+    }
+    LiturgyDocument { meta: doc.meta.clone(), blocks }
+}
+
+/// "vs. 1–3 & 5", "v. 2": the verses sung, when not all of `all` are.
+pub fn verses_label(sung: &[u32], all: &[u32]) -> Option<String> {
+    let mut v: Vec<u32> = sung.iter().copied().filter(|n| all.contains(n)).collect();
+    v.sort_unstable();
+    v.dedup();
+    if v.is_empty() || v.len() == all.len() {
+        return None;
+    }
+    let mut parts: Vec<String> = Vec::new();
+    let mut i = 0;
+    while i < v.len() {
+        let mut j = i;
+        while j + 1 < v.len() && v[j + 1] == v[j] + 1 {
+            j += 1;
+        }
+        parts.push(if j > i { format!("{}\u{2013}{}", v[i], v[j]) } else { v[i].to_string() });
+        i = j + 1;
+    }
+    let list = match parts.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} & {last}", rest.join(", ")),
+        _ => parts.concat(),
+    };
+    Some(format!("{} {list}", if v.len() == 1 { "v." } else { "vs." }))
+}
+
 /// The front matter key naming the book a hymn's number is in (`hymnal:
 /// wlp`). Unset: the Hymnal 1982.
 pub const HYMNAL: &str = "hymnal";
@@ -298,6 +386,26 @@ pub fn split_file_name(stem: &str) -> (Option<String>, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_verses_sung() {
+        let text = "1 One a\none b\n\nRefrain:\nSing\n\n2 Two\n\n3 Three\n\n4 Four\n\n5 Five\n";
+        let doc = hymn_document("H", Some("1"), text, &HymnOptions { refrain_after_each: true, max_lines: 8 });
+        assert_eq!(verse_numbers(&doc), [1, 2, 3, 4, 5]);
+        let sung = sung_verses(&doc, &[1, 2, 3, 5]);
+        let roles: Vec<String> = sung.blocks.iter().filter_map(|b| b.role().map(|r| r.label().to_string())).collect();
+        assert_eq!(
+            roles,
+            ["1", "Refrain", "2", "Refrain", "3", "Refrain", "5", "Refrain"],
+            "verse 4 and its refrain left out"
+        );
+        assert!(!sung.blocks.windows(2).any(|w| matches!(w, [Block::SlideBreak, Block::SlideBreak])));
+        assert!(!matches!(sung.blocks.last(), Some(Block::SlideBreak)));
+        assert_eq!(verses_label(&[1, 2, 3, 5], &[1, 2, 3, 4, 5]).as_deref(), Some("vs. 1\u{2013}3 & 5"));
+        assert_eq!(verses_label(&[1, 3, 5, 6], &[1, 2, 3, 4, 5, 6]).as_deref(), Some("vs. 1, 3 & 5\u{2013}6"));
+        assert_eq!(verses_label(&[2], &[1, 2, 3]).as_deref(), Some("v. 2"));
+        assert_eq!(verses_label(&[1, 2, 3], &[1, 2, 3]), None, "all of them: nothing to say");
+    }
 
     #[test]
     fn a_hymns_number_names_its_book() {
