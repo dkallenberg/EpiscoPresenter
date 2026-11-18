@@ -149,9 +149,16 @@ New and scheduled services start from either:
 * **A template** you saved (see below), or **By season**, which uses the
   template kept for each date's season and the standard order where there is
   none. Scheduling across a change of season uses each season's template.
-* **Copy of** an existing service: everything except its propers, with its
-  own copies of the texts and its custom backgrounds kept. The new day's
-  propers are added in the same place.
+* **Copy of** an existing service: its order, with its own copies of the
+  texts and its custom backgrounds kept, and the new day's propers each in
+  the old one's place (so a Sequence hymn stays between the Epistle and the
+  Gospel).
+
+From a template or a copy, what is chosen week by week starts empty and is
+on **To do** again: the hymns (their places keep their names, but a sung
+Sanctus is kept), the preacher, the anthems' titles and composers, the
+prelude and postlude (how the bulletin shows them is kept) and the
+announcements' Google Slides link. A hymn taken out stays out.
 
 **The propers are added automatically** from the lectionary for the date:
 the Collect of the Day, the first reading and psalm (of the chosen track),
@@ -169,7 +176,8 @@ backgrounds, rite), then save it:
   as template…**). Name it and tick the seasons to **use it automatically
   for** (Advent, Christmas, Epiphany, Lent, Holy Week, Easter, After
   Pentecost), or none to choose it by name only. The template keeps the
-  order and texts but not the day's propers or date. Saving under an
+  order and texts, with its propers marking their places, but not the date
+  or anything chosen for that week. Saving under an
   existing name replaces that template.
 * The **Service order templates** card on the Services screen lists them:
   **Edit order** opens a template like a service (the top bar shows

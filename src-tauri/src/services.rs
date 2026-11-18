@@ -6,9 +6,12 @@
 //! saved automatically (autosave.rs) and listed on the Services screen.
 //!
 //! New services come from a template: the standard Rite I or Rite II order
-//! (built from the library, adjusted for the season) or a copy of an existing
-//! service without its propers. The day's propers (Collect of the Day,
-//! readings, psalm and Gospel) are then added from the lectionary.
+//! (built from the library, adjusted for the season), a saved template, or a
+//! copy of an existing service. The day's propers (Collect of the Day,
+//! readings, psalm and Gospel) come from the lectionary: in a copy or a
+//! template, each where the old one stood; and what is chosen each week
+//! (hymns, preacher, anthems, prelude and postlude, announcements) is emptied
+//! so that it is on the To do list again.
 
 use std::path::{Path, PathBuf};
 
@@ -453,6 +456,63 @@ fn propers_position(service: &Service) -> usize {
         .unwrap_or(service.cues.len())
 }
 
+/// What kind of proper an item is, to put the day's in the old one's place.
+fn proper_kind(c: &Cue) -> (ElementCategory, bool) {
+    (c.category, c.title.eq_ignore_ascii_case("Collect of the Day"))
+}
+
+/// Puts the day's propers in a copied service: each where the same kind stood
+/// before (the first reading where the first reading was, the Gospel where
+/// the Gospel was), so what lies between them, such as a Sequence hymn,
+/// stays put. A proper with no old place goes after the one before it (or
+/// before the first); old ones with no new one are dropped. With no old
+/// propers at all, they go in together before the sermon.
+fn replace_propers(service: &mut Service, propers: Vec<Cue>) {
+    let old: Vec<usize> = (0..service.cues.len()).filter(|&i| is_proper(&service.cues[i])).collect();
+    // Each new proper's old place, matched by kind and in order.
+    let mut slot = vec![None; propers.len()];
+    let mut next = 0;
+    for (j, p) in propers.iter().enumerate() {
+        if let Some(k) = (next..old.len()).find(|&k| proper_kind(&service.cues[old[k]]) == proper_kind(p)) {
+            slot[j] = Some(k);
+            next = k + 1;
+        }
+    }
+    let Some(first) = slot.iter().flatten().next().copied() else {
+        service.cues.retain(|c| !is_proper(c));
+        let at = propers_position(service);
+        for (k, cue) in propers.into_iter().enumerate() {
+            service.insert_cue(at + k, cue);
+        }
+        return;
+    };
+    // The old place each new proper goes to: its own, else the one before's.
+    let mut at = first;
+    let group: Vec<usize> = slot
+        .iter()
+        .map(|s| {
+            at = s.unwrap_or(at);
+            at
+        })
+        .collect();
+    let mut propers: Vec<Option<Cue>> = propers.into_iter().map(Some).collect();
+    let cues = std::mem::take(&mut service.cues);
+    for (i, cue) in cues.into_iter().enumerate() {
+        match old.iter().position(|&o| o == i) {
+            Some(k) => {
+                for j in (0..propers.len()).filter(|&j| group[j] == k) {
+                    if let Some(p) = propers[j].take() {
+                        service.insert_cue(service.cues.len(), p);
+                    }
+                }
+            }
+            None => {
+                service.insert_cue(service.cues.len(), cue);
+            }
+        }
+    }
+}
+
 /// Choices for a new service. Unset values come from the template, else the
 /// defaults (Rite II, Track 1, NRSVue).
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -569,7 +629,8 @@ fn is_proper(cue: &Cue) -> bool {
         || cue.title.eq_ignore_ascii_case("Collect of the Day")
 }
 
-/// The service for `day`: a copy of `template` without its propers (and with
+/// The service for `day`: a copy of `template` with the day's propers and its
+/// weekly choices emptied (and with
 /// its own, not-yet-saved files), or the standard order.
 fn build(date: Date, title: Option<String>, template: Option<Service>, opts: ServiceOptions) -> Service {
     let day = liturgical_day(date);
@@ -578,9 +639,11 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
     let bible = opts.bible.or(template.as_ref().and_then(|t| t.bible));
     let special = crate::occasions::order(opts.occasion, rite, opts.prayers);
     let template = if special.is_some() { None } else { template };
+    let copied = template.is_some();
     let mut service = match template {
         Some(mut service) => {
-            service.cues.retain(|c| !is_proper(c));
+            // Its propers stay where they are until the day's take their places.
+            clear_weekly(&mut service);
             for cue in &mut service.cues {
                 if let episco_core::CueContent::Liturgy { source, .. } = &mut cue.content {
                     *source = None;
@@ -605,12 +668,18 @@ fn build(date: Date, title: Option<String>, template: Option<Service>, opts: Ser
         }
     };
     if opts.propers.unwrap_or(true) {
-        let at = propers_position(&service);
         let propers = crate::occasions::fixed_propers(opts.occasion.occasion, date, rite)
             .unwrap_or_else(|| proper_cues(date, rite, track));
-        for (k, cue) in propers.into_iter().enumerate() {
-            service.insert_cue(at + k, cue);
+        if copied {
+            replace_propers(&mut service, propers);
+        } else {
+            let at = propers_position(&service);
+            for (k, cue) in propers.into_iter().enumerate() {
+                service.insert_cue(at + k, cue);
+            }
         }
+    } else {
+        service.cues.retain(|c| !is_proper(c));
     }
     crate::occasions::apply(&mut service, opts.occasion);
     if let Some(prayer) = opts.eucharistic_prayer {
@@ -719,7 +788,7 @@ fn create(
 }
 
 /// Creates a service for `date` and opens it. `template` is the plan of a
-/// service to copy (without its propers); `None` uses the standard order.
+/// service to copy (see [`build`]); `None` uses the standard order.
 #[tauri::command]
 pub fn service_create(
     app: AppHandle,
@@ -900,11 +969,68 @@ fn season_template(app: &AppHandle, season: Season) -> Option<PathBuf> {
     list_templates(app).ok()?.into_iter().find(|t| t.seasons.contains(&season)).map(|t| t.path)
 }
 
-/// A service turned into a template: its order and texts without the day's
-/// propers, date or file.
+/// A service made from another (a copy or a template) keeps its order, but
+/// what is chosen afresh each week is emptied so that it is on the To do list
+/// again: the hymns (but a sung Sanctus), the preacher, the anthems' titles
+/// and composers, the prelude and postlude, and the announcements' Google
+/// Slides. The psalm comes new with the day's propers. A hymn left out stays
+/// out; how each item is printed stays as it was.
+fn clear_weekly(service: &mut Service) {
+    use episco_core::ElementCategory as C;
+    service.announcements_deck = None;
+    service.deck_slides = None;
+    for music in [&mut service.prelude, &mut service.postlude].into_iter().flatten() {
+        music.title.clear();
+        music.composer.clear();
+    }
+    let cues: Vec<(String, C, String)> =
+        service.cues.iter().map(|c| (c.id.clone(), c.category, c.title.clone())).collect();
+    for (id, category, title) in cues {
+        let Some(cue) = service.cue(&id) else { continue };
+        let Some(doc) = cue.document() else { continue };
+        let mut overrides = cue.overrides.clone();
+        let new = match category {
+            C::Hymn if !title.to_lowercase().contains("sanctus") => {
+                // Its place in the service ("Entrance Hymn"), not the last hymn sung there.
+                let place = overrides.title.clone().or_else(|| place_of(&id)).unwrap_or(title);
+                overrides.title = Some(place.clone());
+                overrides.verses = None;
+                hymn_placeholder(&place)
+            }
+            C::Homily => {
+                let mut d = doc.clone();
+                d.meta.extra.retain(|(k, _)| k != "preacher");
+                d
+            }
+            C::Anthem => {
+                overrides.title.get_or_insert(title);
+                episco_core::music::set_anthem(doc, "", "")
+            }
+            _ => continue,
+        };
+        let _ = service.set_document(&id, new);
+        let _ = service.set_overrides(&id, overrides);
+    }
+}
+
+/// The music place an item was made for, from its id ("entrance-hymn",
+/// "communion-hymn-2"), for a hymn that was given its own title before the
+/// place's name was kept.
+fn place_of(id: &str) -> Option<String> {
+    let base = id.rsplit_once('-').filter(|(_, n)| n.parse::<u32>().is_ok()).map_or(id, |(b, _)| b);
+    MusicPlace::ALL
+        .iter()
+        .map(|p| p.label())
+        .find(|l| slug_file_name(l, "x").trim_end_matches(".x") == base)
+        .map(String::from)
+}
+
+/// A service turned into a template: its order and texts without its date
+/// or file, and nothing chosen for a particular week. Its propers are kept
+/// to mark their places: each new service gets the day's in their stead.
 fn as_template(service: &Service, name: &str) -> Service {
     let mut t = service.clone();
-    t.cues.retain(|c| !is_proper(c));
+    clear_weekly(&mut t);
     for cue in &mut t.cues {
         if let episco_core::CueContent::Liturgy { source, .. } = &mut cue.content {
             *source = None;
@@ -918,8 +1044,8 @@ fn as_template(service: &Service, name: &str) -> Service {
     t
 }
 
-/// Saves the open service's order as a named template (without its
-/// propers). Saving under an existing template's name replaces it.
+/// Saves the open service's order as a named template. Saving under an
+/// existing template's name replaces it.
 #[tauri::command]
 pub fn template_save(
     app: AppHandle,
@@ -1097,6 +1223,86 @@ mod tests {
         let i = t.iter().position(|x| *x == a).unwrap_or_else(|| panic!("no {a} in {t:?}"));
         let j = t.iter().position(|x| *x == b).unwrap_or_else(|| panic!("no {b} in {t:?}"));
         i < j
+    }
+
+    #[test]
+    fn a_music_place_from_its_id() {
+        assert_eq!(place_of("entrance-hymn").as_deref(), Some("Entrance Hymn"));
+        assert_eq!(place_of("communion-hymn-2").as_deref(), Some("Communion Hymn"));
+        assert_eq!(place_of("hymn-436-lift-up-your-heads"), None);
+    }
+
+    #[test]
+    fn a_copy_starts_the_week_afresh() {
+        use episco_core::music::Music;
+        let first = build("2026-11-29".parse().unwrap(), None, None, ServiceOptions::default());
+        let mut done = first.clone();
+        // Last week's choices: a hymn with its words and verses, a preacher,
+        // an anthem, the prelude, postlude and announcements.
+        let hymn = done.cues.iter().find(|c| c.category == ElementCategory::Hymn).unwrap().id.clone();
+        let place = done.cue(&hymn).unwrap().title.clone();
+        let words: LiturgyDocument =
+            "---\ntitle: Come, thou long-expected Jesus\ntype: hymn\nhymn: 66\n---\n[1] Come, thou long-expected Jesus\n\n[2] Israel's strength\n".parse().unwrap();
+        done.set_document(&hymn, words).unwrap();
+        let mut o = done.cue(&hymn).unwrap().overrides.clone();
+        o.title = Some(place.clone());
+        o.verses = Some(vec![1]);
+        done.set_overrides(&hymn, o).unwrap();
+        let sermon = done.cues.iter().find(|c| c.category == ElementCategory::Homily).unwrap().id.clone();
+        let mut d = done.cue(&sermon).unwrap().document().unwrap().clone();
+        d.meta.extra.push(("preacher".into(), "The Rev. Jane Doe".into()));
+        done.set_document(&sermon, d).unwrap();
+        let anthem = done.cues.iter().find(|c| c.category == ElementCategory::Anthem).map(|c| c.id.clone());
+        if let Some(a) = &anthem {
+            let d =
+                episco_core::music::set_anthem(done.cue(a).unwrap().document().unwrap(), "Ave verum corpus", "Mozart");
+            done.set_document(a, d).unwrap();
+        }
+        done.prelude =
+            Some(Music { bulletin: Some(episco_core::bulletin::BulletinStyle::Title), ..Music::new("Adagio", "Bach") });
+        done.postlude = Some(Music::new("Toccata", "Widor"));
+        done.announcements_deck = Some("https://docs.google.com/presentation/d/x/pub".into());
+        // A hymn between the Epistle and the Gospel stays there.
+        let gospel = done.cues.iter().position(|c| c.category == ElementCategory::Gospel).unwrap();
+        let seq = Cue::liturgy("sequence-hymn", hymn_placeholder("Sequence Hymn"), None, Default::default());
+        done.insert_cue(gospel, seq);
+        // A hymn taken out stays out.
+        let closing =
+            done.cues.iter().rev().find(|c| c.category == ElementCategory::Hymn && c.id != hymn).unwrap().id.clone();
+        done.cues.retain(|c| c.id != closing);
+        done.rebuild_all();
+
+        let next = build("2026-12-06".parse().unwrap(), None, Some(done.clone()), ServiceOptions::default());
+        // The same order, the day's propers in the old ones' places.
+        let order = |s: &Service| {
+            s.cues
+                .iter()
+                .map(|c| if is_proper(c) { format!("{:?}", proper_kind(c)) } else { c.id.clone() })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(order(&next), order(&done));
+        assert!(next.cues.iter().all(|c| c.id != closing), "the hymn taken out stays out");
+        let first_reading = |s: &Service| {
+            s.cues
+                .iter()
+                .find(|c| c.category == ElementCategory::Reading)
+                .and_then(|c| c.document())
+                .and_then(|d| d.meta.citation.clone())
+        };
+        assert_ne!(first_reading(&next), first_reading(&done), "the new day's readings");
+        let todo = |id: &str| crate::bulletin::todo(next.cue(id).unwrap());
+        assert_eq!(todo(&hymn).as_deref(), Some("Choose the hymn"));
+        assert_eq!(next.cue(&hymn).unwrap().title, place, "named for its place again");
+        assert_eq!(next.cue(&hymn).unwrap().overrides.verses, None);
+        assert_eq!(todo(&sermon).as_deref(), Some("Name the preacher"));
+        if let Some(a) = &anthem {
+            assert_eq!(todo(a).as_deref(), Some("Name the anthem"));
+        }
+        let prelude = next.prelude.as_ref().unwrap();
+        assert!(prelude.title.is_empty() && prelude.composer.is_empty());
+        assert_eq!(prelude.bulletin, Some(episco_core::bulletin::BulletinStyle::Title), "how it prints stays");
+        assert!(next.postlude.as_ref().unwrap().title.is_empty());
+        assert_eq!(next.announcements_deck, None);
     }
 
     #[test]
@@ -1594,18 +1800,21 @@ mod tests {
     }
 
     #[test]
-    fn templates_keep_the_order_without_propers() {
+    fn templates_keep_the_order_and_the_propers_places() {
         let s = build("2026-11-15".parse().unwrap(), None, None, ServiceOptions::default());
         assert!(titles(&s).contains(&"Collect of the Day"));
         let t = as_template(&s, "Ordinary Time");
         assert_eq!(t.title, "Ordinary Time");
         assert!(t.date.is_none());
-        assert!(!titles(&t).contains(&"Collect of the Day") && !titles(&t).iter().any(|x| x.starts_with("Psalm")));
+        // The propers stay, to mark their places.
+        assert!(titles(&t).contains(&"Collect of the Day") && titles(&t).iter().any(|x| x.starts_with("Psalm")));
         assert!(t.cues.iter().all(|c| c.source().is_none()));
 
         // A service from the template gets the new day's propers in place.
         let lent = build("2027-03-14".parse().unwrap(), None, Some(t), ServiceOptions::default());
+        assert_eq!(lent.cues.len(), s.cues.len());
         let titles = titles(&lent);
+        assert_eq!(titles.iter().filter(|x| **x == "Collect of the Day").count(), 1);
         let sermon = titles.iter().position(|x| *x == "The Sermon").unwrap();
         assert_eq!(titles[sermon - 1], "The Holy Gospel");
         assert_eq!(lent.title, "The Fifth Sunday in Lent");

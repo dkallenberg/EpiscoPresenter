@@ -30,7 +30,10 @@ service is ready.
 * **A choir anthem** is an item of its own: **+ Add → Choir anthem…**, with
   its name in the service (e.g. *Offertory Anthem*), title and composer. It
   prints like a hymn: *Offertory Anthem — Ave verum corpus — W. A.
-  Mozart*.
+  Mozart*. To have the choir sing in a hymn's place this week, select the
+  hymn and click **Make it an anthem** in the Editor: *Communion Hymn*
+  becomes *Communion Anthem*, waiting for its title and composer
+  (**Undo** brings the hymn back).
 
 ## How each item is printed
 

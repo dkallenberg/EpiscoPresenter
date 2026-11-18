@@ -246,6 +246,7 @@ fn builder() -> tauri::Builder<tauri::Wry> {
             library::library_fill_cue,
             library::anthem_add,
             library::anthem_set,
+            library::hymn_to_anthem,
             sync::library_sync,
             sync::library_sync_status,
             drive::drive_status,

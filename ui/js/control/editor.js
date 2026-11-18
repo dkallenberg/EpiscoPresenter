@@ -358,6 +358,20 @@ function textInput(key, placeholder) {
   });
 }
 
+/** A hymn's own title; the item keeps its place's name ("Entrance Hymn")
+ *  in the service list once the hymn has a title. */
+function hymnTitle(c) {
+  const input = textInput("title", "e.g. Lift Up Your Heads");
+  const place = c.overrides?.title ?? c.title;
+  input.addEventListener("input", () => {
+    if (!c.overrides?.title && place) {
+      c.overrides = { ...c.overrides, title: place };
+      call("set_cue_overrides", { id: c.id, overrides: c.overrides });
+    }
+  });
+  return input;
+}
+
 /** The book a hymn comes from (the bulletin prints "Hymn 436", "WLP 787"):
  *  the Hymnal 1982 unless it says, another book by name, or none. */
 function hymnalField() {
@@ -433,7 +447,7 @@ function metaForm(c) {
   // its place in the service ("Entrance Hymn").
   const fields =
     type === "hymn" && !isSanctus(c)
-      ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, textInput("title", "e.g. Lift Up Your Heads"), ".wide")]
+      ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, hymnTitle(c), ".wide")]
       : type === "anthem"
         ? anthemFields(c)
         : [field("Title", textInput("title", "Title"), ".wide")];
@@ -486,6 +500,21 @@ function metaForm(c) {
         oninput: (e) => setOverride({ title: e.target.value.trim() || undefined }),
       }),
     ),
+    // A hymn's place can take a choir anthem instead ("Offertory Anthem").
+    c.category === "hymn" && !isSanctus(c)
+      ? el(
+          "button.small",
+          {
+            disabled: app.readonly,
+            title: "Sing a choir anthem here instead: the item becomes an anthem (e.g. Offertory Hymn → Offertory Anthem), waiting for its title and composer",
+            onclick: async () => {
+              await flush(true);
+              if ((await call("hymn_to_anthem", { id: c.id })) !== undefined) toast("Now an anthem: add its title and composer. Undo brings the hymn back.");
+            },
+          },
+          "Make it an anthem",
+        )
+      : null,
     // (The Sanctus says "Said" or "Sung" in its own panel instead.)
     o.category && !isSanctus(c)
       ? el(

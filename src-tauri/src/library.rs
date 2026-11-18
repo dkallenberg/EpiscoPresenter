@@ -934,13 +934,19 @@ pub fn hymn_set_text(
 ) -> CmdResult<usize> {
     let opts = options.unwrap_or_default();
     engine.edit_service(|s| {
-        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?;
+        let cue = s.cue(&id).ok_or("no such item")?;
+        let doc = cue.document().ok_or("no such item")?;
         let new = episco_core::hymn::set_hymn_text(doc, &text, &opts);
         if new.blocks.is_empty() {
             return Err("no words found in the pasted text".to_string());
         }
+        // The item keeps its place's name ("Entrance Hymn") once the hymn
+        // has a title of its own.
+        let mut overrides = cue.overrides.clone();
+        overrides.title.get_or_insert_with(|| cue.title.clone());
         let n = new.slides().len();
         s.set_document(&id, new).map_err(|e| e.to_string())?;
+        s.set_overrides(&id, overrides).map_err(|e| e.to_string())?;
         Ok(n)
     })
 }
@@ -984,6 +990,29 @@ pub fn anthem_set(engine: State<'_, Engine>, id: String, title: String, composer
         s.set_document(&id, new).map_err(|e| e.to_string())?;
         s.set_overrides(&id, overrides).map_err(|e| e.to_string())
     })
+}
+
+/// Makes a hymn's place an anthem's: "Offertory Hymn" becomes "Offertory
+/// Anthem", waiting for the anthem's title and composer.
+#[tauri::command]
+pub fn hymn_to_anthem(engine: State<'_, Engine>, id: String) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let cue = s.cue(&id).ok_or("no such item")?;
+        let place = cue.overrides.title.clone().unwrap_or_else(|| cue.title.clone());
+        let name = anthem_place(&place);
+        let overrides = CueOverrides { title: Some(name), ..Default::default() };
+        s.set_document(&id, episco_core::music::anthem_document("", "")).map_err(|e| e.to_string())?;
+        s.set_overrides(&id, overrides).map_err(|e| e.to_string())
+    })
+}
+
+/// "Offertory Hymn" → "Offertory Anthem"; a name without "Hymn" → "Anthem".
+fn anthem_place(place: &str) -> String {
+    let place = place.trim();
+    match place.len().checked_sub(4).filter(|&i| place.is_char_boundary(i) && place[i..].eq_ignore_ascii_case("hymn")) {
+        Some(i) => format!("{}Anthem", &place[..i]),
+        None => "Anthem".into(),
+    }
 }
 
 #[derive(Serialize)]
@@ -1035,6 +1064,14 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_hymns_place_named_for_an_anthem() {
+        assert_eq!(anthem_place("Offertory Hymn"), "Offertory Anthem");
+        assert_eq!(anthem_place("Communion hymn"), "Communion Anthem");
+        assert_eq!(anthem_place("Hymn of Praise"), "Anthem");
+    }
+
     use super::*;
 
     #[test]
