@@ -499,6 +499,40 @@ pub fn library_preview(app: AppHandle, engine: State<'_, Engine>, id: String) ->
     Ok(cue)
 }
 
+/// A library item as the bulletin prints it in full, or as the script
+/// prints it (the Library's preview in EpiscoPlanner).
+#[tauri::command]
+pub fn library_print(
+    app: AppHandle,
+    engine: State<'_, Engine>,
+    id: String,
+    kind: episco_core::bulletin::DocKind,
+) -> CmdResult<String> {
+    let cue = library_preview(app, engine, id)?;
+    Ok(episco_core::bulletin::item_html(&cue, kind, crate::storage::root().as_deref()))
+}
+
+/// Writes an edit typed into the Library's printed preview back to the
+/// parish's item (the Prayer Book's own text is not changed).
+#[tauri::command]
+pub fn library_edit_line(
+    app: AppHandle,
+    id: String,
+    block: usize,
+    line: Option<usize>,
+    edit: episco_core::bulletin::LineEdit,
+) -> CmdResult<()> {
+    let path = user_dir(&app)?
+        .join(user_file(&id).map_err(|_| "The Prayer Book's text cannot be changed: make a copy to edit.")?);
+    let doc = ewm::load_file(&path).map_err(|e| e.to_string())?.document;
+    let new = episco_core::bulletin::edit_line(&doc, block, line, edit)?;
+    if new != doc {
+        crate::sync::soon();
+        std::fs::write(&path, ewm::to_string(&new)).map_err(|e| format!("could not save {}: {e}", path.display()))?;
+    }
+    Ok(())
+}
+
 fn insert_documents(engine: &Engine, docs: Vec<LiturgyDocument>, after: Option<usize>) -> CmdResult<Vec<String>> {
     engine.edit_service(|s| {
         let start = after.map(|a| a + 1).unwrap_or(s.cues.len());

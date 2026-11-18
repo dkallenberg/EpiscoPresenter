@@ -2,7 +2,8 @@
 // the operator's own saved items), browsable by type, with previews; plus the
 // "Propers" dialog: the Collect, readings and psalm for a date from the lectionary.
 
-import { listen } from "/js/bridge.js";
+import { assetUrl, listen } from "/js/bridge.js";
+import { domSpans } from "/js/control/bulletin.js";
 import { hymnNumber, mountStage, renderOutput } from "/js/render.js";
 import { renderMedia } from "/js/control/media.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
@@ -209,6 +210,20 @@ async function showPreview(rowId) {
   if (!cue || lib.selected !== rowId) return;
   const slides = cue.content.slides.length ? cue.content.slides : [null];
   const grid = el("div.lib-slides");
+  // EpiscoPlanner shows an item as the bulletin and the script print it
+  // (the bulletin first); the slides are a click away.
+  const planner = app.mode === "planner";
+  const as = planner ? lib.previewAs ?? "bulletin" : "slides";
+  const switcher = planner
+    ? el(
+        "div.seg.lib-preview-as",
+        {},
+        [["bulletin", "Bulletin"], ["script", "Script"], ["slides", "Slides"]].map(([k, l]) =>
+          el(`button${k === as ? ".active" : ""}`, { onclick: () => { lib.previewAs = k; showPreview(rowId); } }, l),
+        ),
+      )
+    : "";
+  const printed = as === "slides" ? null : el("div.doc-page.lib-doc");
   host.replaceChildren(
     el(
       "div.lib-preview-head",
@@ -226,9 +241,11 @@ async function showPreview(rowId) {
     entry?.dupes?.length ? dupeBar(entry) : "",
     entry && !entry.builtin ? usesBar(entry) : "",
     baseName(entry ?? {}) ? versionBar(versions, entry) : "",
-    el("div.picker-sub", {}, "Sanctuary · Live Stream"),
-    grid,
+    switcher,
+    printed ?? el("div.picker-sub", {}, "Sanctuary · Live Stream"),
+    printed ?? grid,
   );
+  if (printed) return showPrinted(printed, id, entry, as, rowId);
   // Render after attaching so text can be fitted.
   const snap = { service: app.service, state: { revision: 0 } };
   slides.forEach((slide, si) => {
@@ -238,6 +255,46 @@ async function showPreview(rowId) {
       renderOutput(mountStage(thumb), snap, { cue, slide, pos: { cue: -1, slide: si } }, output);
     }
   });
+}
+
+/** The item as the bulletin (in full) or the script prints it. The
+ *  parish's own items can be edited here, line by line. */
+async function showPrinted(host, id, entry, kind, rowId) {
+  const html = await call("library_print", { id, kind });
+  if (html == null || lib.selected !== rowId) return;
+  host.innerHTML = html;
+  for (const img of host.querySelectorAll("img[data-path]")) img.src = assetUrl(null, img.dataset.path);
+  const editable = entry && !entry.builtin && !app.readonly;
+  host.title = editable ? "Click a line to change it; the item in the Library changes." : entry?.builtin ? "The Prayer Book's text: make a copy to change it." : "";
+  if (!editable) return;
+  for (const n of host.querySelectorAll(".ed")) {
+    n.contentEditable = "true";
+    n.spellcheck = true;
+    n.dataset.orig = n.innerHTML;
+    n.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        n.blur();
+      } else if (e.key === "Escape") {
+        n.innerHTML = n.dataset.orig;
+        n.blur();
+      }
+    });
+    n.addEventListener("blur", async () => {
+      if (n.innerHTML === n.dataset.orig) return;
+      const [block, line] = (n.dataset.src ?? "").split(":");
+      const ok = await call("library_edit_line", {
+        id,
+        block: Number(block),
+        line: line === undefined ? null : Number(line),
+        edit: { action: "set", spans: domSpans(n) },
+      });
+      if (ok !== undefined) {
+        n.dataset.orig = n.innerHTML;
+        toast("Saved in the Library");
+      }
+    });
+  }
 }
 
 /** The versions of a Prayer Book item: pick one to preview; make a copy,

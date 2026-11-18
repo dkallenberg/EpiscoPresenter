@@ -205,7 +205,7 @@ async function renderTodo(v) {
 // ---------- editing in place ----------
 
 /** The text of an edited line as spans, with bold and italic. */
-function domSpans(node, fmt = { bold: false, italic: false }, out = []) {
+export function domSpans(node, fmt = { bold: false, italic: false }, out = []) {
   for (const n of node.childNodes) {
     if (n.nodeType === Node.TEXT_NODE) {
       if (n.nodeValue) out.push({ text: n.nodeValue, ...fmt });

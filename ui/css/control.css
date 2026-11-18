@@ -302,7 +302,11 @@ select.overridden, .bg-button.overridden { border-color: var(--accent); }
 .lib-actions { display: flex; gap: 8px; }
 .lib-versions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 4px; }
 .lib-version-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.lib-slides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.lib-slides { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 1100px) { .lib-slides { grid-template-columns: 1fr 1fr; } }
+.lib-preview-as { margin: 10px 0 8px; margin-left: 0; }
+/* An item printed as in the bulletin or script (bulletin.css styles it). */
+.lib-doc { margin: 0; max-width: 640px; min-height: 0; padding: 0.4in 0.5in; }
 .danger-btn:hover { background: #5a2226 !important; border-color: var(--live) !important; }
 .modal.wide { width: 760px; }
 .propers-text { width: 100%; min-height: 160px; resize: vertical; font-size: 13px; }

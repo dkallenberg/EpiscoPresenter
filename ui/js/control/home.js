@@ -200,6 +200,12 @@ function setupCard() {
   );
 }
 
+/** The Library, with or without a service open. */
+function openLibrary() {
+  hideHome();
+  document.querySelector('.tabs button[data-tab="library"]')?.click();
+}
+
 export function hideHome() {
   document.getElementById("home").hidden = true;
 }
@@ -558,6 +564,7 @@ function render() {
         el("h1", {}, "Services"),
         el("span.spacer"),
         app.readonly ? null : el("button.primary.schedule-btn", { onclick: () => openScheduler(), title: "One service, or the coming Sundays" }, "Schedule services…"),
+        el("button", { onclick: openLibrary, title: "Hymns, prayers and the parish's texts: add, change or tidy them without opening a service" }, "Library"),
         el("button", { onclick: openFile, title: "Open a service plan (.toml) from anywhere" }, "Open file…"),
         el("button", { onclick: openExample, title: "The built-in example service" }, "Example"),
         app.service ? el("button", { onclick: hideHome, title: "Back to the open service" }, "✕ Close") : null,

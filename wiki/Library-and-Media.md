@@ -21,6 +21,16 @@ Filter by kind (Collect, Prayer, Hymn, Eucharistic Prayer…) and by **Rite
 I** / **Rite II**, or search titles and text. Select an item to see every
 slide on both screens.
 
+In EpiscoPlanner the selected item is shown as the bulletin prints it in
+full; **Script** shows it as the officiant's script prints it, and
+**Slides** shows its slides on both screens (two pairs to a row). The
+parish's own items can be changed right there: click a line, type, and
+press Enter (Esc undoes it); the item in the Library changes, not services
+already made with it. The Prayer Book's own text is shown, not edited. The
+**Library** button on the Services screen opens the Library without a
+service open, to add, change or tidy items. (EpiscoPresenter shows the
+slides.)
+
 * **BCP** items are the Prayer Book's texts, built into the app.
 * **Mine** items are ones the parish saved.
 * **Add to service** (or double-click) puts a copy after the selected item

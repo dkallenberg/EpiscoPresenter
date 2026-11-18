@@ -239,6 +239,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
             commands::save_service,
             library::library_list,
             library::library_preview,
+            library::library_print,
+            library::library_edit_line,
             library::library_add,
             library::library_save_cue,
             library::library_fill_cue,

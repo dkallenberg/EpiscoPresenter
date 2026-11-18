@@ -6,6 +6,16 @@ The **Library** tab lists reusable items, which you can filter by type
 (Acclamation, Collect, Prayer, Hymn, …) or search by title and text. Selecting
 an item previews every slide on both outputs.
 
+In EpiscoPlanner the selected item is shown as the bulletin prints it in
+full; **Script** shows it as the officiant's script prints it, and
+**Slides** shows its slides on both screens (two pairs to a row). The
+parish's own items can be changed right there: click a line, type, and
+press Enter (Esc undoes it); the item in the Library changes, not services
+already made with it. The Prayer Book's own text is shown, not edited. The
+**Library** button on the Services screen opens the Library without a
+service open, to add, change or tidy items. (EpiscoPresenter shows the
+slides.)
+
 * **Built-in** (**BCP**) items are texts of the Holy Eucharist from the 1979 Book of
   Common Prayer (public domain), in **Rite Two** and **Rite One** (filter with
   the **Rite I** / **Rite II** chips): the opening acclamations (ordinary,

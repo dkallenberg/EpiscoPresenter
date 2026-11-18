@@ -1058,6 +1058,25 @@ pub fn script_style_of(cue: &Cue) -> BulletinStyle {
     }
 }
 
+/// One item alone, as the bulletin prints it in full or the script prints
+/// it, without a cover: the Library's preview.
+pub fn item_html(cue: &Cue, kind: DocKind, root: Option<&Path>) -> String {
+    let script = kind == DocKind::Script;
+    let style = if script { script_style_of(cue) } else { BulletinStyle::Full };
+    let doc = Doc {
+        kind,
+        cover: Cover { title: String::new(), day: None, when: None, logo: None },
+        entries: vec![entry(cue, style, script, root)],
+        back: None,
+    };
+    let html = to_html(&doc);
+    // No cover for one item.
+    match (html.find("<header class=\"cover\">"), html.find("</header>")) {
+        (Some(a), Some(b)) if a < b => format!("{}{}", &html[..a], &html[b + "</header>".len()..]),
+        _ => html,
+    }
+}
+
 /// The officiant's script: every word of every item, rubrics included, the
 /// Great Thanksgiving starting a new page.
 pub fn script(service: &Service, parish: &ParishInfo) -> Doc {
@@ -1812,6 +1831,15 @@ mod tests {
             document.meta.extra.push(("words_on".into(), "script, sanctuary, stream".into()));
         }
         assert_eq!(kinds(&script(&s, &ParishInfo::default())), ["line", "music", "words", "words", "rubric"]);
+    }
+
+    #[test]
+    fn one_item_printed_alone() {
+        let c = cue("---\ntitle: Collect for Purity\ncitation: BCP 323\n---\n[Celebrant] Almighty God.\n[Rubric] *Then the Gloria.*\n");
+        let b = item_html(&c, DocKind::Bulletin, None);
+        assert!(!b.contains("cover") && b.contains("Almighty God.") && b.contains("data-src=\"0:0\""), "{b}");
+        let s = item_html(&c, DocKind::Script, None);
+        assert!(s.contains("class=\"doc script\"") && s.contains("Then the Gloria"), "{s}");
     }
 
     #[test]
