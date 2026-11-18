@@ -41,7 +41,7 @@ appears in the bar above it:
 | --- | --- |
 | **Reference line** | The title, the opening words and the page or hymn number: *Collect for Purity — Almighty God, to you all hearts are open… BCP 355* |
 | **Full text** | Every word, with speaker labels and the people's parts in bold |
-| **Responses only** | The title and just what the people say, each with the line that cues it; a litany's call and response, said after every petition, is printed once after *At the end of each petition,* |
+| **Responses only** | The title and just what the people say, each after the line that cues it (just its end when it is long: *… Therefore we proclaim the mystery of faith:*); a litany's call and response, said after every petition, is printed once after *At the end of each petition,* |
 | **Title only** | Just the title |
 | **Left out** | Nothing |
 

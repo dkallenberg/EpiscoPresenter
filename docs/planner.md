@@ -115,8 +115,9 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
     e.g. *Collect for Purity — Almighty God, to you all hearts are open… BCP 355*.
   * **Full text**: every word, speaker labels, the people's parts in bold.
   * **Responses only**: the title and just what the people say, each with
-    the short line that cues it (*The Word of the Lord. / Thanks be to
-    God.*); a long prayer is left out and only its *Amen* is printed. A
+    the line that cues it (*The Word of the Lord. / Thanks be to God.*);
+    of a long one, only its end, so the people know when to answer (*…
+    Therefore we proclaim the mystery of faith: / Christ has died.*). A
     litany's call and response, said after every petition (*Lord, in your
     mercy / Hear our prayer.*), is printed once, after *At the end of each
     petition,*.

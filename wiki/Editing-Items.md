@@ -33,9 +33,10 @@ From top to bottom:
    In a **hymn** the rows are the song's parts instead: **Verse 1, 2 …**
    (one past the last verse is offered, and **+ ADD BLOCK** starts the next
    verse), **Refrain**, **Chorus**, **Bridge**, **Intro**, **Outro**, and for
-   sung responses **Cantor**, **Call**, **All** (bold), **This Side** and
-   **That Side** (a new row after Cantor or Call is All; This Side and That
-   Side alternate). These are offered only in hymns.
+   sung responses or parts **Cantor**, **Choir**, **Call**, **All** (bold),
+   **Men**, **Women**, **This Side** and **That Side** (a new row after
+   Cantor or Call is All; Men and Women, and This Side and That Side,
+   alternate). These are offered only in hymns.
    * Each line in a row is one line on the screen. **Enter** starts a new
      line; **Tab** and **⇧Tab** indent and outdent it.
    * Hover between rows for **+ ADD BLOCK**, **§ Heading** (starts a new

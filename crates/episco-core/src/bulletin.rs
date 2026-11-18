@@ -960,18 +960,22 @@ fn words(p: &Piece) -> usize {
 }
 
 /// Only what the people say, each with the leader's line before it when that
-/// line is short enough to be a cue ("The Lord be with you."). A call and
-/// response said after every petition of a litany is printed once, after
-/// "At the end of each petition,".
+/// line ("The Lord be with you."), or the end of it when it is long ("…
+/// Therefore we proclaim the mystery of faith:"), so the people know when
+/// to answer. A call and response said after every petition of a litany is
+/// printed once, after "At the end of each petition,".
 fn responses(pieces: Vec<Piece>) -> Vec<Piece> {
     let mut pairs: Vec<(Option<Piece>, Piece)> = Vec::new();
     let mut prev: Option<Piece> = None;
     for p in pieces {
         if is_people(&p) {
-            let cue = prev.take().filter(|c| matches!(c, Piece::Speech { .. }) && words(c) <= 16);
-            pairs.push((cue, p));
-        } else {
+            pairs.push((prev.take().and_then(lead_in), p));
+        } else if matches!(p, Piece::Speech { .. }) {
             prev = Some(p);
+        } else if !matches!(p, Piece::Rubric { .. } | Piece::Image { .. }) {
+            // A rubric between the leader and the people ("The people
+            // stand") doesn't part them; anything else does.
+            prev = None;
         }
     }
     let mut out: Vec<Piece> = Vec::new();
@@ -993,6 +997,48 @@ fn responses(pieces: Vec<Piece>) -> Vec<Piece> {
 }
 
 const EACH_PETITION_RUBRIC: &str = "At the end of each petition,";
+
+/// The most of a leader's line printed before the people's response.
+const CUE_WORDS: usize = 16;
+
+/// The leader's line before a response: all of it when short, else, after
+/// "…", its last sentence, or as much of that as fits in [`CUE_WORDS`] from
+/// a clause ("…, who for ever sing this hymn to proclaim the glory of your
+/// Name:").
+fn lead_in(p: Piece) -> Option<Piece> {
+    if words(&p) <= CUE_WORDS {
+        return Some(p);
+    }
+    let Piece::Speech { label, lines, joins, .. } = p else { return None };
+    // The last paragraph: its first line is the last one not run on.
+    let start = (0..lines.len()).rev().find(|i| !joins.contains(i)).unwrap_or(0);
+    let text: String = lines[start..]
+        .iter()
+        .map(|l| l.iter().map(|r| r.text.as_str()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let all: Vec<&str> = text.split_whitespace().collect();
+    // After a word ending a sentence (. ! ?) or a clause (also ; : ,), a
+    // closing quote or bracket allowed after it.
+    let ends = |i: usize, marks: &[char]| all[i - 1].trim_end_matches(['"', '\'', '”', '’', ')']).ends_with(marks);
+    let sentence = (1..all.len()).rev().find(|&i| ends(i, &['.', '!', '?'])).unwrap_or(0);
+    let fits = |i: usize| all.len() - i <= CUE_WORDS;
+    // The last sentence if it fits, else the most of it from a clause.
+    let from = if fits(sentence) {
+        sentence
+    } else {
+        (sentence + 1..all.len())
+            .find(|&i| fits(i) && ends(i, &['.', '!', '?', ';', ':', ',']))
+            .unwrap_or(all.len() - CUE_WORDS * 3 / 4)
+    };
+    let cue = format!("… {}", all[from..].join(" "));
+    Some(Piece::Speech {
+        label,
+        lines: vec![vec![Run { text: cue, bold: false, italic: false, src: None }]],
+        joins: Vec::new(),
+        indents: Vec::new(),
+    })
+}
 
 /// The same words said by the same people, wherever they stand in the item.
 fn same_pair(a: &(Option<Piece>, Piece), b: &(Option<Piece>, Piece)) -> bool {
@@ -1526,6 +1572,38 @@ mod tests {
     }
 
     #[test]
+    fn responses_only_gives_a_long_lead_in_its_end() {
+        let text =
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../library/eucharistic-prayer-a.ewm"))
+                .unwrap();
+        let r = entry(&cue(&text), BulletinStyle::Responses, false, None);
+        let said: Vec<String> = r.pieces[1..]
+            .iter()
+            .map(|p| match p {
+                Piece::Speech { label, lines, .. } => {
+                    format!(
+                        "{}: {}",
+                        label.as_deref().unwrap_or("-"),
+                        lines[0].iter().map(|x| x.text.as_str()).collect::<String>()
+                    )
+                }
+                other => format!("{other:?}"),
+            })
+            .collect();
+        let at =
+            |start: &str| said.iter().position(|s| s.contains(start)).unwrap_or_else(|| panic!("{start}: {said:#?}"));
+        // Each response comes after the end of the Celebrant's line before it.
+        assert_eq!(
+            said[at("Holy, Holy, Holy") - 1],
+            "Celebrant: … who for ever sing this hymn to proclaim the glory of your Name:"
+        );
+        assert_eq!(said[at("Christ has died") - 1], "Celebrant: … Therefore we proclaim the mystery of faith:");
+        assert!(
+            said[at("AMEN") - 1].starts_with("Celebrant: … ") && said[at("AMEN") - 1].ends_with("now and for ever.")
+        );
+    }
+
+    #[test]
     fn responses_only_prints_a_litany_response_once() {
         let pop = cue("---\ntitle: The Prayers of the People\ntype: prayer\n---\n[Deacon] Let us pray for the Church and for the world.\n[Deacon] Grant that all who confess your Name may be united in your truth, live together in your love, and reveal your glory in the world.\n[Rubric] *Silence*\n[Deacon] Lord, in your mercy\n[People] **Hear our prayer.**\n[Deacon] Guide the people of this land in the ways of justice and peace; that we may honor one another and serve the common good.\n[Rubric] *Silence*\n[Deacon] Lord, in your mercy\n[People] **Hear our prayer.**\n");
         let r = entry(&pop, BulletinStyle::Responses, false, None);
@@ -1578,11 +1656,17 @@ mod tests {
             ]
         );
 
-        // A long prayer is left out; only the people's Amen remains.
+        // A long prayer is left out but for its end, so the people know when
+        // to say Amen.
         let collect = cue("---\ntitle: Collect of the Day\ntype: collect\n---\n[Priest] Almighty God, you have knit together your elect in one communion and fellowship in the mystical body of your Son Christ our Lord: Give us grace so to follow your blessed saints.\n[People] **Amen.**\n");
         let r = entry(&collect, BulletinStyle::Responses, false, None);
-        assert_eq!(r.pieces.len(), 2);
-        assert!(is_people(&r.pieces[1]));
+        assert_eq!(r.pieces.len(), 3);
+        assert!(
+            matches!(&r.pieces[1], Piece::Speech { lines, .. } if lines[0][0].text == "… Give us grace so to follow your blessed saints."),
+            "{:?}",
+            r.pieces[1]
+        );
+        assert!(is_people(&r.pieces[2]));
         assert!(!needs_text(&collect));
     }
 

@@ -523,7 +523,7 @@ const isPsalm = () => (ed.doc?.meta.type ?? "") === "psalm";
 const isAntiphonHeading = (b) => b.kind === "heading" && /^antiphon$/i.test(b.text ?? "");
 const isHymn = () => (ed.doc?.meta.type ?? "") === "hymn";
 /** The parts of a song a hymn's rows can be. */
-const HYMN_PARTS = ["Refrain", "Chorus", "Bridge", "Intro", "Outro", "Cantor", "Call", "All", "This Side", "That Side"];
+const HYMN_PARTS = ["Refrain", "Chorus", "Bridge", "Intro", "Outro", "Cantor", "Choir", "Call", "All", "Men", "Women", "This Side", "That Side"];
 /** A hymn's role choices: Verse 1 … one past its last verse, then the other parts. */
 function hymnRoles() {
   const last = Math.max(0, ...ed.doc.blocks.map((b) => (b.kind === "paragraph" && /^\d+$/.test(b.role ?? "") ? Number(b.role) : 0)));
@@ -1211,7 +1211,7 @@ function suggestRole(index) {
   const last = before[before.length - 1];
   if (isHymn()) {
     // Answering parts answer each other; otherwise the next verse.
-    const answer = { Cantor: "All", Call: "All", "This Side": "That Side", "That Side": "This Side" }[last?.role];
+    const answer = { Cantor: "All", Call: "All", "This Side": "That Side", "That Side": "This Side", Men: "Women", Women: "Men" }[last?.role];
     if (answer) return answer;
     const n = Math.max(0, ...ed.doc.blocks.map((b) => (b.kind === "paragraph" && /^\d+$/.test(b.role ?? "") ? Number(b.role) : 0)));
     return String(n + 1);
