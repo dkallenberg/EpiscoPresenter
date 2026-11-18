@@ -116,7 +116,10 @@ yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
   * **Full text**: every word, speaker labels, the people's parts in bold.
   * **Responses only**: the title and just what the people say, each with
     the short line that cues it (*The Word of the Lord. / Thanks be to
-    God.*); a long prayer is left out and only its *Amen* is printed.
+    God.*); a long prayer is left out and only its *Amen* is printed. A
+    litany's call and response, said after every petition (*Lord, in your
+    mercy / Hear our prayer.*), is printed once, after *At the end of each
+    petition,*.
   * **Title only**, or **Left out**.
 
   The usual choice for each item is underlined: Prayer Book texts (a `BCP`

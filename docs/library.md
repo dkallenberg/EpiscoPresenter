@@ -98,7 +98,7 @@ edition, a OneLicense or CCLI reprint licence, …):
   slot is still empty; otherwise a double-click adds the hymn after it.
 
 **Verses sung.** A hymn with numbered verses has **Verses sung** in the
-Editor's **Hymn words**: a tick for each verse, all ticked to start. Untick
+Editor, under its title and number: a tick for each verse, all ticked to start. Untick
 a verse that is not sung and it is left out of the slides, the bulletin
 and the script, with the refrain after it; its words stay in the hymn, so
 ticking it brings it back, and **All** ticks them all again. The choice is

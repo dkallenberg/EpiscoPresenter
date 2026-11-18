@@ -960,21 +960,50 @@ fn words(p: &Piece) -> usize {
 }
 
 /// Only what the people say, each with the leader's line before it when that
-/// line is short enough to be a cue ("The Lord be with you.").
+/// line is short enough to be a cue ("The Lord be with you."). A call and
+/// response said after every petition of a litany is printed once, after
+/// "At the end of each petition,".
 fn responses(pieces: Vec<Piece>) -> Vec<Piece> {
-    let mut out: Vec<Piece> = Vec::new();
+    let mut pairs: Vec<(Option<Piece>, Piece)> = Vec::new();
     let mut prev: Option<Piece> = None;
     for p in pieces {
         if is_people(&p) {
-            if let Some(cue) = prev.take().filter(|c| matches!(c, Piece::Speech { .. }) && words(c) <= 16) {
-                out.push(cue);
-            }
-            out.push(p);
+            let cue = prev.take().filter(|c| matches!(c, Piece::Speech { .. }) && words(c) <= 16);
+            pairs.push((cue, p));
         } else {
             prev = Some(p);
         }
     }
+    let mut out: Vec<Piece> = Vec::new();
+    let mut i = 0;
+    while i < pairs.len() {
+        let run = pairs[i..].iter().take_while(|q| same_pair(q, &pairs[i])).count();
+        // Only a response with its call is collapsed; a bare response (each
+        // collect's "Amen.") is kept for every time it is said.
+        let collapse = run > 1 && pairs[i].0.is_some();
+        if collapse {
+            out.push(Piece::Rubric { text: EACH_PETITION_RUBRIC.into(), src: None });
+        }
+        let (cue, people) = pairs[i].clone();
+        out.extend(cue);
+        out.push(people);
+        i += if collapse { run } else { 1 };
+    }
     out
+}
+
+const EACH_PETITION_RUBRIC: &str = "At the end of each petition,";
+
+/// The same words said by the same people, wherever they stand in the item.
+fn same_pair(a: &(Option<Piece>, Piece), b: &(Option<Piece>, Piece)) -> bool {
+    // Speaker, then each run's text and weight; `None` for anything but speech.
+    fn said(p: &Piece) -> Option<String> {
+        let Piece::Speech { label, lines, .. } = p else { return None };
+        let runs =
+            lines.iter().flatten().map(|r| format!("{}{}{}", u8::from(r.bold), u8::from(r.italic), r.text.trim()));
+        Some(std::iter::once(label.clone().unwrap_or_default()).chain(runs).collect::<Vec<_>>().join("\n"))
+    }
+    a.0.as_ref().map(said) == b.0.as_ref().map(said) && said(&a.1) == said(&b.1)
 }
 
 fn title_line(cue: &Cue, style: BulletinStyle) -> Piece {
@@ -1494,6 +1523,21 @@ mod tests {
                 reference: Some("Hymn 414".into()),
             }
         );
+    }
+
+    #[test]
+    fn responses_only_prints_a_litany_response_once() {
+        let pop = cue("---\ntitle: The Prayers of the People\ntype: prayer\n---\n[Deacon] Let us pray for the Church and for the world.\n[Deacon] Grant that all who confess your Name may be united in your truth, live together in your love, and reveal your glory in the world.\n[Rubric] *Silence*\n[Deacon] Lord, in your mercy\n[People] **Hear our prayer.**\n[Deacon] Guide the people of this land in the ways of justice and peace; that we may honor one another and serve the common good.\n[Rubric] *Silence*\n[Deacon] Lord, in your mercy\n[People] **Hear our prayer.**\n");
+        let r = entry(&pop, BulletinStyle::Responses, false, None);
+        let said: Vec<String> = r.pieces[1..]
+            .iter()
+            .map(|p| match p {
+                Piece::Speech { lines, .. } => lines[0].iter().map(|x| x.text.as_str()).collect(),
+                Piece::Rubric { text, .. } => text.clone(),
+                other => format!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(said, ["At the end of each petition,", "Lord, in your mercy", "Hear our prayer."]);
     }
 
     #[test]

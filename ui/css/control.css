@@ -715,6 +715,6 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 .hymnal-pick { display: flex; gap: 6px; }
 .hymnal-pick select, .hymnal-pick input { min-width: 0; flex: 1; }
 
-.verses-sung { align-items: center; gap: 10px; }
+.verses-sung { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
 .verses-sung label.check { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
 .verses-sung input[type=checkbox] { width: auto; margin: 0; }
