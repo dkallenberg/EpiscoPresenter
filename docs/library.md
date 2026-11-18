@@ -301,6 +301,10 @@ own on both screens, shown as a hymn (words on black, level lines, no
 "People" label, in the sanctuary; the hymn panel on the stream), and the
 rest of the prayer keeps its look. The bulletin and script print the prayer
 as usual. (The choice is kept in the service plan: `sanctus_sung = true`.)
+The parish's own Eucharistic Prayers have the same row: the Sanctus is the
+first line that begins "Holy, holy, holy" (any punctuation, whoever it is
+marked for, People, All or "Presider and People"; partway through a block
+it becomes a block of its own when sung).
 
 ### Music before the Gospel
 

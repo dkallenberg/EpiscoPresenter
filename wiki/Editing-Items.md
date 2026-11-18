@@ -196,7 +196,9 @@ Select the **Sanctus** and choose:
 In a whole **Eucharistic Prayer** (A–D, I or II), the Sanctus is inside
 the prayer: select the prayer in the Editor and use its **Sanctus** row,
 **Said** or **Sung**. Sung, the Sanctus gets a slide of its own shown like
-a hymn; the rest of the prayer looks as before.
+a hymn; the rest of the prayer looks as before. The parish's own
+Eucharistic Prayers have the row too, wherever a line begins "Holy, holy,
+holy" (marked People, All, "Presider and People" …).
 
 ## Music that includes its words
 

@@ -154,17 +154,31 @@ pub struct Cue {
     pub content: CueContent,
 }
 
-/// The Sanctus in a Eucharistic Prayer: the people's "Holy, holy, holy …".
+/// Text that begins "Holy, holy, holy" (any case or punctuation).
+fn begins_holy(text: &str) -> bool {
+    let t: String = text.to_lowercase().chars().map(|c| if c.is_alphanumeric() { c } else { ' ' }).collect();
+    t.split_whitespace().take(3).eq(["holy", "holy", "holy"])
+}
+
+fn is_rubric_block(b: &Block) -> bool {
+    matches!(b, Block::Paragraph { role: Some(r), .. } if r.is_rubric())
+}
+
+/// The Sanctus in a Eucharistic Prayer: a block that begins "Holy, holy,
+/// holy …", whoever it is marked for (People, All, "Presider and People" …).
 fn is_sanctus(b: &Block) -> bool {
-    match b {
-        // The people's part (Rite I: "All").
-        Block::Paragraph { role, .. }
-            if role.is_none() || matches!(role, Some(crate::role::Role::People | crate::role::Role::All)) =>
-        {
-            b.plain_text().to_lowercase().starts_with("holy, holy, holy")
+    matches!(b, Block::Paragraph { .. }) && !is_rubric_block(b) && begins_holy(&b.plain_text())
+}
+
+/// Where a prayer's Sanctus begins: its block and line (it may begin partway
+/// through a block, as a prayer pasted under one speaker has it).
+pub fn sanctus_at(doc: &LiturgyDocument) -> Option<(usize, usize)> {
+    doc.blocks.iter().enumerate().find_map(|(i, b)| match b {
+        Block::Paragraph { lines, .. } if !is_rubric_block(b) => {
+            lines.iter().position(|l| begins_holy(&crate::document::line_plain_text(l))).map(|j| (i, j))
         }
-        _ => false,
-    }
+        _ => None,
+    })
 }
 
 /// A Eucharistic Prayer whose Sanctus is sung: the Sanctus on a slide of its
@@ -172,8 +186,17 @@ fn is_sanctus(b: &Block) -> bool {
 /// around it), without a speaker (it is sung, as a hymn). `None` if the
 /// prayer has no Sanctus.
 fn sanctus_sung(doc: &LiturgyDocument) -> Option<LiturgyDocument> {
-    let at = doc.blocks.iter().position(is_sanctus)?;
+    let (mut at, line) = sanctus_at(doc)?;
     let mut out = doc.clone();
+    // Begun partway through a block: the Sanctus becomes a block of its own.
+    if line > 0 {
+        if let Block::Paragraph { role, lines } = &mut out.blocks[at] {
+            let rest = lines.split_off(line);
+            let role = role.clone();
+            out.blocks.insert(at + 1, Block::Paragraph { role, lines: rest });
+            at += 1;
+        }
+    }
     if let Block::Paragraph { role, lines } = &mut out.blocks[at] {
         *role = None;
         // Sung lines stand level (no indents), as a hymn's.
@@ -1176,6 +1199,31 @@ mod tests {
         s.rebuild_all();
         assert!(!text(&s, "a").contains("But chiefly") && !text(&s, "a").contains("first day of the week"));
         assert_eq!(s.cue("c").unwrap().document(), Some(&c), "the prayer's own text is unchanged");
+    }
+
+    #[test]
+    fn a_parish_prayers_sanctus_is_found_however_it_is_marked() {
+        let doc = |text: &str| -> LiturgyDocument {
+            format!("---\ntitle: EP\ntype: eucharistic_prayer\n---\n{text}").parse().unwrap()
+        };
+        // Marked for "Presider and People", without commas.
+        let a = doc("[Presider] We praise you, saying:\n\n[Presider and People] **Holy holy holy Lord, God of power and might.**\n\n[Presider] Glory to you.\n");
+        assert_eq!(sanctus_at(&a), Some((1, 0)));
+        let sung = sanctus_sung(&a).unwrap();
+        assert!(sung
+            .blocks
+            .iter()
+            .any(|b| matches!(b, Block::Paragraph { role: None, .. }) && begins_holy(&b.plain_text())));
+        // Partway through a block: split off as its own.
+        let b = doc("[People] And so we join the saints and say:\nHoly, Holy, Holy Lord,\nheaven and earth are full of your glory.\n");
+        assert_eq!(sanctus_at(&b), Some((0, 1)));
+        let sung = sanctus_sung(&b).unwrap();
+        let texts: Vec<String> = sung.blocks.iter().map(|x| x.plain_text()).filter(|t| !t.is_empty()).collect();
+        assert_eq!(texts[0], "And so we join the saints and say:");
+        assert!(texts[1].starts_with("Holy, Holy, Holy Lord,"));
+        // A rubric that mentions it is not the Sanctus.
+        let c = doc("[Rubric] *Holy, holy, holy is sung or said here.*\n");
+        assert_eq!(sanctus_at(&c), None);
     }
 
     #[test]

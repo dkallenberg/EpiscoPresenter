@@ -164,16 +164,23 @@ function load(c, force) {
     }
     refreshLooks(c);
     if (ed.dirty || ed.held) return renderStatus(); // ours is newer
-    if (incoming && ed.doc && canon(incoming) === canon(ed.doc)) return renderStatus();
+    // The same words, shown the same way: nothing to redraw. (Said or sung
+    // changes how an item is shown, not its words.)
+    if (incoming && ed.doc && canon(incoming) === canon(ed.doc) && ed.shape === shapeOf(c)) return renderStatus();
     if (!incoming) return renderStatus();
   }
   // Switching away from a cue with unsent edits: send them first.
   if (force && ed.dirty && ed.id && ed.id !== c.id) flush(true);
   ed.id = c.id;
   ed.doc = incoming ? clone(incoming) : null;
+  ed.shape = shapeOf(c);
   ed.dirty = ed.held = false;
   render(c);
 }
+
+/** How an item is shown, apart from its words: its kind (a Sanctus said or
+ *  sung) and a prayer's Sanctus sung. */
+const shapeOf = (c) => `${c.category}|${c.overrides?.sanctus_sung ? "sung" : ""}`;
 
 // ---------- rendering ----------
 
@@ -701,7 +708,10 @@ function sanctusPanel(c) {
 /** A whole Eucharistic Prayer: its Sanctus said (the people's part, as
  *  printed) or sung (that slide shown as a hymn, a slide of its own). */
 function prayerSanctusPanel(c) {
-  const has = ed.doc.blocks.some((b) => b.kind === "paragraph" && /^holy, holy, holy/i.test(b.lines.flat().map((s) => s.text).join("")));
+  // Any line that begins "Holy, holy, holy" (whoever it is marked for), as
+  // the slides find it (service.rs, sanctus_at).
+  const holy = (line) => /^\W*holy\W+holy\W+holy\b/i.test(line.map((s) => s.text).join("").trim());
+  const has = ed.doc.blocks.some((b) => b.kind === "paragraph" && b.role !== "Rubric" && b.lines.some(holy));
   if (!has) return null;
   const sung = Boolean(c.overrides?.sanctus_sung);
   const set = (on) => call("set_cue_overrides", { id: c.id, overrides: { ...c.overrides, sanctus_sung: on } });
