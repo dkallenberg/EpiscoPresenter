@@ -123,6 +123,11 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
 * **Rows** are blocks. The dropdown sets the speaker role, which sets the row's
   colour and the on-screen style (People is bold black; Rubric is red italic
   and never projected).
+  In a hymn the dropdown has the song's parts instead: Verse 1, 2 … (one
+  past the last), Refrain, Chorus, Bridge, Intro, Outro, Cantor, Call, All,
+  This Side and That Side; a new row continues the verses, or answers
+  Cantor or Call with All and alternates This Side and That Side. (Choir /
+  People for each verse is the psalm's.)
 * Hover between rows for **( + ADD BLOCK )**. The new block continues the
   dialogue (after Priest comes People, after People the previous speaker). The
   small buttons beside it add a **§ Heading** (starts a new slide with a

@@ -512,6 +512,15 @@ function metaForm(c) {
 const extraOf = (doc, key) => doc.meta.extra?.find(([k]) => k === key)?.[1];
 const isPsalm = () => (ed.doc?.meta.type ?? "") === "psalm";
 const isAntiphonHeading = (b) => b.kind === "heading" && /^antiphon$/i.test(b.text ?? "");
+const isHymn = () => (ed.doc?.meta.type ?? "") === "hymn";
+/** The parts of a song a hymn's rows can be. */
+const HYMN_PARTS = ["Refrain", "Chorus", "Bridge", "Intro", "Outro", "Cantor", "Call", "All", "This Side", "That Side"];
+/** A hymn's role choices: Verse 1 … one past its last verse, then the other parts. */
+function hymnRoles() {
+  const last = Math.max(0, ...ed.doc.blocks.map((b) => (b.kind === "paragraph" && /^\d+$/.test(b.role ?? "") ? Number(b.role) : 0)));
+  const verses = Array.from({ length: last + 1 }, (_, k) => [String(k + 1), `Verse ${k + 1}`]);
+  return [...verses, ...HYMN_PARTS.map((p) => [p, p])];
+}
 const isVerse = (b) => b.kind === "paragraph" && /^\d/.test(b.role ?? "");
 const spansOf = (b) => (b.lines ?? []).flat().filter((x) => !["", "*"].includes(x.text.trim()));
 const isPeopleVerse = (b) => spansOf(b).length > 0 && spansOf(b).every((x) => x.bold);
@@ -1148,6 +1157,13 @@ function focusBlock(i, atEnd = false) {
 function suggestRole(index) {
   const before = ed.doc.blocks.slice(0, index).filter((b) => b.kind === "paragraph" && b.role);
   const last = before[before.length - 1];
+  if (isHymn()) {
+    // Answering parts answer each other; otherwise the next verse.
+    const answer = { Cantor: "All", Call: "All", "This Side": "That Side", "That Side": "This Side" }[last?.role];
+    if (answer) return answer;
+    const n = Math.max(0, ...ed.doc.blocks.map((b) => (b.kind === "paragraph" && /^\d+$/.test(b.role ?? "") ? Number(b.role) : 0)));
+    return String(n + 1);
+  }
   if (!last) return "Celebrant";
   if (last.role === "All") return "All";
   if (last.role !== "People") return "People";
@@ -1229,12 +1245,14 @@ function blockRow(b, i, paraIndex) {
   if (b.kind === "paragraph") {
     row.classList.add(paraIndex % 2 ? "odd" : "even");
     applyRoleStyle(row, b.role);
-    const roles = app.vocab.roles.map((r) => [r.role, r.role]);
+    // A hymn's parts are the song's own (verses, refrain …), not speakers.
+    const roles = isHymn() ? hymnRoles() : app.vocab.roles.map((r) => [r.role, r.role]);
     if (isPsalm()) roles.unshift(["Antiphon", "Antiphon"]);
     row.classList.toggle("antiphon", /^antiphon$/i.test(b.role ?? ""));
     if (b.role && !roles.some(([r]) => r === b.role)) {
       // A number is a verse number (psalms, hymns), not a speaker.
-      roles.push([b.role, /^\d/.test(b.role) ? `Verse ${b.role}` : `${b.role} (custom)`]);
+      const standard = app.vocab.roles.some((r) => r.role === b.role);
+      roles.push([b.role, /^\d/.test(b.role) ? `Verse ${b.role}` : standard ? b.role : `${b.role} (custom)`]);
     }
     const roleSel = select([["", "— Text —"], ...roles], b.role, (val) => {
       setField(b, "role", val);
@@ -1246,7 +1264,8 @@ function blockRow(b, i, paraIndex) {
 
     // A verse is sung by the choir (plain) or the people (bold).
     let who = null;
-    if (isVerse(b)) {
+    // (A psalm's verses; a hymn is sung by all.)
+    if (isVerse(b) && isPsalm()) {
       row.classList.toggle("verse-people", isPeopleVerse(b));
       who = select([["choir", "Choir"], ["people", "People"]], isPeopleVerse(b) ? "people" : "choir", (val) => {
         const bold = val === "people";
