@@ -512,7 +512,8 @@ function metaForm(c) {
       ),
     ),
   );
-  return el("div.meta-form", {}, el("div.meta-grid", {}, fields), planRow, advanced);
+  // A hymn's verses sung sit with its title and number.
+  return el("div.meta-form", {}, el("div.meta-grid", {}, fields), c.category === "hymn" ? versesSung(c) : null, planRow, advanced);
 }
 
 // ----- psalm layout -----
@@ -860,7 +861,7 @@ function versesSung(c) {
     call("set_cue_overrides", { id: c.id, overrides: { ...c.overrides, verses: list.length === all.length ? null : list } });
   };
   return el(
-    "div.reading-row.verses-sung",
+    "div.verses-sung",
     { title: "Untick a verse that is not sung: it is left out of the slides, the bulletin and the script (its words stay in the hymn)." },
     el("span.image-field-label", {}, "Verses sung"),
     all.map((n) =>
@@ -932,7 +933,6 @@ function hymnPanel(c) {
           ` and click “Use for ${c.title}”.`,
         )
       : null,
-    versesSung(c),
     imageField(
       "Picture of the hymn",
       extraOf(ed.doc, "hymn_image") ?? null,
