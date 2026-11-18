@@ -667,8 +667,8 @@ pub fn incipit(cue: &Cue) -> Option<String> {
 /// What goes on the right of an item's line: "BCP 323", "Hymn 414", a composer, a preacher.
 fn reference(cue: &Cue) -> Option<String> {
     let meta = &cue.document()?.meta;
-    if let Some(n) = meta.hymn_number.as_deref().filter(|n| !n.is_empty()) {
-        return Some(format!("Hymn {n}"));
+    if let Some(n) = crate::hymn::number_label(meta) {
+        return Some(n);
     }
     // The preacher and their position: "The Rev. Jane Doe, Rector".
     if let Some(p) = meta.extra("preacher").filter(|v| !v.trim().is_empty()) {

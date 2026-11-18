@@ -234,11 +234,31 @@ function autoFit(box, min = 0.5) {
 
 const extra = (cue, key) => cue.content.document?.meta.extra?.find(([k]) => k === key)?.[1];
 
+/** The books hymns come from: key, name, the word before a number
+ *  (crates/episco-core/src/hymn.rs). Any other book is named in full. */
+export const HYMNALS = [
+  ["h82", "The Hymnal 1982", "Hymn"],
+  ["wlp", "Wonder, Love, and Praise", "WLP"],
+  ["levas", "Lift Every Voice and Sing II", "LEVAS"],
+  ["vf", "Voices Found", "VF"],
+  ["mhso", "My Heart Sings Out", "MHSO"],
+  ["himnario", "El Himnario", "Himnario"],
+];
+
+/** A hymn's number with its book: "Hymn 436", "WLP 787"; "" for a song from no book. */
+export function hymnNumber(meta) {
+  const n = String(meta?.hymn_number ?? "").trim();
+  if (!n) return "";
+  const book = (meta.extra?.find(([k]) => k === "hymnal")?.[1] ?? "").trim();
+  if (book.toLowerCase() === "none") return "";
+  const word = !book ? "Hymn" : HYMNALS.find(([k]) => k === book.toLowerCase())?.[2] ?? book;
+  return `${word} ${n}`;
+}
+
 /** Reference shown at the right of a header: "Hymn 436", "BCP 355". */
 function reference(cue) {
   const meta = cue.content.document?.meta ?? {};
-  if (meta.hymn_number) return `Hymn ${meta.hymn_number}`;
-  return meta.citation ?? "";
+  return hymnNumber(meta) || (meta.citation ?? "");
 }
 
 // ---------- slide types ----------

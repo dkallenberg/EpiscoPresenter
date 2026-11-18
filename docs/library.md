@@ -87,6 +87,20 @@ edition, a OneLicense or CCLI reprint licence, …):
   slot it is). Double-clicking the hymn does the same when the selected
   slot is still empty; otherwise a double-click adds the hymn after it.
 
+**Hymn books.** A hymn's **Book** (in the Editor, beside **Hymn #**) says
+which book its number is in: *The Hymnal 1982* (the usual), *Wonder, Love,
+and Praise*, *Lift Every Voice and Sing II*, *Voices Found*, *My Heart Sings
+Out*, *El Himnario*, **Another book…** (type its name) or **Not from a
+book**. The bulletin and slides print the number with its book: *Hymn 436*,
+*WLP 787*, *LEVAS 151*; a song from no book has no number. Two hymns with
+the same number in different books are different hymns in the Library.
+**Import hymns…** reads the book from the start of a file name:
+`WLP 787 You Are the Light.txt`, `LEVAS 151 Lift Every Voice.txt`.
+
+While a hymn's place is selected in the service, the Library lists hymns
+only (click **All** for everything; selecting another item puts the list
+back).
+
 **A hymn and its place are kept apart.** The item in the service is named
 for its place (*Entrance Hymn*, *Closing Hymn*); the hymn's own name goes in
 **Hymn title** and **Hymn #** in the Editor. Naming the hymn, or filling the

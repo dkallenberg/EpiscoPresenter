@@ -15,6 +15,7 @@ import { undoButtons } from "/js/control/undo.js";
 import { lookCards, lookPanel, openServiceSettings } from "/js/control/looks.js";
 import { pickMedia, pickMusic } from "/js/control/media.js";
 import { HONORIFICS, app, call, debounce, el, reportWarnings, titleCase, toast } from "/js/control/util.js";
+import { HYMNALS } from "/js/render.js";
 
 const SEND_DELAY_MS = 350;
 
@@ -349,6 +350,40 @@ function textInput(key, placeholder) {
   });
 }
 
+/** The book a hymn comes from (the bulletin prints "Hymn 436", "WLP 787"):
+ *  the Hymnal 1982 unless it says, another book by name, or none. */
+function hymnalField() {
+  const now = (extraOf(ed.doc, "hymnal") ?? "").trim();
+  const known = !now || now.toLowerCase() === "none" || HYMNALS.some(([k]) => k === now.toLowerCase());
+  const other = el("input", {
+    value: known ? "" : now,
+    placeholder: "The book's name",
+    hidden: known,
+    disabled: app.readonly,
+    oninput: () => {
+      setExtra("hymnal", other.value.trim() || null);
+      changed();
+    },
+  });
+  const pick = el(
+    "select",
+    {
+      disabled: app.readonly,
+      title: "The book the hymn's number is in. The bulletin prints Hymn 436 for the Hymnal 1982, WLP 787 for Wonder, Love, and Praise, and so on; a song from no book has no number.",
+      onchange: () => {
+        other.hidden = pick.value !== "other";
+        if (pick.value === "other") return other.focus();
+        setExtra("hymnal", pick.value === "h82" ? null : pick.value);
+        changed();
+      },
+    },
+    HYMNALS.map(([k, name]) => el("option", { value: k, selected: k === (now.toLowerCase() || "h82") }, name)),
+    el("option", { value: "other", selected: !known }, "Another book…"),
+    el("option", { value: "none", selected: now.toLowerCase() === "none" }, "Not from a book"),
+  );
+  return el("div.hymnal-pick", {}, pick, other);
+}
+
 function select(options, value, onchange) {
   return el(
     "select",
@@ -395,7 +430,7 @@ function metaForm(c) {
         ? anthemFields(c)
         : [field("Title", textInput("title", "Title"), ".wide")];
   if (["reading", "psalm", "gospel", "collect", "other"].includes(type)) fields.push(field("Citation", textInput("citation", "e.g. Joshua 24:1-3a")));
-  if (type === "hymn") fields.push(field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
+  if (type === "hymn") fields.push(field("Book", hymnalField()), field("Hymn #", textInput("hymn_number", "e.g. 436")), field("Tune", textInput("tune")));
   // Less used: the kind of item, its season and colour, the file itself.
   const more = [
     field(

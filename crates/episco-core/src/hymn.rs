@@ -221,15 +221,62 @@ pub fn is_slot_title(title: &str) -> bool {
             && words.get(1).is_some_and(|w| ["at", "after", "before", "during", "of", "for"].contains(w)))
 }
 
-/// What the library calls a hymn: its own title, else "Hymn 436". `None`
-/// when the document names only its place in the service.
+/// The front matter key naming the book a hymn's number is in (`hymnal:
+/// wlp`). Unset: the Hymnal 1982.
+pub const HYMNAL: &str = "hymnal";
+
+/// The books the parish's hymns come from: key, name, and the word before a
+/// number in the bulletin ("WLP 787"). Any other book is named in full.
+pub const HYMNALS: &[(&str, &str, &str)] = &[
+    ("h82", "The Hymnal 1982", "Hymn"),
+    ("wlp", "Wonder, Love, and Praise", "WLP"),
+    ("levas", "Lift Every Voice and Sing II", "LEVAS"),
+    ("vf", "Voices Found", "VF"),
+    ("mhso", "My Heart Sings Out", "MHSO"),
+    ("himnario", "El Himnario", "Himnario"),
+];
+
+/// A hymn not from a book: no number is shown.
+pub const NO_BOOK: &str = "none";
+
+/// The hymn's number as the bulletin prints it: "Hymn 436" (the Hymnal
+/// 1982), "WLP 787", "Voices Found 12"; `None` with no number, or for a
+/// song from no book.
+pub fn number_label(meta: &crate::document::FrontMatter) -> Option<String> {
+    let n = meta.hymn_number.as_deref().map(str::trim).filter(|n| !n.is_empty())?;
+    let book = meta.extra(HYMNAL).map(str::trim).filter(|b| !b.is_empty());
+    let word = match book {
+        None => "Hymn",
+        Some(b) if b.eq_ignore_ascii_case(NO_BOOK) => return None,
+        Some(b) => HYMNALS.iter().find(|h| h.0.eq_ignore_ascii_case(b)).map(|h| h.2).unwrap_or(b),
+    };
+    Some(format!("{word} {n}"))
+}
+
+/// What the library calls a hymn: its own title, else "Hymn 436" (or "WLP
+/// 787"). `None` when the document names only its place in the service.
 pub fn library_title(doc: &LiturgyDocument) -> Option<String> {
-    let number = doc.meta.hymn_number.as_deref().map(str::trim).filter(|n| !n.is_empty());
-    match (is_slot_title(&doc.meta.title), number) {
+    match (is_slot_title(&doc.meta.title), number_label(&doc.meta)) {
         (false, _) => Some(doc.meta.title.trim().to_string()),
-        (true, Some(n)) => Some(format!("Hymn {n}")),
-        (true, None) => None,
+        (true, n) => n,
     }
+}
+
+/// A file name's book, from its first word ("WLP 787 You Are the Light"):
+/// the book's key and the rest of the name. `None` for the Hymnal 1982.
+pub fn split_book(stem: &str) -> (Option<&'static str>, &str) {
+    let s = stem.trim();
+    let mut sorted: Vec<&(&str, &str, &str)> = HYMNALS.iter().skip(1).collect();
+    // "LEVAS II 151": the longer form first.
+    let extra = [("levas", "LEVAS II"), ("levas", "LEVAS")];
+    for (key, word) in extra.iter().copied().chain(sorted.drain(..).map(|h| (h.0, h.2))) {
+        if let Some(rest) = s.get(..word.len()).filter(|w| w.eq_ignore_ascii_case(word)).map(|_| &s[word.len()..]) {
+            if rest.starts_with([' ', '-', '_']) {
+                return (Some(key), rest.trim_start_matches([' ', '-', '_']));
+            }
+        }
+    }
+    (None, s)
 }
 
 /// "436 Lift Up Your Heads.txt" → (Some("436"), "Lift Up Your Heads");
@@ -251,6 +298,24 @@ pub fn split_file_name(stem: &str) -> (Option<String>, String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_hymns_number_names_its_book() {
+        let mut doc = hymn_document("Entrance Hymn", Some("787"), "1 Words", &Default::default());
+        assert_eq!(number_label(&doc.meta).as_deref(), Some("Hymn 787"), "the Hymnal 1982 unless it says");
+        doc.meta.extra.push((HYMNAL.into(), "wlp".into()));
+        assert_eq!(number_label(&doc.meta).as_deref(), Some("WLP 787"));
+        assert_eq!(library_title(&doc).as_deref(), Some("WLP 787"));
+        doc.meta.extra[0].1 = "Gather".into();
+        assert_eq!(number_label(&doc.meta).as_deref(), Some("Gather 787"), "another book, by its name");
+        doc.meta.extra[0].1 = NO_BOOK.into();
+        assert_eq!(number_label(&doc.meta), None, "a song from no book");
+        assert_eq!(split_book("WLP 787 You Are the Light"), (Some("wlp"), "787 You Are the Light"));
+        assert_eq!(split_book("LEVAS II 151 Lift Every Voice"), (Some("levas"), "151 Lift Every Voice"));
+        assert_eq!(split_book("levas-151 Lift"), (Some("levas"), "151 Lift"));
+        assert_eq!(split_book("436 Lift Up Your Heads"), (None, "436 Lift Up Your Heads"));
+        assert_eq!(split_book("Vfoo 12"), (None, "Vfoo 12"));
+    }
 
     #[test]
     fn a_hymn_is_known_by_its_own_name_not_its_place() {

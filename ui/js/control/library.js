@@ -3,7 +3,7 @@
 // "Propers" dialog: the Collect, readings and psalm for a date from the lectionary.
 
 import { listen } from "/js/bridge.js";
-import { mountStage, renderOutput } from "/js/render.js";
+import { hymnNumber, mountStage, renderOutput } from "/js/render.js";
 import { renderMedia } from "/js/control/media.js";
 import { app, call, el, titleCase, toast } from "/js/control/util.js";
 
@@ -52,7 +52,35 @@ function insertionPoint() {
   return i >= 0 ? i : null;
 }
 
+/**
+ * With a hymn's place selected in the service (Entrance Hymn …), the list
+ * shows hymns only, until something else is selected or another kind is
+ * chosen.
+ */
+function followSelection() {
+  const c = app.selectedCue?.();
+  if (c?.category === "hymn") {
+    if (lib.hymnsFor !== c.id) {
+      lib.hymnsFor = c.id;
+      lib.category = "hymn";
+      lib.auto = true;
+    }
+  } else {
+    lib.hymnsFor = null;
+    if (lib.auto) lib.category = "all";
+    lib.auto = false;
+  }
+}
+
+const libraryShown = () => document.getElementById("tab-library")?.classList.contains("active");
+
 export function initLibrary() {
+  app.on((what) => {
+    if (what !== "selection" || lib.view !== "items" || !libraryShown()) return;
+    const before = lib.category;
+    followSelection();
+    if (lib.category !== before) render();
+  });
   listen("episco://storage", () => refresh());
   // Files from another computer (sync.rs): the lists only.
   listen("episco://library", () => refresh());
@@ -66,6 +94,7 @@ export function initLibrary() {
 export async function refresh() {
   if (lib.view === "media") return renderMedia(document.getElementById("library"), viewSwitch());
   lib.entries = (await call("library_list")) ?? [];
+  followSelection();
   render();
 }
 
@@ -102,7 +131,7 @@ function render() {
     "div.chips",
     {},
     cats.map((c) =>
-      el(`button.chip${lib.category === c ? ".active" : ""}`, { onclick: () => { lib.category = c; render(); } }, c === "all" ? "All" : titleCase(c)),
+      el(`button.chip${lib.category === c ? ".active" : ""}`, { onclick: () => { lib.category = c; lib.auto = false; render(); } }, c === "all" ? "All" : titleCase(c)),
     ),
     el(`button.chip${lib.mine ? ".active" : ""}`, { title: "Only items you saved", onclick: () => { lib.mine = !lib.mine; render(); } }, "★ Mine"),
     ["I", "II"].map((r) =>
@@ -501,7 +530,7 @@ export async function saveCueToLibrary(cue) {
 function libraryName(cue) {
   const m = cue.content.document?.meta ?? {};
   if (cue.category !== "hymn") return cue.title;
-  return m.title && m.title !== cue.title ? m.title : `Hymn ${m.hymn_number ?? ""}`.trim();
+  return m.title && m.title !== cue.title ? m.title : hymnNumber(m) || "Hymn";
 }
 
 /** A small dialog of choices; resolves to the chosen key, or null. */

@@ -65,6 +65,21 @@ still empty; otherwise a double-click adds the hymn after it. The slot keeps
 its name (*Closing Hymn*) and the hymn's own title and number go in the
 bulletin.
 
+**Hymn books.** A hymn's **Book** (in the Editor, beside **Hymn #**) says
+which book its number is in: *The Hymnal 1982* (the usual), *Wonder, Love,
+and Praise*, *Lift Every Voice and Sing II*, *Voices Found*, *My Heart Sings
+Out*, *El Himnario*, **Another book…** (type its name) or **Not from a
+book**. The bulletin and slides print the number with its book: *Hymn 436*,
+*WLP 787*, *LEVAS 151*; a song from no book has no number. Two hymns with
+the same number in different books are different hymns in the Library.
+**Import hymns…** reads the book from the start of a file name:
+`WLP 787 You Are the Light.txt`, `LEVAS 151 Lift Every Voice.txt`.
+
+**Hymns only, for a hymn's place.** While a hymn's place (*Entrance Hymn*,
+*Closing Hymn* …) is selected in the service, the Library shows hymns
+only. Click **All** (or another kind) to see everything; selecting
+another item puts the list back.
+
 **A picture of the hymn.** In the Editor's **Hymn words**, **Picture of the
 hymn** takes a picture of the hymn's music and words (from the `music/Hymn`
 folder). The bulletin (in Full text) and the script print the picture in

@@ -210,7 +210,7 @@ fn entry(id: String, doc: &LiturgyDocument, builtin: bool) -> LibraryEntry {
         id,
         title: doc.meta.title.clone(),
         category: doc.meta.effective_category().key().to_string(),
-        citation: doc.meta.citation.clone().or_else(|| doc.meta.hymn_number.as_ref().map(|n| format!("Hymn {n}"))),
+        citation: doc.meta.citation.clone().or_else(|| episco_core::hymn::number_label(&doc.meta)),
         season: doc.meta.season.map(|s| s.label().to_string()),
         rite: doc.meta.extra("rite").map(String::from),
         builtin,
@@ -236,10 +236,8 @@ fn same_key(e: &LibraryEntry) -> Option<String> {
         let t = t.strip_prefix("the ").unwrap_or(&t).to_string();
         t.chars().filter(|c| c.is_alphanumeric()).collect::<String>()
     };
-    let number = (e.category == "hymn")
-        .then(|| e.citation.as_deref()?.strip_prefix("Hymn ").map(norm))
-        .flatten()
-        .filter(|n| !n.is_empty());
+    // A hymn by its book and number: "Hymn 436" and "WLP 436" differ.
+    let number = (e.category == "hymn").then(|| e.citation.as_deref().map(norm)).flatten().filter(|n| !n.is_empty());
     Some(match number {
         Some(n) => format!("hymn#{n}"),
         None => format!("{}:{}", e.category, norm(&e.title)),
@@ -583,8 +581,10 @@ fn library_copy_of(doc: &LiturgyDocument) -> CmdResult<(LiturgyDocument, String)
     })?;
     let mut doc = doc.clone();
     doc.meta.title = title.clone();
-    let number = doc.meta.hymn_number.clone().unwrap_or_default();
-    let stem = if title == format!("Hymn {number}") { title } else { format!("hymn {number} {title}") };
+    let label = episco_core::hymn::number_label(&doc.meta).unwrap_or_default();
+    // "hymn-436-lift-up-your-heads", "hymn-wlp-787-you-are-the-light".
+    let tag = label.strip_prefix("Hymn ").unwrap_or(&label);
+    let stem = if title == label { format!("hymn {tag}") } else { format!("hymn {tag} {title}") };
     Ok((doc, slug_file_name(&stem, ewm::EXTENSION)))
 }
 
@@ -977,8 +977,13 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
             skipped.push(format!("{name} (not UTF-8 text)"));
             continue;
         };
-        let (number, title) = episco_core::hymn::split_file_name(&name);
-        let doc = episco_core::hymn::hymn_document(&title, number.as_deref(), &text, &Default::default());
+        // "WLP 787 You Are the Light": the book, then the number and title.
+        let (book, rest) = episco_core::hymn::split_book(&name);
+        let (number, title) = episco_core::hymn::split_file_name(rest);
+        let mut doc = episco_core::hymn::hymn_document(&title, number.as_deref(), &text, &Default::default());
+        if let Some(b) = book {
+            doc.meta.extra.push((episco_core::hymn::HYMNAL.into(), b.into()));
+        }
         if doc.blocks.is_empty() {
             skipped.push(format!("{name} (no words)"));
             continue;

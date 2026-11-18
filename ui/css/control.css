@@ -707,3 +707,6 @@ body:not(.planner) .cue { grid-template-columns: 24px 48px minmax(0, 1fr) auto; 
 .sched-times { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin: 8px 0; }
 .sched-regular { display: flex; gap: 8px; align-items: baseline; justify-content: flex-start; text-align: left; cursor: pointer; }
 .sched-regular input[type=checkbox] { width: auto; flex: none; }
+
+.hymnal-pick { display: flex; gap: 6px; }
+.hymnal-pick select, .hymnal-pick input { min-width: 0; flex: 1; }
