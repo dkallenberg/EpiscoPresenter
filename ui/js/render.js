@@ -538,7 +538,9 @@ function pieces(key, cue, slide) {
   }
 
   if (key === "stream.bottom_bar") {
-    p.tag = cue.category === "psalm" ? citation ?? cue.title : cue.title;
+    // The gold box is the psalm's: on other slides (the Eucharistic Prayer)
+    // the camera covers the top of the picture.
+    if (cue.category === "psalm") p.tag = citation ?? cue.title;
     const setting = extra(cue, "setting_image");
     if (setting) p.music = { kind: "image", src: setting, alt: "Musical setting" };
     if (slide?.section_start && heading && !isAntiphonSlide(slide)) {
