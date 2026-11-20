@@ -321,11 +321,12 @@ fn indents_of(lines: &[Vec<Span>]) -> Vec<usize> {
     }
 }
 
-/// A psalm verse's indents: both halves start level (a half too long for
-/// the column carries on indented under itself), and every other verse is
-/// a step in.
-fn verse_indents(number: &str, lines: &[Vec<Span>]) -> Vec<usize> {
-    let even = number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
+/// A verse's indents: both halves start level (a half too long for the
+/// column carries on indented under itself). In a psalm every other verse is
+/// a step in; a hymn's verses all line up.
+fn verse_indents(number: &str, lines: &[Vec<Span>], psalm: bool) -> Vec<usize> {
+    let even =
+        psalm && number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
     lines.iter().map(|l| split_indent(l).0 + usize::from(even)).collect()
 }
 
@@ -767,7 +768,7 @@ fn psalm_body(cue: &Cue, doc: &LiturgyDocument, root: Option<&Path>) -> Option<V
                 out.push(Piece::Verse {
                     number: n.clone(),
                     lines: keep_asterisks(lines_at(lines, false, i)),
-                    indents: verse_indents(n, lines),
+                    indents: verse_indents(n, lines, true),
                     tail: None,
                 });
             }
@@ -856,7 +857,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                     out.push(Piece::Verse {
                         number: n.clone(),
                         lines: keep_asterisks(lines_at(lines, false, i)),
-                        indents: verse_indents(n, lines),
+                        indents: verse_indents(n, lines, cue.category == ElementCategory::Psalm),
                         tail: None,
                     });
                 }
@@ -1601,6 +1602,22 @@ mod tests {
         assert!(
             said[at("AMEN") - 1].starts_with("Celebrant: … ") && said[at("AMEN") - 1].ends_with("now and for ever.")
         );
+    }
+
+    #[test]
+    fn a_hymns_verses_line_up() {
+        let indents = |text: &str| -> Vec<Vec<usize>> {
+            body(&cue(text), false, None)
+                .into_iter()
+                .filter_map(|p| match p {
+                    Piece::Verse { indents, .. } => Some(indents),
+                    _ => None,
+                })
+                .collect()
+        };
+        let hymn = indents("---\ntitle: Crown Him With Many Crowns\ntype: hymn\n---\n[1] Crown him with many crowns,\nthe Lamb upon his throne;\n\n[2] Crown him the Son of God\nbefore the worlds began,\n");
+        assert_eq!(hymn.len(), 2);
+        assert_eq!(hymn[0], hymn[1], "verse 2 starts where verse 1 does");
     }
 
     #[test]
