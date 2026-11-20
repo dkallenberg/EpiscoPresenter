@@ -324,11 +324,16 @@ to …" / "Glory to you, Lord Christ."), the title slide, the text (if shown),
 and "The Gospel of the Lord." / "Praise to you, Lord Christ."
 
 Select the Gospel and open the **Editor**. In **Music before the Gospel**,
-**Choose…** a picture of the Alleluia or Gospel acclamation from the's `music/Gospel Acclamation` folder; it goes on the first slide, laid out like the psalm's antiphon
+**Choose…** a picture of the Alleluia or Gospel acclamation from the `music/Gospel Acclamation` folder; it goes on the first slide, laid out like the psalm's antiphon
 music (centred in the live stream's bar, as is the citation on the Gospel's
 title slide). **Remove** takes it off. The music you choose becomes the
 parish's usual one: new services start with it before the Gospel (choose
-another to change it). Gospels in services made before this order are put
+another to change it). In the bulletin and script it prints before the Gospel's own
+title, under the heading *Gospel Acclamation*, with *All stand, as you are
+able. The Responsorial Alleluia is introduced by the Cantor and then
+repeated by the People.* (In Lent, music whose file name says *Lent* gets
+*The Gospel Acclamation is introduced…* instead; a Rubric row of your own on
+the music's slide replaces either.) The slides show just the music. Gospels in services made before this order are put
 in order when the service opens; **Put the slides in order** does it again
 after editing by hand.
 

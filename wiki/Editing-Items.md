@@ -182,7 +182,12 @@ you, Lord Christ*.
 **Music before the Gospel → Choose…** puts a picture of the Alleluia or
 Gospel acclamation (from the `music/Gospel Acclamation` folder) on the
 first slide. The music you choose becomes the
-parish's usual one for new services. **Put the slides in order** fixes the
+parish's usual one for new services. In the bulletin and script it prints before the Gospel's own
+title, under the heading *Gospel Acclamation*, with *All stand, as you are
+able. The Responsorial Alleluia is introduced by the Cantor and then
+repeated by the People.* (In Lent, music whose file name says *Lent* gets
+*The Gospel Acclamation is introduced…* instead; a Rubric row of your own on
+the music's slide replaces either.) The slides show just the music. **Put the slides in order** fixes the
 order after editing by hand.
 
 ## The Proper Preface

@@ -838,6 +838,23 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
         after_break = false;
         match b {
             Block::SlideBreak | Block::OutputBreak { .. } => after_break = true,
+            // The music sung before the Gospel: its own heading and, unless
+            // the slide has a rubric of its own, how it is sung.
+            Block::Heading { text, .. } if text == crate::propers::GOSPEL_MUSIC => {
+                out.push(Piece::Line { title: text.clone(), detail: None, incipit: None, reference: None });
+                let slide = doc.blocks[i + 1..].iter().take_while(|b| !matches!(b, Block::SlideBreak));
+                let (mut rubric, mut music) = (false, String::new());
+                for b in slide {
+                    match b {
+                        Block::Paragraph { role: Some(r), .. } if r.is_rubric() => rubric = true,
+                        Block::Image { src, alt, .. } => music = format!("{src} {alt}"),
+                        _ => {}
+                    }
+                }
+                if !rubric {
+                    out.push(Piece::Rubric { text: acclamation_rubric(&music).into(), src: None });
+                }
+            }
             Block::Heading { .. } => {}
             Block::Image { src, alt, .. } => {
                 if let Some(path) = resolve(src, cue, root) {
@@ -1002,6 +1019,30 @@ const EACH_PETITION_RUBRIC: &str = "At the end of each petition,";
 /// The most of a leader's line printed before the people's response.
 const CUE_WORDS: usize = 16;
 
+/// How the music before the Gospel is sung: an Alleluia, or in Lent (music
+/// whose file or name says so) the Gospel Acclamation without one.
+fn acclamation_rubric(music: &str) -> &'static str {
+    if music.to_lowercase().contains("lent") {
+        "All stand, as you are able. The Gospel Acclamation is introduced by the Cantor and then repeated by the People."
+    } else {
+        "All stand, as you are able. The Responsorial Alleluia is introduced by the Cantor and then repeated by the People."
+    }
+}
+
+/// The music sung before a Gospel ("Gospel Acclamation", how it is sung,
+/// the music), printed before the Gospel's own title, and the rest.
+fn split_acclamation(pieces: Vec<Piece>) -> (Vec<Piece>, Vec<Piece>) {
+    let starts = matches!(pieces.first(), Some(Piece::Line { title, .. }) if title == crate::propers::GOSPEL_MUSIC);
+    let n = if starts {
+        1 + pieces[1..].iter().take_while(|p| matches!(p, Piece::Rubric { .. } | Piece::Image { .. })).count()
+    } else {
+        0
+    };
+    let mut pieces = pieces;
+    let rest = pieces.split_off(n);
+    (pieces, rest)
+}
+
 /// The leader's line before a response: all of it when short, else, after
 /// "…", its last sentence, or as much of that as fits in [`CUE_WORDS`] from
 /// a clause ("…, who for ever sing this hymn to proclaim the glory of your
@@ -1072,23 +1113,17 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool, root: Option<&Path>) -> 
     match style {
         BulletinStyle::Hidden => {}
         BulletinStyle::Reference | BulletinStyle::Title => pieces.push(title_line(cue, style)),
-        BulletinStyle::Full => {
+        BulletinStyle::Full | BulletinStyle::Responses => {
+            // The music before a Gospel comes ahead of the Gospel's title.
+            let (acclamation, rest) = split_acclamation(body(cue, script, root));
+            pieces.extend(acclamation);
             pieces.push(Piece::Line {
                 title: cue.title.clone(),
                 detail: scripture(cue),
                 incipit: work_title(cue),
                 reference: reference(cue),
             });
-            pieces.extend(body(cue, script, root));
-        }
-        BulletinStyle::Responses => {
-            pieces.push(Piece::Line {
-                title: cue.title.clone(),
-                detail: scripture(cue),
-                incipit: work_title(cue),
-                reference: reference(cue),
-            });
-            pieces.extend(responses(body(cue, script, root)));
+            pieces.extend(if style == BulletinStyle::Full { rest } else { responses(rest) });
         }
     }
     Entry { cue: Some(cue.id.clone()), style, pieces }
@@ -1602,6 +1637,37 @@ mod tests {
         assert!(
             said[at("AMEN") - 1].starts_with("Celebrant: … ") && said[at("AMEN") - 1].ends_with("now and for ever.")
         );
+    }
+
+    #[test]
+    fn the_gospel_acclamation_before_the_gospel() {
+        let gospel = |music: &str| {
+            let text = format!("---\ntitle: The Holy Gospel\ntype: gospel\ncitation: Matthew 25:31-46\n---\n# Gospel Acclamation\n![Acclamation]({music})\n\n---\n\n[Deacon] The Holy Gospel of our Lord Jesus Christ according to Matthew.\n[People] **Glory to you, Lord Christ.**\n\n---\n\n# The Holy Gospel\n");
+            cue(&text)
+        };
+        let kinds = |pieces: &[Piece]| -> Vec<String> {
+            pieces
+                .iter()
+                .map(|p| match p {
+                    Piece::Line { title, .. } => format!("line:{title}"),
+                    Piece::Rubric { text, .. } => format!("rubric:{text}"),
+                    Piece::Speech { label, .. } => format!("speech:{}", label.as_deref().unwrap_or("")),
+                    Piece::Image { .. } => "image".into(),
+                    other => format!("{other:?}").chars().take(20).collect(),
+                })
+                .collect()
+        };
+        let full = entry(&gospel("music/Gospel Acclamation/alleluia.png"), BulletinStyle::Full, false, None);
+        let k = kinds(&full.pieces);
+        assert_eq!(k[0], "line:Gospel Acclamation");
+        assert!(k[1].starts_with("rubric:All stand, as you are able. The Responsorial Alleluia"), "{k:?}");
+        let title = k.iter().position(|x| x == "line:The Holy Gospel").expect("the Gospel's title");
+        assert!(title > 1 && k[title + 1] == "speech:Deacon", "{k:?}");
+        // In Lent, no Alleluia.
+        let lent = entry(&gospel("music/Gospel Acclamation/lent-tone.png"), BulletinStyle::Responses, false, None);
+        let k = kinds(&lent.pieces);
+        assert!(k[1].contains("The Gospel Acclamation is introduced"), "{k:?}");
+        assert!(k.contains(&"line:The Holy Gospel".to_string()) && k.contains(&"speech:People".to_string()), "{k:?}");
     }
 
     #[test]
