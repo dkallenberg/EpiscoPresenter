@@ -169,6 +169,7 @@ impl Writer<'_> {
     /// Lines each a paragraph, indented `indents` steps from the text column
     /// at `col`, too-long lines hanging under themselves; the first line
     /// starts with `lead` (the speaker or verse number) in the margin.
+    #[allow(clippy::too_many_arguments)]
     fn indented_lines(
         &mut self,
         style: &str,
@@ -177,9 +178,11 @@ impl Writer<'_> {
         joins: &[usize],
         indents: &[usize],
         col: u32,
+        hang: bool,
     ) {
         const STEP: u32 = 360;
-        const TURN: u32 = 360;
+        // A line too long for the column carries on this much further in.
+        let turn: u32 = if hang { 360 } else { 0 };
         let mut k = 0;
         let n = lines.len();
         while k < n {
@@ -202,12 +205,12 @@ impl Writer<'_> {
                     x.push_str(&run_xml(r, ""));
                 }
             }
-            let hanging = if k == 0 { at + TURN } else { TURN };
+            let hanging = if k == 0 { at + turn } else { turn };
             let before = if k == 0 { "" } else { " w:before=\"0\"" };
             let after = if end == n { "" } else { " w:after=\"0\"" };
             let ppr = format!(
                 "<w:tabs><w:tab w:val=\"left\" w:pos=\"{at}\"/></w:tabs><w:spacing{before}{after}/><w:ind w:left=\"{}\" w:hanging=\"{hanging}\"/>",
-                at + TURN
+                at + turn
             );
             self.para(style, &ppr, &x);
             k = end;
@@ -306,10 +309,10 @@ impl Writer<'_> {
             Piece::Speech { label, lines, joins, indents } if !indents.is_empty() => {
                 let first =
                     label.as_deref().filter(|l| !l.is_empty()).map(|l| text_run(l, "<w:i/>")).unwrap_or_default();
-                self.indented_lines("Speech", &first, lines, joins, indents, page.hang);
+                self.indented_lines("Speech", &first, lines, joins, indents, page.hang, true);
             }
-            Piece::Verse { number, lines, indents, tail } if !indents.is_empty() => {
-                self.indented_lines("Verse", &text_run(number, ""), lines, &[], indents, page.hang / 2);
+            Piece::Verse { number, lines, indents, tail, hang } if !indents.is_empty() => {
+                self.indented_lines("Verse", &text_run(number, ""), lines, &[], indents, page.hang / 2, *hang);
                 if let Some(t) = tail {
                     self.tail_last(t);
                 }
@@ -571,6 +574,29 @@ mod tests {
         assert_eq!((g.width, g.height, g.landscape), (10080, 12240, true));
         assert_eq!(g.text + 2 * g.margin, 10080);
         assert_eq!(BulletinPaper::default(), BulletinPaper::Tabloid);
+    }
+
+    #[test]
+    fn a_hymn_verse_carries_on_level_a_psalm_verse_hangs() {
+        let page = Page::for_kind(DocKind::Bulletin, BulletinPaper::Legal);
+        let verse = |hang| {
+            let mut w = Writer { page: &page, body: String::new(), media: Vec::new() };
+            let line = |t: &str| vec![Run { text: t.into(), bold: false, italic: false, src: None }];
+            w.piece(&Piece::Verse {
+                number: "2".into(),
+                lines: vec![line("O come, thou Wisdom from on high,"), line("who orderest all things mightily;")],
+                indents: vec![1, 1],
+                tail: None,
+                hang,
+            });
+            w.body
+        };
+        // Every paragraph of a hymn's verse after the first starts where its
+        // text does: no hanging indent.
+        let hymn = verse(false);
+        assert!(hymn.contains("w:hanging=\"0\""), "{hymn}");
+        let psalm = verse(true);
+        assert!(psalm.contains("w:hanging=\"360\""), "{psalm}");
     }
 
     #[test]

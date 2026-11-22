@@ -105,6 +105,9 @@
 .staff-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .staff-row input[type=checkbox] { justify-self: center; width: auto; }
 
+/* A hymn's verse: a line too long for the column carries on level with it. */
+.doc .verse.level .said .ln { padding-left: calc(var(--in, 0) * 0.25in); text-indent: 0; }
+
 /* A psalm verse before an antiphon: "Antiphon" at the right margin. */
 .doc .verse .ln .tail { float: right; padding-left: 1em; text-indent: 0; }
 

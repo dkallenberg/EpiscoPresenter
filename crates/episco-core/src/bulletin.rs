@@ -321,12 +321,10 @@ fn indents_of(lines: &[Vec<Span>]) -> Vec<usize> {
     }
 }
 
-/// A verse's indents: both halves start level (a half too long for the
-/// column carries on indented under itself). In a psalm every other verse is
-/// a step in; a hymn's verses all line up.
-fn verse_indents(number: &str, lines: &[Vec<Span>], psalm: bool) -> Vec<usize> {
-    let even =
-        psalm && number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
+/// A verse's indents: its lines start level, and every other verse is a
+/// step in (psalms and hymns alike).
+fn verse_indents(number: &str, lines: &[Vec<Span>]) -> Vec<usize> {
+    let even = number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
     lines.iter().map(|l| split_indent(l).0 + usize::from(even)).collect()
 }
 
@@ -366,14 +364,18 @@ pub enum Piece {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         indents: Vec<usize>,
     },
-    /// A psalm verse, with each line's indent, and what is set at the right
-    /// margin at the end of its last line ("Antiphon": sung next).
+    /// A psalm or hymn verse, with each line's indent, and what is set at
+    /// the right margin at the end of its last line ("Antiphon": sung next).
     Verse {
         number: String,
         lines: Vec<Vec<Run>>,
         indents: Vec<usize>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         tail: Option<String>,
+        /// A line too long for the column carries on indented under itself
+        /// (a psalm's half-verse); a hymn's carries on level with it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        hang: bool,
     },
     /// Running text (a reading), one paragraph.
     Prose { runs: Vec<Run> },
@@ -768,8 +770,9 @@ fn psalm_body(cue: &Cue, doc: &LiturgyDocument, root: Option<&Path>) -> Option<V
                 out.push(Piece::Verse {
                     number: n.clone(),
                     lines: keep_asterisks(lines_at(lines, false, i)),
-                    indents: verse_indents(n, lines, true),
+                    indents: verse_indents(n, lines),
                     tail: None,
+                    hang: true,
                 });
             }
             b if is_antiphon_head(b) => {
@@ -874,8 +877,9 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                     out.push(Piece::Verse {
                         number: n.clone(),
                         lines: keep_asterisks(lines_at(lines, false, i)),
-                        indents: verse_indents(n, lines, cue.category == ElementCategory::Psalm),
+                        indents: verse_indents(n, lines),
                         tail: None,
+                        hang: cue.category != ElementCategory::Hymn,
                     });
                 }
                 Some(Role::Custom(a)) if a.eq_ignore_ascii_case("antiphon") || a.eq_ignore_ascii_case("refrain") => {
@@ -1484,7 +1488,7 @@ pub fn to_html(doc: &Doc) -> String {
                     };
                     h.push_str(&format!("<span class=\"said\">{body}</span></div>"));
                 }
-                Piece::Verse { number, lines, indents, tail } => {
+                Piece::Verse { number, lines, indents, tail, hang } => {
                     let mut body = html_lines(lines, &[], indents);
                     // At the end of the last line, at the right margin.
                     if let Some(t) = tail {
@@ -1493,7 +1497,8 @@ pub fn to_html(doc: &Doc) -> String {
                         }
                     }
                     h.push_str(&format!(
-                        "<div class=\"verse\"><span class=\"num\">{}</span><span class=\"said\">{body}</span></div>",
+                        "<div class=\"verse{}\"><span class=\"num\">{}</span><span class=\"said\">{body}</span></div>",
+                        if *hang { "" } else { " level" },
                         escape(number)
                     ));
                 }
@@ -1671,19 +1676,35 @@ mod tests {
     }
 
     #[test]
-    fn a_hymns_verses_line_up() {
-        let indents = |text: &str| -> Vec<Vec<usize>> {
+    fn a_hymns_verses_step_in_by_turns_and_do_not_hang() {
+        let verses = |text: &str| -> Vec<(Vec<usize>, bool)> {
             body(&cue(text), false, None)
                 .into_iter()
                 .filter_map(|p| match p {
-                    Piece::Verse { indents, .. } => Some(indents),
+                    Piece::Verse { indents, hang, .. } => Some((indents, hang)),
                     _ => None,
                 })
                 .collect()
         };
-        let hymn = indents("---\ntitle: Crown Him With Many Crowns\ntype: hymn\n---\n[1] Crown him with many crowns,\nthe Lamb upon his throne;\n\n[2] Crown him the Son of God\nbefore the worlds began,\n");
+        let hymn = verses("---\ntitle: O come, O come, Emmanuel\ntype: hymn\n---\n[1] O come, O come, Emmanuel,\nand ransom captive Israel,\n\n[2] O come, thou Wisdom from on high,\nwho orderest all things mightily;\n");
         assert_eq!(hymn.len(), 2);
-        assert_eq!(hymn[0], hymn[1], "verse 2 starts where verse 1 does");
+        // Each verse's lines start level; the second verse a step in.
+        assert_eq!(hymn[0].0, vec![0, 0]);
+        assert_eq!(hymn[1].0, vec![1, 1]);
+        // A line too long for the column carries on level, not hanging.
+        assert!(hymn.iter().all(|(_, hang)| !hang));
+        let html = to_html(&Doc {
+            kind: DocKind::Bulletin,
+            cover: Cover { title: String::new(), day: None, when: None, logo: None },
+            entries: vec![entry(
+                &cue("---\ntitle: Hymn\ntype: hymn\n---\n[1] One\n"),
+                BulletinStyle::Full,
+                false,
+                None,
+            )],
+            back: None,
+        });
+        assert!(html.contains("class=\"verse level\""), "{html}");
     }
 
     #[test]
