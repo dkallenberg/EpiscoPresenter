@@ -481,6 +481,22 @@ pub struct ServiceDetails {
     preface: Option<String>,
 }
 
+/// The announcements' Google Slides link alone (To do). A new link forgets
+/// the old deck's slide count.
+#[tauri::command]
+pub fn set_announcements_deck(engine: State<'_, Engine>, url: Option<String>) -> CmdResult<()> {
+    let url = url.map(|u| u.trim().to_string()).filter(|u| !u.is_empty());
+    engine.edit_service(|s| {
+        if s.announcements_deck != url {
+            s.announcements_deck = url;
+            s.deck_slides = None;
+            s.modified = true;
+            s.rebuild_all();
+        }
+        Ok(())
+    })
+}
+
 /// Edits the service's own settings.
 #[tauri::command]
 pub fn set_service_details(engine: State<'_, Engine>, details: ServiceDetails) -> CmdResult<()> {

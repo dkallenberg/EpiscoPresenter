@@ -8,7 +8,7 @@ A typical week for a parish with an 8:00 and a 10:30 service.
    services… → Regular services**. The services are made with the day's
    name, colour, collect, readings and psalm already in place.
 2. **Open the service** and look at **To do** beside the bulletin. It lists
-   what's still needed, and each line opens the place to fix it:
+   what's still needed; each line opens a small window to fill it in:
    * **Reading texts.** Click **Reading texts…** and either import the
      parish's Bible file once (then every reading fills itself in) or paste
      each reading. See [Bulletin and script](Bulletin-and-Script#reading-texts).

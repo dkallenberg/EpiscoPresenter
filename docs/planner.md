@@ -104,10 +104,17 @@ the default; 8½ × 14 (legal), folded into 7 × 8½ pages; or 8½ × 11, folded
 into 5½ × 8½ pages; also in Parish details),
 **B** / **I**, **Reading texts…**, **Parish details…** and **Export to Word**.
 
-**To do**, beside the page, lists what the service still needs, and each
-line opens the place to do it: the parish's name and details, the service
-time, the announcements' Google Slides link, a reading's text, a hymn not
-yet chosen, the preacher's name. "Nothing left to do ✓" when it is ready.
+**To do**, beside the page, lists what the service still needs: the
+parish's name and details, the service time, the announcements' Google
+Slides link, a reading's text, a hymn not yet chosen, the psalm's music
+(unless it is said), the preacher, an anthem, the prelude and postlude.
+Each line opens a small window in the middle with just what it needs
+(ui/js/control/todo.js); Save fills it in and closes. A hymn is found in
+the Library by number or title, with its verses sung, or added new in the
+Editor; a psalm gets its antiphon and setting, or is marked said
+responsively (`psalm_said: true`); anthems, preludes and postludes from
+earlier services are offered as their titles are typed. "Nothing left to
+do ✓" when it is ready.
 
 * **Click an item** in the preview (or the service list) and choose how it
   appears in the bar that appears just above it:

@@ -138,6 +138,60 @@ pub fn list_services(app: &AppHandle) -> CmdResult<Vec<ServiceSummary>> {
     Ok(out)
 }
 
+/// A piece of music sung or played in an earlier service.
+#[derive(Debug, Clone, Serialize)]
+pub struct PastMusic {
+    title: String,
+    composer: String,
+    /// When it was last used ("2026-11-22").
+    date: String,
+}
+
+/// The anthems, preludes and postludes of past services, newest first, each
+/// once, to offer as their titles are typed (To do).
+#[derive(Debug, Default, Serialize)]
+pub struct MusicSuggestions {
+    anthems: Vec<PastMusic>,
+    preludes: Vec<PastMusic>,
+    postludes: Vec<PastMusic>,
+}
+
+#[tauri::command]
+pub async fn music_suggestions(app: AppHandle) -> CmdResult<MusicSuggestions> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut services = list_services(&app)?;
+        services.retain(|s| s.date.is_some());
+        services.sort_by(|a, b| b.date.cmp(&a.date));
+        let mut out = MusicSuggestions::default();
+        let add = |list: &mut Vec<PastMusic>, title: &str, composer: &str, date: &str| {
+            let (title, composer) = (title.trim(), composer.trim());
+            if title.is_empty() || list.iter().any(|m| m.title.eq_ignore_ascii_case(title)) {
+                return;
+            }
+            list.push(PastMusic { title: title.into(), composer: composer.into(), date: date.into() });
+        };
+        // The last couple of years is plenty, and keeps this quick.
+        for summary in services.iter().take(150) {
+            let Ok(Loaded { service, .. }) = Service::load_plan(&summary.path) else { continue };
+            let date = summary.date.clone().unwrap_or_default();
+            for c in service.cues.iter().filter(|c| c.category == ElementCategory::Anthem) {
+                if let Some(doc) = c.document() {
+                    add(&mut out.anthems, &doc.meta.title, doc.meta.extra("composer").unwrap_or(""), &date);
+                }
+            }
+            if let Some(m) = &service.prelude {
+                add(&mut out.preludes, &m.title, &m.composer, &date);
+            }
+            if let Some(m) = &service.postlude {
+                add(&mut out.postludes, &m.title, &m.composer, &date);
+            }
+        }
+        Ok(out)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ---- templates -----------------------------------------------------------
 
 /// A hymn slot to be filled in each week.

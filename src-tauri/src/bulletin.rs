@@ -261,6 +261,13 @@ pub fn todo(c: &episco_core::Cue) -> Option<String> {
         ElementCategory::Homily => {
             doc.meta.extra("preacher").is_none_or(|p| p.trim().is_empty()).then(|| "Name the preacher".into())
         }
+        // A psalm with no music chosen, unless it is said.
+        ElementCategory::Psalm => {
+            let said = doc.meta.extra(crate::library::PSALM_SAID) == Some("true");
+            let music = doc.blocks.iter().any(|b| matches!(b, Block::Image { src, .. } if !src.trim().is_empty()))
+                || doc.meta.extra("setting_image").is_some_and(|v| !v.trim().is_empty());
+            (!said && !music).then(|| "Choose the psalm's music".into())
+        }
         // An anthem added with no title yet (its title is the piece's own).
         ElementCategory::Anthem => {
             (doc.meta.title.trim().is_empty() && doc.meta.extra("composer").is_none()).then(|| "Name the anthem".into())
@@ -343,6 +350,17 @@ mod tests {
         assert_eq!(todo(&hymn).as_deref(), Some("Choose the hymn"));
         let mut sermon = crate::services::sermon_cue();
         assert_eq!(todo(&sermon).as_deref(), Some("Name the preacher"));
+        let psalm = |extra: &str| {
+            let doc: episco_core::LiturgyDocument = format!(
+                "---\ntitle: Psalm 126\ntype: psalm\n{extra}---\n[1] When the Lord restored the fortunes of Zion\n"
+            )
+            .parse()
+            .unwrap();
+            episco_core::Cue::liturgy("psalm", doc, None, Default::default())
+        };
+        assert_eq!(todo(&psalm("")).as_deref(), Some("Choose the psalm's music"));
+        assert_eq!(todo(&psalm("psalm_said: true\n")), None, "said, with no music");
+        assert_eq!(todo(&psalm("setting_image: tone.png\n")), None);
         if let episco_core::CueContent::Liturgy { document, .. } = &mut sermon.content {
             document.meta.extra.push(("preacher".into(), "Jane Doe".into()));
         }

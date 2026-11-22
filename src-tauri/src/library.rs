@@ -626,12 +626,21 @@ fn library_copy_of(doc: &LiturgyDocument) -> CmdResult<(LiturgyDocument, String)
 /// the cue's name: a hymn from the library fills the "Entrance Hymn" slot
 /// and stays the Entrance Hymn.
 #[tauri::command]
-pub fn library_fill_cue(app: AppHandle, engine: State<'_, Engine>, id: String, cue: String) -> CmdResult<()> {
+pub fn library_fill_cue(
+    app: AppHandle,
+    engine: State<'_, Engine>,
+    id: String,
+    cue: String,
+    verses: Option<Vec<u32>>,
+) -> CmdResult<()> {
     let doc = load(&app, &id)?;
     engine.edit_service(|s| {
         let c = s.cue(&cue).ok_or("no such cue")?;
         let mut overrides = c.overrides.clone();
-        overrides.title = Some(c.title.clone());
+        // The place's name ("Entrance Hymn"), not a hymn chosen there before.
+        overrides.title = Some(c.overrides.title.clone().unwrap_or_else(|| c.title.clone()));
+        // The verses sung (To do); none: all of them.
+        overrides.verses = verses.filter(|v| !v.is_empty());
         // A hymnal setting (the Sanctus as S 125, say) is sung: shown as a hymn.
         if doc.meta.effective_category() == episco_core::ElementCategory::Hymn && doc.meta.extra(BASED_ON).is_none() {
             overrides.category = None;
@@ -951,6 +960,125 @@ pub fn hymn_set_text(
     })
 }
 
+/// The sermon's preacher (To do, and the Editor's preacher panel): their
+/// style, name and position, kept with the item and shown on its slide
+/// ("The Very Rev. Jane Doe", then "Dean").
+#[tauri::command]
+pub fn sermon_set_preacher(
+    engine: State<'_, Engine>,
+    id: String,
+    honorific: String,
+    name: String,
+    title: String,
+) -> CmdResult<()> {
+    use episco_core::{Block, Span};
+    let (honorific, name, title) = (honorific.trim(), name.trim(), title.trim());
+    engine.edit_service(|s| {
+        let mut doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?.clone();
+        doc.meta.extra.retain(|(k, _)| !matches!(k.as_str(), "preacher" | "preacher_honorific" | "preacher_title"));
+        for (k, v) in [("preacher_honorific", honorific), ("preacher", name), ("preacher_title", title)] {
+            if !v.is_empty() {
+                doc.meta.extra.push((k.into(), v.into()));
+            }
+        }
+        let person = [honorific, name].into_iter().filter(|x| !x.is_empty()).collect::<Vec<_>>().join(" ");
+        let mut lines: Vec<Vec<Span>> =
+            [person.as_str(), title].into_iter().filter(|x| !x.is_empty()).map(|x| vec![Span::plain(x)]).collect();
+        if lines.is_empty() {
+            lines.push(vec![Span::plain("")]);
+        }
+        match doc.blocks.iter().position(|b| matches!(b, Block::Paragraph { role: None, .. })) {
+            Some(i) => doc.blocks[i] = Block::Paragraph { role: None, lines },
+            None => {
+                let at = doc.blocks.iter().position(|b| matches!(b, Block::Heading { .. })).map_or(0, |h| h + 1);
+                doc.blocks.insert(at, Block::Paragraph { role: None, lines });
+            }
+        }
+        s.set_document(&id, doc).map_err(|e| e.to_string())
+    })
+}
+
+/// What a psalm is sung to (To do): said responsively, with no music; or its
+/// antiphon (words and music line) and the musical setting of its verses.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct PsalmMusic {
+    #[serde(default)]
+    pub said: bool,
+    /// The antiphon's words, for a psalm that has no antiphon yet.
+    #[serde(default)]
+    pub antiphon: Option<String>,
+    /// A picture of the antiphon's music line.
+    #[serde(default)]
+    pub antiphon_music: Option<String>,
+    /// A picture of the setting the verses are sung to.
+    #[serde(default)]
+    pub setting: Option<String>,
+}
+
+/// Marks a psalm said (it then needs no music), or gives it its antiphon and
+/// setting.
+#[tauri::command]
+pub fn psalm_set_music(engine: State<'_, Engine>, id: String, music: PsalmMusic) -> CmdResult<()> {
+    engine.edit_service(|s| {
+        let doc = s.cue(&id).and_then(|c| c.document()).ok_or("no such item")?.clone();
+        let doc = with_psalm_music(doc, &music);
+        s.set_document(&id, doc).map_err(|e| e.to_string())
+    })
+}
+
+fn with_psalm_music(mut doc: LiturgyDocument, music: &PsalmMusic) -> LiturgyDocument {
+    use episco_core::Block;
+    let some = |v: &Option<String>| v.as_deref().map(str::trim).filter(|v| !v.is_empty()).map(String::from);
+    doc.meta.extra.retain(|(k, _)| k != PSALM_SAID);
+    if music.said {
+        doc.meta.extra.push((PSALM_SAID.into(), "true".into()));
+        return doc;
+    }
+    if let Some(setting) = some(&music.setting) {
+        doc.meta.extra.retain(|(k, _)| k != "setting_image");
+        doc.meta.extra.push(("setting_image".into(), setting));
+    }
+    let is_antiphon =
+        |b: &Block| matches!(b, Block::Heading { text, .. } if text.eq_ignore_ascii_case(propers::ANTIPHON));
+    let has_antiphon = doc.blocks.iter().any(is_antiphon);
+    let image = |src: String| Block::Image { src, alt: propers::ANTIPHON.into(), fit: None, words: false };
+    let music_line = some(&music.antiphon_music);
+    if has_antiphon {
+        if let Some(src) = music_line {
+            // Every antiphon shows the same music line, under its heading.
+            let mut out = Vec::with_capacity(doc.blocks.len());
+            let mut blocks = doc.blocks.into_iter().peekable();
+            while let Some(b) = blocks.next() {
+                let heading = is_antiphon(&b);
+                out.push(b);
+                if heading {
+                    if matches!(blocks.peek(), Some(Block::Image { .. })) {
+                        blocks.next();
+                    }
+                    out.push(image(src.clone()));
+                }
+            }
+            doc.blocks = out;
+        }
+        return doc;
+    }
+    let words = some(&music.antiphon);
+    if words.is_none() && music_line.is_none() {
+        return doc;
+    }
+    // A new antiphon at the start and the end, its music line with it.
+    if let Some(src) = music_line {
+        doc.blocks.retain(|b| !matches!(b, Block::Image { .. }));
+        doc.blocks.insert(0, image(src));
+    }
+    let per = doc.meta.extra("verses_per_slide").and_then(|v| v.parse().ok()).unwrap_or(2);
+    let opts = propers::PsalmOptions { antiphon: words, antiphon_every: 0, placed: false, verses_per_slide: per };
+    propers::rearrange_psalm(&doc, &opts)
+}
+
+/// A psalm said responsively: it needs no antiphon or setting.
+pub const PSALM_SAID: &str = "psalm_said";
+
 // ---- anthems -----------------------------------------------------------------
 
 /// Adds a choir anthem after cue index `after`: an item named for its place
@@ -1064,6 +1192,46 @@ pub async fn library_import_hymns(app: AppHandle) -> CmdResult<HymnImport> {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_psalms_music_from_to_do() {
+        use episco_core::Block;
+        let psalm: LiturgyDocument = "---\ntitle: Psalm 126\ntype: psalm\ncitation: Psalm 126\n---\n# Psalm 126\n\n[1] When the Lord restored the fortunes of Zion, *\nthen were we like those who dream.\n\n[2] **Then was our mouth filled with laughter, ***\n**and our tongue with shouts of joy.**\n".parse().unwrap();
+        let images = |d: &LiturgyDocument| d.blocks.iter().filter(|b| matches!(b, Block::Image { .. })).count();
+        let antiphons = |d: &LiturgyDocument| {
+            d.blocks.iter().filter(|b| matches!(b, Block::Heading { text, .. } if text == propers::ANTIPHON)).count()
+        };
+        // Said: marked, and nothing else changes.
+        let said = with_psalm_music(psalm.clone(), &PsalmMusic { said: true, ..Default::default() });
+        assert_eq!(said.meta.extra(PSALM_SAID), Some("true"));
+        assert_eq!(said.blocks, psalm.blocks);
+        // A new antiphon with its music line, at the start and the end; the setting.
+        let sung = with_psalm_music(
+            said,
+            &PsalmMusic {
+                antiphon: Some("The Lord has done great things for us.".into()),
+                antiphon_music: Some("library:music/Antiphon/126.png".into()),
+                setting: Some("library:music/Setting/tone-8.png".into()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(sung.meta.extra(PSALM_SAID), None, "sung now");
+        assert_eq!(sung.meta.extra("setting_image"), Some("library:music/Setting/tone-8.png"));
+        assert_eq!(antiphons(&sung), 2);
+        assert_eq!(images(&sung), 2, "the music line with each antiphon");
+        // Changing the music line changes it on every antiphon.
+        let again = with_psalm_music(
+            sung,
+            &PsalmMusic { antiphon_music: Some("library:music/Antiphon/new.png".into()), ..Default::default() },
+        );
+        assert_eq!(antiphons(&again), 2);
+        assert!(again
+            .blocks
+            .iter()
+            .filter_map(|b| if let Block::Image { src, .. } = b { Some(src.as_str()) } else { None })
+            .all(|s| s.ends_with("new.png")));
+        assert_eq!(images(&again), 2);
+    }
 
     #[test]
     fn a_hymns_place_named_for_an_anthem() {
