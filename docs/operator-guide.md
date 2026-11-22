@@ -124,9 +124,10 @@ See [backgrounds.md](backgrounds.md) for the layouts and their text areas.
   colour and the on-screen style (People is bold black; Rubric is red italic
   and never projected).
   In a hymn the dropdown has the song's parts instead: Verse 1, 2 … (one
-  past the last), Refrain, Chorus, Bridge, Intro, Outro, Cantor, Call, All,
-  This Side and That Side; a new row continues the verses, or answers
-  Cantor or Call with All and alternates This Side and That Side. (Choir /
+  past the last), Refrain, Chorus, Bridge, Intro, Outro, Cantor, Choir,
+  Call, All, Men, Women, This Side and That Side; a new row continues the
+  verses, or answers Cantor or Call with All and alternates Men and Women
+  and This Side and That Side. (Choir /
   People for each verse is the psalm's.)
 * Hover between rows for **( + ADD BLOCK )**. The new block continues the
   dialogue (after Priest comes People, after People the previous speaker). The
@@ -289,8 +290,11 @@ up on the live-stream computer as well (⚙ Settings → Parish library folder);
 are copied to it with their pictures. To go back to one computer, choose
 **One computer for both**.
 
-## Slave (live-stream) node
+## Follower (live-stream) computer
 
-The same window, read-only: it follows the master and has every control
-(Next / Prev, slide clicks, the quick actions and stage messages), held for
-one second after the master changes something. Edit and save on the master.
+The same window, read-only: it follows the leader (the sanctuary computer)
+and has every control (Next / Prev, slide clicks, the quick actions and
+stage messages), held for one second after the leader changes something.
+Edit and save on the leader. The window titles say **Sanctuary (Leader)**
+and **Live Stream (Follower)**. (In the node configuration file the roles
+are still written `master` and `slave`.)

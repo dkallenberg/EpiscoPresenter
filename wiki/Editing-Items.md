@@ -33,9 +33,10 @@ From top to bottom:
    In a **hymn** the rows are the song's parts instead: **Verse 1, 2 …**
    (one past the last verse is offered, and **+ ADD BLOCK** starts the next
    verse), **Refrain**, **Chorus**, **Bridge**, **Intro**, **Outro**, and for
-   sung responses **Cantor**, **Call**, **All** (bold), **This Side** and
-   **That Side** (a new row after Cantor or Call is All; This Side and That
-   Side alternate). These are offered only in hymns.
+   sung responses or parts **Cantor**, **Choir**, **Call**, **All** (bold),
+   **Men**, **Women**, **This Side** and **That Side** (a new row after
+   Cantor or Call is All; Men and Women, and This Side and That Side,
+   alternate). These are offered only in hymns.
    * Each line in a row is one line on the screen. **Enter** starts a new
      line; **Tab** and **⇧Tab** indent and outdent it.
    * Hover between rows for **+ ADD BLOCK**, **§ Heading** (starts a new
@@ -181,7 +182,12 @@ you, Lord Christ*.
 **Music before the Gospel → Choose…** puts a picture of the Alleluia or
 Gospel acclamation (from the `music/Gospel Acclamation` folder) on the
 first slide. The music you choose becomes the
-parish's usual one for new services. **Put the slides in order** fixes the
+parish's usual one for new services. In the bulletin and script it prints before the Gospel's own
+title, under the heading *Gospel Acclamation*, with *All stand, as you are
+able. The Responsorial Alleluia is introduced by the Cantor and then
+repeated by the People.* (In Lent, music whose file name says *Lent* gets
+*The Gospel Acclamation is introduced…* instead; a Rubric row of your own on
+the music's slide replaces either.) The slides show just the music. **Put the slides in order** fixes the
 order after editing by hand.
 
 ## The Proper Preface

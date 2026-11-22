@@ -321,9 +321,8 @@ fn indents_of(lines: &[Vec<Span>]) -> Vec<usize> {
     }
 }
 
-/// A psalm verse's indents: both halves start level (a half too long for
-/// the column carries on indented under itself), and every other verse is
-/// a step in.
+/// A verse's indents: its lines start level, and every other verse is a
+/// step in (psalms and hymns alike).
 fn verse_indents(number: &str, lines: &[Vec<Span>]) -> Vec<usize> {
     let even = number.trim_end_matches(|c: char| c.is_ascii_alphabetic()).parse::<u32>().is_ok_and(|n| n % 2 == 0);
     lines.iter().map(|l| split_indent(l).0 + usize::from(even)).collect()
@@ -365,14 +364,18 @@ pub enum Piece {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         indents: Vec<usize>,
     },
-    /// A psalm verse, with each line's indent, and what is set at the right
-    /// margin at the end of its last line ("Antiphon": sung next).
+    /// A psalm or hymn verse, with each line's indent, and what is set at
+    /// the right margin at the end of its last line ("Antiphon": sung next).
     Verse {
         number: String,
         lines: Vec<Vec<Run>>,
         indents: Vec<usize>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         tail: Option<String>,
+        /// A line too long for the column carries on indented under itself
+        /// (a psalm's half-verse); a hymn's carries on level with it.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        hang: bool,
     },
     /// Running text (a reading), one paragraph.
     Prose { runs: Vec<Run> },
@@ -769,6 +772,7 @@ fn psalm_body(cue: &Cue, doc: &LiturgyDocument, root: Option<&Path>) -> Option<V
                     lines: keep_asterisks(lines_at(lines, false, i)),
                     indents: verse_indents(n, lines),
                     tail: None,
+                    hang: true,
                 });
             }
             b if is_antiphon_head(b) => {
@@ -837,6 +841,23 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
         after_break = false;
         match b {
             Block::SlideBreak | Block::OutputBreak { .. } => after_break = true,
+            // The music sung before the Gospel: its own heading and, unless
+            // the slide has a rubric of its own, how it is sung.
+            Block::Heading { text, .. } if text == crate::propers::GOSPEL_MUSIC => {
+                out.push(Piece::Line { title: text.clone(), detail: None, incipit: None, reference: None });
+                let slide = doc.blocks[i + 1..].iter().take_while(|b| !matches!(b, Block::SlideBreak));
+                let (mut rubric, mut music) = (false, String::new());
+                for b in slide {
+                    match b {
+                        Block::Paragraph { role: Some(r), .. } if r.is_rubric() => rubric = true,
+                        Block::Image { src, alt, .. } => music = format!("{src} {alt}"),
+                        _ => {}
+                    }
+                }
+                if !rubric {
+                    out.push(Piece::Rubric { text: acclamation_rubric(&music).into(), src: None });
+                }
+            }
             Block::Heading { .. } => {}
             Block::Image { src, alt, .. } => {
                 if let Some(path) = resolve(src, cue, root) {
@@ -858,6 +879,7 @@ fn body(cue: &Cue, script: bool, root: Option<&Path>) -> Vec<Piece> {
                         lines: keep_asterisks(lines_at(lines, false, i)),
                         indents: verse_indents(n, lines),
                         tail: None,
+                        hang: cue.category != ElementCategory::Hymn,
                     });
                 }
                 Some(Role::Custom(a)) if a.eq_ignore_ascii_case("antiphon") || a.eq_ignore_ascii_case("refrain") => {
@@ -960,18 +982,22 @@ fn words(p: &Piece) -> usize {
 }
 
 /// Only what the people say, each with the leader's line before it when that
-/// line is short enough to be a cue ("The Lord be with you."). A call and
-/// response said after every petition of a litany is printed once, after
-/// "At the end of each petition,".
+/// line ("The Lord be with you."), or the end of it when it is long ("…
+/// Therefore we proclaim the mystery of faith:"), so the people know when
+/// to answer. A call and response said after every petition of a litany is
+/// printed once, after "At the end of each petition,".
 fn responses(pieces: Vec<Piece>) -> Vec<Piece> {
     let mut pairs: Vec<(Option<Piece>, Piece)> = Vec::new();
     let mut prev: Option<Piece> = None;
     for p in pieces {
         if is_people(&p) {
-            let cue = prev.take().filter(|c| matches!(c, Piece::Speech { .. }) && words(c) <= 16);
-            pairs.push((cue, p));
-        } else {
+            pairs.push((prev.take().and_then(lead_in), p));
+        } else if matches!(p, Piece::Speech { .. }) {
             prev = Some(p);
+        } else if !matches!(p, Piece::Rubric { .. } | Piece::Image { .. }) {
+            // A rubric between the leader and the people ("The people
+            // stand") doesn't part them; anything else does.
+            prev = None;
         }
     }
     let mut out: Vec<Piece> = Vec::new();
@@ -993,6 +1019,72 @@ fn responses(pieces: Vec<Piece>) -> Vec<Piece> {
 }
 
 const EACH_PETITION_RUBRIC: &str = "At the end of each petition,";
+
+/// The most of a leader's line printed before the people's response.
+const CUE_WORDS: usize = 16;
+
+/// How the music before the Gospel is sung: an Alleluia, or in Lent (music
+/// whose file or name says so) the Gospel Acclamation without one.
+fn acclamation_rubric(music: &str) -> &'static str {
+    if music.to_lowercase().contains("lent") {
+        "All stand, as you are able. The Gospel Acclamation is introduced by the Cantor and then repeated by the People."
+    } else {
+        "All stand, as you are able. The Responsorial Alleluia is introduced by the Cantor and then repeated by the People."
+    }
+}
+
+/// The music sung before a Gospel ("Gospel Acclamation", how it is sung,
+/// the music), printed before the Gospel's own title, and the rest.
+fn split_acclamation(pieces: Vec<Piece>) -> (Vec<Piece>, Vec<Piece>) {
+    let starts = matches!(pieces.first(), Some(Piece::Line { title, .. }) if title == crate::propers::GOSPEL_MUSIC);
+    let n = if starts {
+        1 + pieces[1..].iter().take_while(|p| matches!(p, Piece::Rubric { .. } | Piece::Image { .. })).count()
+    } else {
+        0
+    };
+    let mut pieces = pieces;
+    let rest = pieces.split_off(n);
+    (pieces, rest)
+}
+
+/// The leader's line before a response: all of it when short, else, after
+/// "…", its last sentence, or as much of that as fits in [`CUE_WORDS`] from
+/// a clause ("…, who for ever sing this hymn to proclaim the glory of your
+/// Name:").
+fn lead_in(p: Piece) -> Option<Piece> {
+    if words(&p) <= CUE_WORDS {
+        return Some(p);
+    }
+    let Piece::Speech { label, lines, joins, .. } = p else { return None };
+    // The last paragraph: its first line is the last one not run on.
+    let start = (0..lines.len()).rev().find(|i| !joins.contains(i)).unwrap_or(0);
+    let text: String = lines[start..]
+        .iter()
+        .map(|l| l.iter().map(|r| r.text.as_str()).collect::<String>())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let all: Vec<&str> = text.split_whitespace().collect();
+    // After a word ending a sentence (. ! ?) or a clause (also ; : ,), a
+    // closing quote or bracket allowed after it.
+    let ends = |i: usize, marks: &[char]| all[i - 1].trim_end_matches(['"', '\'', '”', '’', ')']).ends_with(marks);
+    let sentence = (1..all.len()).rev().find(|&i| ends(i, &['.', '!', '?'])).unwrap_or(0);
+    let fits = |i: usize| all.len() - i <= CUE_WORDS;
+    // The last sentence if it fits, else the most of it from a clause.
+    let from = if fits(sentence) {
+        sentence
+    } else {
+        (sentence + 1..all.len())
+            .find(|&i| fits(i) && ends(i, &['.', '!', '?', ';', ':', ',']))
+            .unwrap_or(all.len() - CUE_WORDS * 3 / 4)
+    };
+    let cue = format!("… {}", all[from..].join(" "));
+    Some(Piece::Speech {
+        label,
+        lines: vec![vec![Run { text: cue, bold: false, italic: false, src: None }]],
+        joins: Vec::new(),
+        indents: Vec::new(),
+    })
+}
 
 /// The same words said by the same people, wherever they stand in the item.
 fn same_pair(a: &(Option<Piece>, Piece), b: &(Option<Piece>, Piece)) -> bool {
@@ -1025,23 +1117,17 @@ fn entry(cue: &Cue, style: BulletinStyle, script: bool, root: Option<&Path>) -> 
     match style {
         BulletinStyle::Hidden => {}
         BulletinStyle::Reference | BulletinStyle::Title => pieces.push(title_line(cue, style)),
-        BulletinStyle::Full => {
+        BulletinStyle::Full | BulletinStyle::Responses => {
+            // The music before a Gospel comes ahead of the Gospel's title.
+            let (acclamation, rest) = split_acclamation(body(cue, script, root));
+            pieces.extend(acclamation);
             pieces.push(Piece::Line {
                 title: cue.title.clone(),
                 detail: scripture(cue),
                 incipit: work_title(cue),
                 reference: reference(cue),
             });
-            pieces.extend(body(cue, script, root));
-        }
-        BulletinStyle::Responses => {
-            pieces.push(Piece::Line {
-                title: cue.title.clone(),
-                detail: scripture(cue),
-                incipit: work_title(cue),
-                reference: reference(cue),
-            });
-            pieces.extend(responses(body(cue, script, root)));
+            pieces.extend(if style == BulletinStyle::Full { rest } else { responses(rest) });
         }
     }
     Entry { cue: Some(cue.id.clone()), style, pieces }
@@ -1402,7 +1488,7 @@ pub fn to_html(doc: &Doc) -> String {
                     };
                     h.push_str(&format!("<span class=\"said\">{body}</span></div>"));
                 }
-                Piece::Verse { number, lines, indents, tail } => {
+                Piece::Verse { number, lines, indents, tail, hang } => {
                     let mut body = html_lines(lines, &[], indents);
                     // At the end of the last line, at the right margin.
                     if let Some(t) = tail {
@@ -1411,7 +1497,8 @@ pub fn to_html(doc: &Doc) -> String {
                         }
                     }
                     h.push_str(&format!(
-                        "<div class=\"verse\"><span class=\"num\">{}</span><span class=\"said\">{body}</span></div>",
+                        "<div class=\"verse{}\"><span class=\"num\">{}</span><span class=\"said\">{body}</span></div>",
+                        if *hang { "" } else { " level" },
                         escape(number)
                     ));
                 }
@@ -1526,6 +1613,101 @@ mod tests {
     }
 
     #[test]
+    fn responses_only_gives_a_long_lead_in_its_end() {
+        let text =
+            std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../library/eucharistic-prayer-a.ewm"))
+                .unwrap();
+        let r = entry(&cue(&text), BulletinStyle::Responses, false, None);
+        let said: Vec<String> = r.pieces[1..]
+            .iter()
+            .map(|p| match p {
+                Piece::Speech { label, lines, .. } => {
+                    format!(
+                        "{}: {}",
+                        label.as_deref().unwrap_or("-"),
+                        lines[0].iter().map(|x| x.text.as_str()).collect::<String>()
+                    )
+                }
+                other => format!("{other:?}"),
+            })
+            .collect();
+        let at =
+            |start: &str| said.iter().position(|s| s.contains(start)).unwrap_or_else(|| panic!("{start}: {said:#?}"));
+        // Each response comes after the end of the Celebrant's line before it.
+        assert_eq!(
+            said[at("Holy, Holy, Holy") - 1],
+            "Celebrant: … who for ever sing this hymn to proclaim the glory of your Name:"
+        );
+        assert_eq!(said[at("Christ has died") - 1], "Celebrant: … Therefore we proclaim the mystery of faith:");
+        assert!(
+            said[at("AMEN") - 1].starts_with("Celebrant: … ") && said[at("AMEN") - 1].ends_with("now and for ever.")
+        );
+    }
+
+    #[test]
+    fn the_gospel_acclamation_before_the_gospel() {
+        let gospel = |music: &str| {
+            let text = format!("---\ntitle: The Holy Gospel\ntype: gospel\ncitation: Matthew 25:31-46\n---\n# Gospel Acclamation\n![Acclamation]({music})\n\n---\n\n[Deacon] The Holy Gospel of our Lord Jesus Christ according to Matthew.\n[People] **Glory to you, Lord Christ.**\n\n---\n\n# The Holy Gospel\n");
+            cue(&text)
+        };
+        let kinds = |pieces: &[Piece]| -> Vec<String> {
+            pieces
+                .iter()
+                .map(|p| match p {
+                    Piece::Line { title, .. } => format!("line:{title}"),
+                    Piece::Rubric { text, .. } => format!("rubric:{text}"),
+                    Piece::Speech { label, .. } => format!("speech:{}", label.as_deref().unwrap_or("")),
+                    Piece::Image { .. } => "image".into(),
+                    other => format!("{other:?}").chars().take(20).collect(),
+                })
+                .collect()
+        };
+        let full = entry(&gospel("music/Gospel Acclamation/alleluia.png"), BulletinStyle::Full, false, None);
+        let k = kinds(&full.pieces);
+        assert_eq!(k[0], "line:Gospel Acclamation");
+        assert!(k[1].starts_with("rubric:All stand, as you are able. The Responsorial Alleluia"), "{k:?}");
+        let title = k.iter().position(|x| x == "line:The Holy Gospel").expect("the Gospel's title");
+        assert!(title > 1 && k[title + 1] == "speech:Deacon", "{k:?}");
+        // In Lent, no Alleluia.
+        let lent = entry(&gospel("music/Gospel Acclamation/lent-tone.png"), BulletinStyle::Responses, false, None);
+        let k = kinds(&lent.pieces);
+        assert!(k[1].contains("The Gospel Acclamation is introduced"), "{k:?}");
+        assert!(k.contains(&"line:The Holy Gospel".to_string()) && k.contains(&"speech:People".to_string()), "{k:?}");
+    }
+
+    #[test]
+    fn a_hymns_verses_step_in_by_turns_and_do_not_hang() {
+        let verses = |text: &str| -> Vec<(Vec<usize>, bool)> {
+            body(&cue(text), false, None)
+                .into_iter()
+                .filter_map(|p| match p {
+                    Piece::Verse { indents, hang, .. } => Some((indents, hang)),
+                    _ => None,
+                })
+                .collect()
+        };
+        let hymn = verses("---\ntitle: O come, O come, Emmanuel\ntype: hymn\n---\n[1] O come, O come, Emmanuel,\nand ransom captive Israel,\n\n[2] O come, thou Wisdom from on high,\nwho orderest all things mightily;\n");
+        assert_eq!(hymn.len(), 2);
+        // Each verse's lines start level; the second verse a step in.
+        assert_eq!(hymn[0].0, vec![0, 0]);
+        assert_eq!(hymn[1].0, vec![1, 1]);
+        // A line too long for the column carries on level, not hanging.
+        assert!(hymn.iter().all(|(_, hang)| !hang));
+        let html = to_html(&Doc {
+            kind: DocKind::Bulletin,
+            cover: Cover { title: String::new(), day: None, when: None, logo: None },
+            entries: vec![entry(
+                &cue("---\ntitle: Hymn\ntype: hymn\n---\n[1] One\n"),
+                BulletinStyle::Full,
+                false,
+                None,
+            )],
+            back: None,
+        });
+        assert!(html.contains("class=\"verse level\""), "{html}");
+    }
+
+    #[test]
     fn responses_only_prints_a_litany_response_once() {
         let pop = cue("---\ntitle: The Prayers of the People\ntype: prayer\n---\n[Deacon] Let us pray for the Church and for the world.\n[Deacon] Grant that all who confess your Name may be united in your truth, live together in your love, and reveal your glory in the world.\n[Rubric] *Silence*\n[Deacon] Lord, in your mercy\n[People] **Hear our prayer.**\n[Deacon] Guide the people of this land in the ways of justice and peace; that we may honor one another and serve the common good.\n[Rubric] *Silence*\n[Deacon] Lord, in your mercy\n[People] **Hear our prayer.**\n");
         let r = entry(&pop, BulletinStyle::Responses, false, None);
@@ -1578,11 +1760,17 @@ mod tests {
             ]
         );
 
-        // A long prayer is left out; only the people's Amen remains.
+        // A long prayer is left out but for its end, so the people know when
+        // to say Amen.
         let collect = cue("---\ntitle: Collect of the Day\ntype: collect\n---\n[Priest] Almighty God, you have knit together your elect in one communion and fellowship in the mystical body of your Son Christ our Lord: Give us grace so to follow your blessed saints.\n[People] **Amen.**\n");
         let r = entry(&collect, BulletinStyle::Responses, false, None);
-        assert_eq!(r.pieces.len(), 2);
-        assert!(is_people(&r.pieces[1]));
+        assert_eq!(r.pieces.len(), 3);
+        assert!(
+            matches!(&r.pieces[1], Piece::Speech { lines, .. } if lines[0][0].text == "… Give us grace so to follow your blessed saints."),
+            "{:?}",
+            r.pieces[1]
+        );
+        assert!(is_people(&r.pieces[2]));
         assert!(!needs_text(&collect));
     }
 

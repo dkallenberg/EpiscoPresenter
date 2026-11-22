@@ -5,6 +5,7 @@
 // script's last line (not on the stream).
 
 import { app, call, el, toast } from "/js/control/util.js";
+import { forgetSuggestions, suggestFor } from "/js/control/todo.js";
 
 const LABEL = { prelude: "Prelude", postlude: "Postlude" };
 
@@ -64,6 +65,7 @@ export function editMusic(which) {
   const close = () => overlay.remove();
   const save = async () => {
     close();
+    forgetSuggestions();
     const ok = await call(`set_${which}`, { title: title.value.trim(), composer: composer.value.trim(), bulletin: style });
     if (ok === undefined) return;
     toast(style === "hidden" ? `${label} left out of the bulletin` : title.value.trim() || composer.value.trim() ? `${label} saved` : `No ${label.toLowerCase()} named`);
@@ -89,6 +91,8 @@ export function editMusic(which) {
   );
   document.body.append(overlay);
   title.focus();
+  // Pieces played before, offered as the title is typed.
+  suggestFor(which === "prelude" ? "preludes" : "postludes", title, composer).then((list) => list && overlay.append(list));
 }
 
 export const editPrelude = () => editMusic("prelude");

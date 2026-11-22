@@ -121,6 +121,15 @@ for its season, and the standard order where there is none. The **Service
 order templates** card on the Services screen lets you edit, rename or
 delete templates. Services already made from a template don't change.
 
+**A new week from a template or a copy.** A service made from a template,
+or as a **copy of a service**, keeps its order: a hymn you took out stays
+out, a Sequence hymn stays between the Epistle and the Gospel, and each item
+prints as it did. The day's Collect, readings and psalm take the old ones'
+places. Everything chosen week by week starts empty, so it is on **To do**
+again: the hymns (but a sung Sanctus), the preacher, the anthems' titles and
+composers, the prelude and postlude, and the announcements' Google Slides
+link. The psalm is the new day's, with no antiphon or setting chosen yet.
+
 ## Propers for another day
 
 To use a holy day's readings, a Lesser Feast or different readings:

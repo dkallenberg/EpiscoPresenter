@@ -49,13 +49,13 @@ export const SLIDE_TYPES = [
     key: "stream.bottom_bar",
     output: "stream",
     label: "Bottom Bar",
-    hint: "Psalms and the Eucharistic Prayer: the title in the gold box, the musical setting under it, the text in the bar.",
+    hint: "Psalms and the Eucharistic Prayer: the text in the bar; for a psalm, its title in the gold box and the musical setting under it.",
     layout: "bottom_bar",
     background: "builtin:bar-bottom",
     sample: "psalm",
     elements: {
-      tag: { label: "Title (gold box)", x: 94, y: 303, w: 382, h: 83, size: 50, bold: true, color: "#ffffff", align: "center", valign: "center" },
-      music: { label: "Musical setting image", kind: "image", x: 90, y: 398, w: 1740, h: 226 },
+      tag: { label: "Psalm title (gold box)", x: 94, y: 303, w: 382, h: 83, size: 50, bold: true, color: "#ffffff", align: "center", valign: "center" },
+      music: { label: "Musical setting image", kind: "image", x: 90, y: 398, w: 700, h: 226 },
       title: { label: "Title in the bar", x: 56, y: 672, w: 1808, h: 62, size: 57, bold: true, valign: "center", hidden: true },
       subtitle: { label: "Section heading in the bar", x: 56, y: 672, w: 1808, h: 62, size: 43, bold: true, italic: true, align: "right", valign: "center", hidden: true },
       text: { label: "Text", x: 56, y: 672, w: 1808, h: 344, size: 50, valign: "center" },
@@ -121,8 +121,9 @@ export const SLIDE_TYPES = [
     background: "builtin:glass-light",
     sample: "title",
     elements: {
-      subtitle: { label: "Heading", x: 70, y: 300, w: 1780, h: 130, size: 73, align: "center", valign: "bottom" },
-      title: { label: "Main title", x: 70, y: 440, w: 1780, h: 340, size: 128, align: "center", valign: "top" },
+      // Heading and a one-line title together centred between the glass bands.
+      subtitle: { label: "Heading", x: 70, y: 372, w: 1780, h: 130, size: 73, align: "center", valign: "bottom" },
+      title: { label: "Main title", x: 70, y: 512, w: 1780, h: 340, size: 128, align: "center", valign: "top" },
     },
   },
   {

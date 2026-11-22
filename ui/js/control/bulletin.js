@@ -12,6 +12,7 @@ import { HONORIFICS, app, call, debounce, el, toast } from "/js/control/util.js"
 import { editMusic, musicStyle, musicText, needsNaming } from "/js/control/prelude.js";
 import { undoButtons } from "/js/control/undo.js";
 import { DAYS, regularEditor } from "/js/control/regular.js";
+import { openTodo, todoDeck, todoParish, todoTime } from "/js/control/todo.js";
 
 const STYLES = [
   ["reference", "Reference line", "Title, opening words and page or hymn number"],
@@ -175,10 +176,11 @@ async function renderTodo(v) {
   const parish = (await call("parish_get")) ?? {};
   if (v.paper && document.activeElement !== v.paper) v.paper.value = s.paper ?? parish.paper ?? "tabloid";
   const items = [];
-  if (!parish.name) items.push(["Add the parish's name, logo and details", () => openParish()]);
-  if (!s.time) items.push(["Set the service time (for the cover)", () => v.time.focus()]);
+  // Each line opens a small pop-up with just what it needs (todo.js).
+  if (!parish.name) items.push(["Add the parish's name, logo and details", () => todoParish()]);
+  if (!s.time) items.push(["Set the service time (for the cover)", () => todoTime()]);
   if (s.cues.some((c) => c.content.kind === "announcements") && !s.announcements_deck) {
-    items.push(["Add the announcements' Google Slides link", () => document.getElementById("btn-settings")?.click()]);
+    items.push(["Add the announcements' Google Slides link", () => todoDeck()]);
   }
   if (needsNaming("prelude")) items.push(["Name the prelude", () => editMusic("prelude")]);
   for (const c of s.cues) {
@@ -188,8 +190,7 @@ async function renderTodo(v) {
       `${c.title}: ${t.toLowerCase()}`,
       () => {
         app.select(c.id);
-        if (styles.get(c.id)?.needs_text) openReadings(c.id);
-        else if (c.category === "homily" || c.category === "hymn") document.querySelector('.tabs button[data-tab="editor"]')?.click();
+        openTodo(c, styles.get(c.id));
       },
     ]);
   }

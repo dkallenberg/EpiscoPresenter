@@ -317,7 +317,7 @@ impl Engine {
     }
 }
 
-const FOLLOWER_EDIT: &str = "this is a slave node; edit the service on the master (sanctuary) node";
+const FOLLOWER_EDIT: &str = "This computer follows the sanctuary computer (the leader): change the service there.";
 
 fn display_addr(addr: SocketAddr) -> String {
     if addr.ip().is_unspecified() {

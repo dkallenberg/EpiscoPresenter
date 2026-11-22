@@ -358,6 +358,20 @@ function textInput(key, placeholder) {
   });
 }
 
+/** A hymn's own title; the item keeps its place's name ("Entrance Hymn")
+ *  in the service list once the hymn has a title. */
+function hymnTitle(c) {
+  const input = textInput("title", "e.g. Lift Up Your Heads");
+  const place = c.overrides?.title ?? c.title;
+  input.addEventListener("input", () => {
+    if (!c.overrides?.title && place) {
+      c.overrides = { ...c.overrides, title: place };
+      call("set_cue_overrides", { id: c.id, overrides: c.overrides });
+    }
+  });
+  return input;
+}
+
 /** The book a hymn comes from (the bulletin prints "Hymn 436", "WLP 787"):
  *  the Hymnal 1982 unless it says, another book by name, or none. */
 function hymnalField() {
@@ -433,7 +447,7 @@ function metaForm(c) {
   // its place in the service ("Entrance Hymn").
   const fields =
     type === "hymn" && !isSanctus(c)
-      ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, textInput("title", "e.g. Lift Up Your Heads"), ".wide")]
+      ? [field(`Hymn title${c.title !== m.title ? ` · ${c.title}` : ""}`, hymnTitle(c), ".wide")]
       : type === "anthem"
         ? anthemFields(c)
         : [field("Title", textInput("title", "Title"), ".wide")];
@@ -486,6 +500,21 @@ function metaForm(c) {
         oninput: (e) => setOverride({ title: e.target.value.trim() || undefined }),
       }),
     ),
+    // A hymn's place can take a choir anthem instead ("Offertory Anthem").
+    c.category === "hymn" && !isSanctus(c)
+      ? el(
+          "button.small",
+          {
+            disabled: app.readonly,
+            title: "Sing a choir anthem here instead: the item becomes an anthem (e.g. Offertory Hymn → Offertory Anthem), waiting for its title and composer",
+            onclick: async () => {
+              await flush(true);
+              if ((await call("hymn_to_anthem", { id: c.id })) !== undefined) toast("Now an anthem: add its title and composer. Undo brings the hymn back.");
+            },
+          },
+          "Make it an anthem",
+        )
+      : null,
     // (The Sanctus says "Said" or "Sung" in its own panel instead.)
     o.category && !isSanctus(c)
       ? el(
@@ -523,7 +552,7 @@ const isPsalm = () => (ed.doc?.meta.type ?? "") === "psalm";
 const isAntiphonHeading = (b) => b.kind === "heading" && /^antiphon$/i.test(b.text ?? "");
 const isHymn = () => (ed.doc?.meta.type ?? "") === "hymn";
 /** The parts of a song a hymn's rows can be. */
-const HYMN_PARTS = ["Refrain", "Chorus", "Bridge", "Intro", "Outro", "Cantor", "Call", "All", "This Side", "That Side"];
+const HYMN_PARTS = ["Refrain", "Chorus", "Bridge", "Intro", "Outro", "Cantor", "Choir", "Call", "All", "Men", "Women", "This Side", "That Side"];
 /** A hymn's role choices: Verse 1 … one past its last verse, then the other parts. */
 function hymnRoles() {
   const last = Math.max(0, ...ed.doc.blocks.map((b) => (b.kind === "paragraph" && /^\d+$/.test(b.role ?? "") ? Number(b.role) : 0)));
@@ -1211,7 +1240,7 @@ function suggestRole(index) {
   const last = before[before.length - 1];
   if (isHymn()) {
     // Answering parts answer each other; otherwise the next verse.
-    const answer = { Cantor: "All", Call: "All", "This Side": "That Side", "That Side": "This Side" }[last?.role];
+    const answer = { Cantor: "All", Call: "All", "This Side": "That Side", "That Side": "This Side", Men: "Women", Women: "Men" }[last?.role];
     if (answer) return answer;
     const n = Math.max(0, ...ed.doc.blocks.map((b) => (b.kind === "paragraph" && /^\d+$/.test(b.role ?? "") ? Number(b.role) : 0)));
     return String(n + 1);

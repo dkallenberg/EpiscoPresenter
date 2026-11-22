@@ -246,6 +246,11 @@ fn builder() -> tauri::Builder<tauri::Wry> {
             library::library_fill_cue,
             library::anthem_add,
             library::anthem_set,
+            library::hymn_to_anthem,
+            library::sermon_set_preacher,
+            library::psalm_set_music,
+            services::music_suggestions,
+            commands::set_announcements_deck,
             sync::library_sync,
             sync::library_sync_status,
             drive::drive_status,
@@ -312,8 +317,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
 
 fn role_title(role: NodeRole) -> &'static str {
     match role {
-        NodeRole::Master => "Sanctuary (Master)",
-        NodeRole::Slave => "Live Stream (Slave)",
+        NodeRole::Master => "Sanctuary (Leader)",
+        NodeRole::Slave => "Live Stream (Follower)",
         NodeRole::Standalone => "Standalone",
     }
 }

@@ -8,12 +8,31 @@ officiant's copy.
 
 ## To do
 
-Beside the bulletin, **To do** lists what the service still needs: the
-parish's details, the service time, the announcements' Google Slides link,
-a reading's text, a hymn not yet chosen, the preacher's name, and the
-prelude and postlude until they are named. Click a line
-to go to the place to fix it. It reads **Nothing left to do ✓** when the
-service is ready.
+Beside the bulletin, **To do** lists what the service still needs. Click a
+line and a small window opens in the middle with just what that line needs;
+**Save** fills it in and closes it, and the line leaves the list. Each
+window also has a link to the full screen behind it.
+
+* **Parish details:** the name, place, logo and bulletin paper (**All parish
+  details** for the rest).
+* **Service time:** the time, or one of the parish's regular services.
+* **Announcements' Google Slides:** just the link. It is downloaded to check
+  it, showing the first slide and how many there are, or saying how to share
+  the deck if Google won't send it.
+* **A hymn:** the book, the **Hymn #** or words from its title or first
+  line, searching the Library as you type (an exact number is picked for
+  you). Tick the **verses sung**, then **Use for Entrance Hymn**. A hymn not
+  in the Library yet: **Add a new hymn…** opens the Editor with its number
+  and title filled in, to paste its words.
+* **A reading's text:** **Open on Bible Gateway**, then paste the passage.
+* **The psalm's music:** **Sung**, choosing the antiphon's music (with its
+  words, for a psalm that has no antiphon yet) and the musical setting from
+  the music folders; or **Said responsively, with no music**.
+* **The preacher:** one of the parish's preachers, or **Someone else**.
+* **An anthem, the prelude or the postlude:** title and composer. Pieces
+  used in earlier services are offered as you type, and fill in the composer.
+
+It reads **Nothing left to do ✓** when the service is ready.
 
 ## The prelude, postlude and anthems
 
@@ -30,7 +49,10 @@ service is ready.
 * **A choir anthem** is an item of its own: **+ Add → Choir anthem…**, with
   its name in the service (e.g. *Offertory Anthem*), title and composer. It
   prints like a hymn: *Offertory Anthem — Ave verum corpus — W. A.
-  Mozart*.
+  Mozart*. To have the choir sing in a hymn's place this week, select the
+  hymn and click **Make it an anthem** in the Editor: *Communion Hymn*
+  becomes *Communion Anthem*, waiting for its title and composer
+  (**Undo** brings the hymn back).
 
 ## How each item is printed
 
@@ -41,7 +63,7 @@ appears in the bar above it:
 | --- | --- |
 | **Reference line** | The title, the opening words and the page or hymn number: *Collect for Purity — Almighty God, to you all hearts are open… BCP 355* |
 | **Full text** | Every word, with speaker labels and the people's parts in bold |
-| **Responses only** | The title and just what the people say, each with the line that cues it; a litany's call and response, said after every petition, is printed once after *At the end of each petition,* |
+| **Responses only** | The title and just what the people say, each after the line that cues it (just its end when it is long: *… Therefore we proclaim the mystery of faith:*); a litany's call and response, said after every petition, is printed once after *At the end of each petition,* |
 | **Title only** | Just the title |
 | **Left out** | Nothing |
 

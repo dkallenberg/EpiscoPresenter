@@ -15,12 +15,21 @@
     <script type="module">
       import { connectStore, activeSlide, invoke } from "/js/bridge.js";
       import { mountStage, renderStream } from "/js/render.js";
+      import { onDeckChange } from "/js/deckpdf.js";
       const stage = mountStage(document.getElementById("host"));
       // Esc leaves full screen; a double-click toggles it.
       const fullscreen = (value) => invoke("output_set_fullscreen", { output: "stream", fullscreen: value }).catch(() => {});
       document.addEventListener("keydown", (e) => e.key === "Escape" && fullscreen(false));
       document.addEventListener("dblclick", () => fullscreen(null));
-      connectStore((snap) => renderStream(stage, snap, activeSlide(snap), { live: true }));
+      let last = null;
+      const draw = (snap) => renderStream(stage, snap, activeSlide(snap), { live: true });
+      connectStore((snap) => draw((last = snap)));
+      // The deck's slides arrived (downloaded on this computer): draw them in
+      // place of Google's player or the "missing" mark. Only then, so a
+      // playing video is never started again.
+      onDeckChange(() => {
+        if (last && stage.querySelector(".deck-frame, .deck-img, .score-missing")) draw(last);
+      });
     </script>
   </body>
 </html>

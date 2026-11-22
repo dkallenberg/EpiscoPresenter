@@ -8,7 +8,7 @@ sent to the live-stream computer with the service.
 | Output | Slide type | Used for | Pieces |
 | --- | --- | --- | --- |
 | Live Stream | Left side | Prayers, collects, dialogues (left panel) | Title, Reference, Subtitle, Text |
-| Live Stream | Bottom Bar | Psalms, Eucharistic Prayer | Title in the gold box, Musical setting image, Text (and an optional title in the bar) |
+| Live Stream | Bottom Bar | Psalms, Eucharistic Prayer | Text (and an optional title in the bar); for a psalm only, its title in the gold box and the musical setting image (the camera covers the top of the picture in the Eucharistic Prayer) |
 | Live Stream | Lower Third | Readings, short responses over the camera; the sermon (the preacher's name in the bar, "The Sermon" and the position above) | Title, Reference, Text |
 | Live Stream | Hymn | Hymns (wide left panel) | Title, Hymn number, Hymn title, Verses, Credits |
 | Sanctuary | Prayer | Prayers and dialogues | Title, Section heading, Text |
