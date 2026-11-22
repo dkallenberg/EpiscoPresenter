@@ -290,8 +290,11 @@ up on the live-stream computer as well (⚙ Settings → Parish library folder);
 are copied to it with their pictures. To go back to one computer, choose
 **One computer for both**.
 
-## Slave (live-stream) node
+## Follower (live-stream) computer
 
-The same window, read-only: it follows the master and has every control
-(Next / Prev, slide clicks, the quick actions and stage messages), held for
-one second after the master changes something. Edit and save on the master.
+The same window, read-only: it follows the leader (the sanctuary computer)
+and has every control (Next / Prev, slide clicks, the quick actions and
+stage messages), held for one second after the leader changes something.
+Edit and save on the leader. The window titles say **Sanctuary (Leader)**
+and **Live Stream (Follower)**. (In the node configuration file the roles
+are still written `master` and `slave`.)

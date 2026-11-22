@@ -313,8 +313,8 @@ fn builder() -> tauri::Builder<tauri::Wry> {
 
 fn role_title(role: NodeRole) -> &'static str {
     match role {
-        NodeRole::Master => "Sanctuary (Master)",
-        NodeRole::Slave => "Live Stream (Slave)",
+        NodeRole::Master => "Sanctuary (Leader)",
+        NodeRole::Slave => "Live Stream (Follower)",
         NodeRole::Standalone => "Standalone",
     }
 }
