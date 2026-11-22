@@ -1,0 +1,41 @@
+# Publishes the wiki/ folder to the repository's GitHub wiki whenever it
+# changes (or when run by hand from the Actions tab), so the wiki always
+# matches the pages kept with the code. The wiki is its own repository
+# (<repo>.wiki.git); the workflow's own token may push to it.
+name: Publish the wiki
+
+on:
+  push:
+    paths:
+      - "wiki/**"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  wiki:
+    name: Wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Copy wiki/ to the wiki
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" published
+          cp -r wiki/. published/
+          cd published
+          git add -A
+          if git diff --cached --quiet; then
+            echo "The wiki is already up to date."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "From ${GITHUB_REF_NAME} ${GITHUB_SHA::7}"
+          git push
