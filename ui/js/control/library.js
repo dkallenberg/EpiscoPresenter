@@ -198,7 +198,7 @@ function render() {
       chips,
       list,
       syncLine(),
-      el("p.hint.muted", {}, "Double-click an item to add it after the selected cue (a hymn fills an empty hymn slot, such as the Entrance Hymn, keeping its name). Save your own items from the Editor with “Save to Library”."),
+      el("p.hint.muted", {}, "Double-click an item to add it after the selected cue (a hymn fills an empty hymn slot, such as the Entrance Hymn, keeping its name). Edit one of your items, or make a new one with ＋ New…, without putting it in a service."),
     ),
     preview,
   );

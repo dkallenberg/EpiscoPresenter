@@ -62,6 +62,12 @@ shared through the parish library folder.
 On slides without a title or section heading (most prayers), the text box
 grows up into their space, even when you've left a gap between the boxes.
 
+On the stream's **Bottom Bar**, the gold box holds a psalm's title only
+(during the Eucharistic Prayer the camera covers the top of the picture),
+and the psalm's **Musical setting image** sits under it, 700 wide. The
+sanctuary's **Title** slide sets its heading and title together in the
+middle of the glass.
+
 ### Lines, line breaks and indents
 
 Pick a slide type (for the live stream: Left side, Bottom Bar, Lower Third,

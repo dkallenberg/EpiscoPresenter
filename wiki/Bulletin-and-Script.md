@@ -32,6 +32,8 @@ window also has a link to the full screen behind it.
 * **An anthem, the prelude or the postlude:** title and composer. Pieces
   used in earlier services are offered as you type, and fill in the composer.
 
+![The hymn window from To do: the book, the hymn number 66 typed, Hymn 66 found in the Library, verses 1, 2 and 4 ticked, and Use for Entrance Hymn](images/todo-hymn.jpg)
+
 It reads **Nothing left to do ✓** when the service is ready.
 
 ## The prelude, postlude and anthems
@@ -83,6 +85,13 @@ usual one again clears your choice.
   [Editing items](Editing-Items#music-that-includes-its-words).
 * **A hymn with a picture** prints the picture in place of its words when it
   is set to *Full text*.
+* **A hymn's verses** print with the verse number at the left; every other
+  verse is a step in, and all the lines of a verse line up (a line too long
+  for the column carries on level with it, not hanging).
+* **The Gospel Acclamation** prints before the Gospel's title: *Gospel
+  Acclamation*, *All stand, as you are able. The Responsorial Alleluia is
+  introduced by the Cantor and then repeated by the People.* and the music
+  (see [Editing items](Editing-Items#the-gospel)).
 
 ## Editing in place
 

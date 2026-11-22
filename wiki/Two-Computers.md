@@ -30,6 +30,10 @@ Also set up the **parish library folder** on the live-stream computer
 shown from each computer's own copy, and services marked ready in the
 planner are copied to both.
 
+The window titles say which part each computer plays: **Sanctuary
+(Leader)** and **Live Stream (Follower)**. The follower shows the leader's
+service and follows it; change the service on the leader.
+
 ## What the top bar says
 
 | On | Says | Means |

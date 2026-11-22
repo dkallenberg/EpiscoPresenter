@@ -42,6 +42,8 @@ makes a new hymn (book, number, title) or a new prayer or other text (type,
 rite, title) and opens it the same way; **Paste a text…** and **Import
 hymns…** are there too.
 
+![A Library hymn open in the Editor on its own: the top bar reads Library: Come, thou long-expected Jesus, with Save to Library and Done](images/library-edit.jpg)
+
 Services already made keep their own copy of an item. After **Save to
 Library**, the upcoming services that use it are listed (a hymn by its
 number and book, anything else by its kind and title): tick the ones that
@@ -113,7 +115,7 @@ hymn** takes a picture of the hymn's music and words (from the `music/Hymn`
 folder). The bulletin (in Full text) and the script print the picture in
 place of the words; the screens show the words.
 
-![The Library: a saved hymn selected while the Offertory Hymn slot is selected in the service, with Use for Offertory Hymn](images/library.png)
+![The Library: the parish's Hymn 66 selected, with Delete, Edit and Add to service, and ＋ New… above the list](images/library.png)
 
 Only use hymn words the parish is licensed to project.
 
