@@ -16,6 +16,24 @@ already made with it. The Prayer Book's own text is shown, not edited. The
 service open, to add, change or tidy items. (EpiscoPresenter shows the
 slides.)
 
+**Edit and add items without a service.** **Edit** (beside one of the
+parish's items) opens it in the Editor on its own: words, verses, speaker
+rows, a hymn's title, number, book and tune, a picture of the hymn, a
+psalm's layout. The top bar says *Library: …* with **Save to Library** and
+**Done**. **Done** goes back to the Library (and to the service that was
+open, if there was one). A Prayer Book item offers **Edit a parish
+version**, which makes the parish's own copy and opens that. **＋ New…**
+makes a new hymn (book, number, title) or a new prayer or other text (type,
+rite, title) and opens it the same way; **Paste a text…** and **Import
+hymns…** are there too.
+
+Services already made keep their own copy of an item. After **Save to
+Library**, the upcoming services that use it are listed (a hymn by its
+number and book, anything else by its kind and title): tick the ones that
+should have the new version and click **Update**. Their name for it, how
+it prints and the verses sung stay as they were; a service open on someone
+else's computer can't be updated until they close it.
+
 * **Built-in** (**BCP**) items are texts of the Holy Eucharist from the 1979 Book of
   Common Prayer (public domain), in **Rite Two** and **Rite One** (filter with
   the **Rite I** / **Rite II** chips): the opening acclamations (ordinary,
@@ -89,7 +107,7 @@ edition, a OneLicense or CCLI reprint licence, …):
   repeat it), and stanzas over eight lines are split over two slides.
   `Words:` / `Music:` lines and copyright notices go into **Words**, **Music**
   and **Licence notice**, which the stream shows under the hymn.
-* **Many at once.** **Library → Import hymns…** takes text files, one per
+* **Many at once.** **Library → ＋ New… → Import hymns from files…** takes text files, one per
   hymn, named with the number and title (`436 Lift Up Your Heads.txt`,
   `S 280 Gloria.txt`), and saves each as a hymn in **Mine**. Search the
   Library by number ("Hymn 436") or title, then select the
@@ -401,7 +419,7 @@ Some texts the parish uses are copyright and cannot be built into the app:
 the Eucharistic Prayers of *Enriching Our Worship* (© The Church Pension
 Fund), for example. Add them from the parish's own copy:
 
-1. **Library → Paste a text…**
+1. **Library → ＋ New… → Paste a text…**
 2. Give it a title ("Eucharistic Prayer 1 (EOW)"), a type (Eucharistic
    Prayer, or Prayers of the People), the rite it is for (or Either) and
    where it comes from ("EOW 1, p. 57"; printed on the bulletin).

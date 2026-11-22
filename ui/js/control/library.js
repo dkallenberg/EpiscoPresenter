@@ -2,6 +2,7 @@
 // the operator's own saved items), browsable by type, with previews; plus the
 // "Propers" dialog: the Collect, readings and psalm for a date from the lectionary.
 
+import { editLibraryItem, editParishVersion, newLibraryItem } from "/js/control/libedit.js";
 import { assetUrl, listen } from "/js/bridge.js";
 import { domSpans } from "/js/control/bulletin.js";
 import { hymnNumber, mountStage, renderOutput } from "/js/render.js";
@@ -74,6 +75,13 @@ function followSelection() {
 }
 
 const libraryShown = () => document.getElementById("tab-library")?.classList.contains("active");
+
+// Done in the Library editor (libedit.js): show the item just saved.
+document.addEventListener("episco:library-show", (e) => {
+  // Shown whatever the search or filters were.
+  Object.assign(lib, { selected: e.detail, query: "", category: "all", mine: false, rite: "all", view: "items" });
+  refresh();
+});
 
 export function initLibrary() {
   app.on((what) => {
@@ -185,8 +193,7 @@ function render() {
         viewSwitch(),
         search,
         el("button.small", { title: "The day's Collect, readings and psalm from the lectionary", onclick: openPropers }, "Propers…"),
-        el("button.small", { title: "Add hymns to your library from text files (one per hymn, named with its number and title)", onclick: importHymns }, "Import hymns…"),
-        el("button.small", { title: "Make a library item from a prayer or rite pasted from your own copy (e.g. Enriching Our Worship)", onclick: () => pasteText() }, "Paste a text…"),
+        el("button.small.primary", { title: "A new hymn or text for the Library, made here without putting it in a service; or paste a text, or import hymns from files", disabled: app.readonly, onclick: () => newLibraryItem({ pasteText, importHymns }) }, "＋ New…"),
       ),
       chips,
       list,
@@ -233,6 +240,9 @@ async function showPreview(rowId) {
         "div.lib-actions",
         {},
         entry && !entry.builtin ? el("button.small.danger-btn", { onclick: () => remove(entry) }, "Delete") : null,
+        // Changed here, on its own: no service needed (libedit.js).
+        entry && !entry.builtin ? el("button", { disabled: app.readonly, title: "Open it in the Editor to change its words, verses, hymn details or picture", onclick: () => editLibraryItem(entry.id) }, "Edit") : null,
+        entry?.builtin ? el("button", { disabled: app.readonly, title: "The Prayer Book's own text can't be changed: this makes the parish's own version of it and opens that in the Editor", onclick: () => editParishVersion(entry.id) }, "Edit a parish version") : null,
         slotFor(cue) ? el("button", { disabled: app.readonly, title: `Put this hymn in the service as the ${slotFor(cue).title}`, onclick: () => fill(id, slotFor(cue)) }, `Use for ${slotFor(cue).title}`) : null,
         el(`button${slotFor(cue) ? "" : ".primary"}`, { disabled: app.readonly || !app.service, onclick: () => add([id]) }, "Add to service"),
       ),

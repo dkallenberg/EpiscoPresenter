@@ -56,13 +56,13 @@ pub fn liturgical_info(date: String) -> CmdResult<LiturgicalDay> {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct ServiceSummary {
-    path: PathBuf,
-    title: String,
+    pub(crate) path: PathBuf,
+    pub(crate) title: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    date: Option<String>,
+    pub(crate) date: Option<String>,
     /// Start time, "08:00".
     #[serde(skip_serializing_if = "Option::is_none")]
-    time: Option<String>,
+    pub(crate) time: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     day: Option<LiturgicalDay>,
     cues: usize,

@@ -187,7 +187,7 @@ pub struct LibraryEntry {
     dupes: Vec<String>,
 }
 
-fn user_dir(app: &AppHandle) -> CmdResult<PathBuf> {
+pub(crate) fn user_dir(app: &AppHandle) -> CmdResult<PathBuf> {
     let dir = crate::storage::data_dir(app, "library")?;
     Ok(dir)
 }
@@ -298,7 +298,7 @@ fn default_doc(dir: &Path, name: &str) -> Option<LiturgyDocument> {
     }
 }
 
-fn today() -> String {
+pub(crate) fn today() -> String {
     let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
     episco_core::calendar::Date::from_days((secs / 86_400) as i64).to_string()
 }
@@ -325,7 +325,7 @@ fn save_version(dir: &Path, name: &str, mut doc: LiturgyDocument) -> CmdResult<S
     Ok(format!("user:{file}"))
 }
 
-fn user_file(id: &str) -> CmdResult<&str> {
+pub(crate) fn user_file(id: &str) -> CmdResult<&str> {
     let file = id.strip_prefix("user:").ok_or("bad library id")?;
     if file.contains(['/', '\\']) || file.starts_with('.') {
         return Err("bad library id".into());
@@ -603,7 +603,7 @@ pub fn library_save_cue(
 /// its own number and title ("hymn-436-lift-up-your-heads"), never under its
 /// place in the service: this week's entrance hymn may close the service
 /// next time.
-fn library_copy_of(doc: &LiturgyDocument) -> CmdResult<(LiturgyDocument, String)> {
+pub(crate) fn library_copy_of(doc: &LiturgyDocument) -> CmdResult<(LiturgyDocument, String)> {
     if doc.meta.effective_category() != episco_core::ElementCategory::Hymn {
         return Ok((doc.clone(), slug_file_name(&doc.meta.title, ewm::EXTENSION)));
     }

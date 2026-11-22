@@ -1,5 +1,6 @@
 // Operator control window: boot, top bar, tabs and keyboard shortcuts.
 
+import { doneLibraryItem, isLibraryEdit, saveLibraryItem } from "/js/control/libedit.js";
 import { connectStore, inTauri, invoke, listen, send, setPlannerMode } from "/js/bridge.js";
 import { initBulletin, openParish } from "/js/control/bulletin.js";
 import { initStorage } from "/js/control/storage.js";
@@ -59,6 +60,8 @@ const hasUnsaved = () => app.service && (app.service.modified || app.service.cue
 let saveError = null;
 
 $("btn-services").addEventListener("click", () => showHome());
+$("lib-edit-save").addEventListener("click", () => saveLibraryItem());
+$("lib-edit-done").addEventListener("click", () => doneLibraryItem());
 $("btn-save").addEventListener("click", () => saveService(true));
 $("save-status").addEventListener("click", async () => {
   // A service with no file (the example) can be kept as a scheduled service.
@@ -183,10 +186,14 @@ document.addEventListener("keydown", (e) => {
 function renderTopbar() {
   const s = app.service;
   const isTemplate = /[\\/]templates[\\/][^\\/]+[\\/]service\.toml$/.test(s?.plan_path ?? "");
-  $("service-title").textContent = s ? `${isTemplate ? "Template: " : ""}${s.title || "Untitled service"}` : "";
-  $("service-when").textContent = s && !isTemplate ? when(s.date, s.time) : "";
+  // A Library item being edited on its own (libedit.js).
+  const libEdit = isLibraryEdit(s);
+  $("service-title").textContent = s ? `${isTemplate ? "Template: " : libEdit ? "Library: " : ""}${s.title || "Untitled service"}` : "";
+  $("service-when").textContent = s && !isTemplate && !libEdit ? when(s.date, s.time) : "";
+  $("lib-edit-bar").hidden = !libEdit;
+  document.body.classList.toggle("library-edit", libEdit);
   const status = $("save-status");
-  status.hidden = !s || app.readonly;
+  status.hidden = !s || app.readonly || libEdit;
   if (s) {
     const [text, cls, title] = !s.plan_path
       ? ["Not saved yet · Keep this service", "warn", "This service has no file yet (an example or a copy). Click to keep it with your services; from then on it saves by itself."]
@@ -201,7 +208,7 @@ function renderTopbar() {
   }
   // View only because it is open elsewhere still leaves the other services.
   $("btn-services").disabled = app.snap.link?.role === "slave";
-  $("btn-settings").disabled = app.readonly || !s;
+  $("btn-settings").disabled = app.readonly || !s || libEdit;
   $("btn-save").disabled = app.readonly || !s;
 
   const { text, ok, warn } = linkWords(app.snap.link ?? {});

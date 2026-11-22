@@ -31,6 +31,24 @@ already made with it. The Prayer Book's own text is shown, not edited. The
 service open, to add, change or tidy items. (EpiscoPresenter shows the
 slides.)
 
+**Edit and add items without a service.** **Edit** (beside one of the
+parish's items) opens it in the Editor on its own: words, verses, speaker
+rows, a hymn's title, number, book and tune, a picture of the hymn, a
+psalm's layout. The top bar says *Library: …* with **Save to Library** and
+**Done**. **Done** goes back to the Library (and to the service that was
+open, if there was one). A Prayer Book item offers **Edit a parish
+version**, which makes the parish's own copy and opens that. **＋ New…**
+makes a new hymn (book, number, title) or a new prayer or other text (type,
+rite, title) and opens it the same way; **Paste a text…** and **Import
+hymns…** are there too.
+
+Services already made keep their own copy of an item. After **Save to
+Library**, the upcoming services that use it are listed (a hymn by its
+number and book, anything else by its kind and title): tick the ones that
+should have the new version and click **Update**. Their name for it, how
+it prints and the verses sung stay as they were; a service open on someone
+else's computer can't be updated until they close it.
+
 * **BCP** items are the Prayer Book's texts, built into the app.
 * **Mine** items are ones the parish saved.
 * **Add to service** (or double-click) puts a copy after the selected item
@@ -64,7 +82,7 @@ Services already made keep the text they were made with.
 To bring many hymns into the library at once, save each hymn's words as a
 text file named with its number and title, for example
 `436 Lift Up Your Heads.txt` or `S 280 Gloria.txt`. Then click
-**Library → Import hymns…** and choose the files.
+**Library → ＋ New… → Import hymns from files…** and choose the files.
 
 Hymns in the library are kept by **number and title**, never by their place
 in a service, so the same hymn can be the entrance hymn one week and the
@@ -104,7 +122,7 @@ Only use hymn words the parish is licensed to project.
 For texts under copyright that the parish uses from its own copy (the
 Eucharistic Prayers of *Enriching Our Worship*, for example):
 
-1. **Library → Paste a text…**
+1. **Library → ＋ New… → Paste a text…**
 2. Give it a title, a type and where it comes from ("EOW 1, p. 57"; this is
    printed in the bulletin).
 3. Paste the text, starting each speaker's part with the speaker's name as

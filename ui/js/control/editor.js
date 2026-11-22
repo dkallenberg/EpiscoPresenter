@@ -287,6 +287,8 @@ function refreshLooks(c) {
 }
 
 function header(c) {
+  // A Library item edited on its own (libedit.js): saved from the top bar.
+  const libraryItem = c.id === "library-item" && !app.service?.plan_path;
   return el(
     "div.ed-head",
     {},
@@ -299,7 +301,7 @@ function header(c) {
           {},
           ...undoButtons(),
           el(
-            "label.toggle",
+            "label.toggle.hold-toggle",
             { title: "Hold edits to the on-air item until you apply them" },
             el("input", {
               type: "checkbox",
@@ -311,9 +313,10 @@ function header(c) {
             }),
             "Hold edits while it is on screen",
           ),
-          c.content.kind === "liturgy" ? el("button", { onclick: () => save(false), title: "⌘S" }, "Save") : null,
-          c.content.kind === "liturgy" ? el("button", { onclick: () => save(true), title: "⇧⌘S" }, "Save a copy…") : null,
-          c.content.kind === "liturgy"
+          // A Library item edited on its own saves from the top bar.
+          c.content.kind === "liturgy" && !libraryItem ? el("button", { onclick: () => save(false), title: "⌘S" }, "Save") : null,
+          c.content.kind === "liturgy" && !libraryItem ? el("button", { onclick: () => save(true), title: "⇧⌘S" }, "Save a copy…") : null,
+          c.content.kind === "liturgy" && !libraryItem
             ? el("button", {
                 title: "Keep a copy of this item in your library to reuse in other services",
                 onclick: async () => { await flush(true); await saveCueToLibrary(cue()); },

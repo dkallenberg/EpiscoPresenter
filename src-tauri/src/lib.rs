@@ -18,6 +18,7 @@ mod engine;
 mod handoff;
 mod inuse;
 mod library;
+mod library_edit;
 mod made;
 mod media;
 mod occasions;
@@ -248,6 +249,11 @@ fn builder() -> tauri::Builder<tauri::Wry> {
             library::anthem_set,
             library::hymn_to_anthem,
             library::sermon_set_preacher,
+            library_edit::library_edit_open,
+            library_edit::library_edit_save,
+            library_edit::library_edit_done,
+            library_edit::library_item_uses,
+            library_edit::library_update_services,
             library::psalm_set_music,
             services::music_suggestions,
             commands::set_announcements_deck,

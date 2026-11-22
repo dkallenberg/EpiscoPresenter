@@ -256,5 +256,5 @@ Jane Doe, Rector* and the slide shows the same.
 ## Texts that aren't built in
 
 For *Enriching Our Worship* and other supplemental texts under copyright,
-use **Library → Paste a text…** with the parish's own copy. See
+use **Library → ＋ New… → Paste a text…** with the parish's own copy. See
 [Library and media](Library-and-Media#pasting-a-text).
