@@ -636,6 +636,9 @@ export function renderTemplated(stage, key, cue, slide, templates) {
  * output windows fall back to Google's embedded player and previews show a
  * card.
  */
+/** Decks this window has asked to download (once each). */
+const fetchedDecks = new Set();
+
 function paintDeck(stage, service, opts, { slide = null, of = null, loop = false } = {}) {
   const url = service?.announcements_deck;
   const src = deckEmbedUrl(url, { slide, loop });
@@ -676,7 +679,11 @@ function paintDeck(stage, service, opts, { slide = null, of = null, loop = false
       if (u) img.src = u;
       else fallback();
     });
-  loadDeck(url).then((pages) => {
+  // On the screens, a deck this computer has not downloaded yet is
+  // downloaded now (once; the control window downloads it again each run).
+  const download = opts.live && !fetchedDecks.has(url);
+  if (download) fetchedDecks.add(url);
+  loadDeck(url, download).then((pages) => {
     if (!pages) return fallback();
     if (slide != null) return show(Math.min(slide, pages));
     // Loop: change slide every 9 s while this image is on screen.
