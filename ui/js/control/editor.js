@@ -732,7 +732,7 @@ function sanctusPanel(c) {
           "A hymnal setting…",
           !bcp,
           () => document.querySelector('.tabs button[data-tab="library"]')?.click(),
-          "Import the setting's words like a hymn (Library → Import hymns…, e.g. “S 125 Sanctus.txt”), select it there and click “Use for Sanctus”",
+          "Import the setting's words like a hymn (Library → ＋ New… → Import hymns from files…, e.g. “S 125 Sanctus.txt”), select it there and click “Use for Sanctus”",
         ),
       ),
     ),
@@ -993,7 +993,7 @@ function hymnPanel(c) {
     el(
       "p.muted.small",
       {},
-      "Hymn texts are mostly under copyright, so the app does not include the Hymnal 1982. Use words your parish is licensed to project. To bring in many at once: Library → Import hymns… (text files named like “436 Lift Up Your Heads.txt”).",
+      "Hymn texts are mostly under copyright, so the app does not include the Hymnal 1982. Use words your parish is licensed to project. To bring in many at once: Library → ＋ New… → Import hymns from files… (text files named like “436 Lift Up Your Heads.txt”).",
     ),
   );
 }
