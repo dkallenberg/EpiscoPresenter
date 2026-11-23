@@ -19,11 +19,20 @@ export const LOOP_SECONDS = 9;
 
 async function lib() {
   if (!pdfjs) {
+    // The PDF is read here in the page, not in a Web Worker: a Mac release
+    // copy doesn't start workers from the app's own pages, which left the
+    // slides waiting for good. pdf.js uses the reader it finds here instead
+    // of starting one; decks are small.
+    globalThis.pdfjsWorker ??= await import("/vendor/pdfjs/pdf.worker.min.mjs");
     pdfjs = await import("/vendor/pdfjs/pdf.min.mjs");
     pdfjs.GlobalWorkerOptions.workerSrc = "/vendor/pdfjs/pdf.worker.min.mjs";
   }
   return pdfjs;
 }
+
+/** `promise`, or an error after `ms` (so a stuck step says so). */
+const within = (promise, ms, why) =>
+  Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(why)), ms))]);
 
 /** Calls `fn(url)` whenever a deck's slides become available or change. */
 export function onDeckChange(fn) {
@@ -61,7 +70,9 @@ async function open(url, fetchIfMissing) {
   if (!response.ok) fail(`couldn't read the downloaded slides from ${src} (${response.status})`);
   const bytes = await response.arrayBuffer();
   const pdf = await lib().catch((e) => fail(`couldn't load the PDF reader (${e})`));
-  return pdf.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise.catch((e) => fail(`couldn't read the PDF (${e})`));
+  return within(pdf.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise, 30000, "the PDF reader didn't answer").catch((e) =>
+    fail(`couldn't read the PDF (${e.message ?? e})`),
+  );
 }
 
 /** Loads a deck (downloading it if `fetchIfMissing`); resolves to its page count or 0. */
