@@ -10,7 +10,7 @@
 import { assetUrl, backgroundUrl } from "/js/bridge.js";
 import { builtinUrl, lowerThirdFrame, lowerThirdText } from "/js/backgrounds.js";
 import { deckEmbedUrl } from "/js/deck.js";
-import { load as loadDeck, loopSlide, slideImage } from "/js/deckpdf.js";
+import { deckError, load as loadDeck, loopSlide, slideImage } from "/js/deckpdf.js";
 import { isAntiphonSlide, resolveTemplate, slideTypeFor, typeOptions } from "/js/templates.js";
 
 const STAGE_W = 1920;
@@ -667,11 +667,14 @@ function paintDeck(stage, service, opts, { slide = null, of = null, loop = false
       return;
     }
     const card = el("div", "deck-card");
+    const why = deckError(url);
     card.append(
       el("div", "deck-icon", "▤"),
       el("div", "deck-title", "Google Slides"),
       el("div", "deck-sub", slide != null ? `Slide ${slide}${of ? ` of ${of}` : ""}` : loop ? "Loop · every 9 s" : "Plays once · every 9 s"),
     );
+    // Why the slides themselves aren't shown (previews only).
+    if (why) card.append(el("div", "deck-why", `Not shown: ${why}`));
     img.replaceWith(card);
   };
   const show = (n) =>

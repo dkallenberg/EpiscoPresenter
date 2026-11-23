@@ -11,7 +11,7 @@ import { initUndo } from "/js/control/undo.js";
 import { initUpdates, openUpdates } from "/js/control/update.js";
 import { openLayouts } from "/js/control/layouts.js";
 import { initOutputs } from "/js/control/outputs.js";
-import { load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
+import { deckError, load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
 import { initLibrary } from "/js/control/library.js";
 import { openServiceSettings } from "/js/control/looks.js";
 import { initSlides } from "/js/control/slides.js";
@@ -140,7 +140,13 @@ const madeDecks = (service) => {
 app.on((what) => {
   if (what !== "service") return;
   const url = app.service?.announcements_deck ?? null;
-  if (url && url !== deckUrl) loadDeck(url, true).then(() => (syncDeckCount(url), refreshDeck(url)));
+  if (url && url !== deckUrl)
+    loadDeck(url, true).then((pages) => {
+      // Say why, so it can be put right (deckpdf.js).
+      if (!pages && deckError(url)) toast(`The announcements' slides can't be shown on this computer: ${deckError(url)}`, "warn");
+      syncDeckCount(url);
+      refreshDeck(url);
+    });
   deckUrl = url;
   madeDecks(app.service).forEach(refreshDeck);
   if (url) syncDeckCount(url);

@@ -7,6 +7,10 @@ import { invoke, listen } from "/js/bridge.js";
 
 const T = window.__TAURI__;
 const decks = new Map(); // deck url -> { doc: Promise<PDFDocumentProxy|null>, pages, images: Map }
+const errors = new Map(); // deck url -> why its slides couldn't be shown
+
+/** Why a deck's slides couldn't be shown on this computer, if they couldn't. */
+export const deckError = (url) => errors.get(url) ?? null;
 const listeners = new Set();
 let pdfjs = null;
 
@@ -41,18 +45,23 @@ const isFileUrl = (url) => /^(asset:|https?:\/\/asset\.localhost|blob:|\/)/.test
 
 async function open(url, fetchIfMissing) {
   let src;
+  // Each step says what went wrong, for deckError().
+  const fail = (why) => {
+    throw new Error(why);
+  };
   if (isFileUrl(url)) src = url;
   else {
     if (!T) return null;
-    let file = await invoke("deck_local", { url }).catch(() => null);
-    if (!file && fetchIfMissing) file = await invoke("deck_fetch", { url, refresh: false }).catch(() => null);
-    if (!file) return null;
+    let file = await invoke("deck_local", { url }).catch((e) => fail(`couldn't look for the downloaded slides (${e})`));
+    if (!file && fetchIfMissing) file = await invoke("deck_fetch", { url, refresh: false }).catch((e) => fail(String(e)));
+    if (!file) fail("the slides haven't been downloaded to this computer yet");
     src = T.core.convertFileSrc(file.path);
   }
-  const bytes = await fetch(src).then((r) => (r.ok ? r.arrayBuffer() : null));
-  if (!bytes) return null;
-  const pdf = await lib();
-  return pdf.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise;
+  const response = await fetch(src).catch((e) => fail(`couldn't read the downloaded slides from ${src} (${e})`));
+  if (!response.ok) fail(`couldn't read the downloaded slides from ${src} (${response.status})`);
+  const bytes = await response.arrayBuffer();
+  const pdf = await lib().catch((e) => fail(`couldn't load the PDF reader (${e})`));
+  return pdf.getDocument({ data: new Uint8Array(bytes), isEvalSupported: false }).promise.catch((e) => fail(`couldn't read the PDF (${e})`));
 }
 
 /** Loads a deck (downloading it if `fetchIfMissing`); resolves to its page count or 0. */
@@ -61,10 +70,13 @@ export function load(url, fetchIfMissing = false) {
   let d = decks.get(url);
   if (!d || (fetchIfMissing && d.failed)) {
     d = { pages: null, failed: false, images: new Map() };
-    d.doc = open(url, fetchIfMissing).catch((e) => {
-      console.warn("announcements deck:", e);
-      return null;
-    });
+    d.doc = open(url, fetchIfMissing)
+      .then((doc) => (errors.delete(url), doc))
+      .catch((e) => {
+        console.warn("announcements deck:", e);
+        errors.set(url, e?.message ?? String(e));
+        return null;
+      });
     d.doc.then((doc) => {
       d.pages = doc?.numPages ?? 0;
       d.failed = !doc;
