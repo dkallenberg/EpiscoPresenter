@@ -115,8 +115,14 @@ bar says **"EpiscoPresenter 0.2.1 is ready · Restart to update"**; nothing
 is installed until someone clicks it (**Later** keeps working and asks again
 next time), so an update never interrupts a service.
 
-Updates come from the GitHub releases (betas too) and are signed with the
-parish's own key, which the apps check before installing. To set it up once:
+Updates come from the GitHub releases and are signed with the parish's own
+key, which the apps check before installing. Each computer chooses in
+**⚙ Settings → Updates…** whether it takes betas: EpiscoPlanner does unless
+told not to, EpiscoPresenter takes only full releases unless told to. The
+workflow writes `presenter.json` and `planner.json` (the newest, betas
+included) to the `updates` release, and for a full release also
+`presenter-release.json` and `planner-release.json`. EpiscoPresenter
+doesn't offer an update while a service is on the screens. To set it up once:
 
 1. On a computer with the Tauri CLI, make the key pair (a password is
    optional):

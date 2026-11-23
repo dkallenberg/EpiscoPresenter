@@ -8,7 +8,7 @@ import { initEditor } from "/js/control/editor.js";
 import { initHandoff, initHome, showHome } from "/js/control/home.js";
 import { initInUse, viewOnly } from "/js/control/inuse.js";
 import { initUndo } from "/js/control/undo.js";
-import { initUpdates } from "/js/control/update.js";
+import { initUpdates, openUpdates } from "/js/control/update.js";
 import { openLayouts } from "/js/control/layouts.js";
 import { initOutputs } from "/js/control/outputs.js";
 import { load as loadDeck, onDeckChange, pageCount } from "/js/deckpdf.js";
@@ -61,6 +61,7 @@ let saveError = null;
 
 $("btn-services").addEventListener("click", () => showHome());
 $("lib-edit-save").addEventListener("click", () => saveLibraryItem());
+$("btn-updates").addEventListener("click", () => openUpdates());
 $("lib-edit-done").addEventListener("click", () => doneLibraryItem());
 $("btn-save").addEventListener("click", () => saveService(true));
 $("save-status").addEventListener("click", async () => {

@@ -67,7 +67,22 @@ The apps update themselves. A little after it starts, each app looks for a
 newer version; if there is one, it downloads it in the background and a
 note at the top of the window says so, with **Restart to update**. Nothing
 is installed until someone clicks it, so an update never interrupts a
-service: on Sunday morning, leave it until afterwards.
+service. In EpiscoPresenter the note waits while a service is on the
+screens, and comes back when they're idle (nothing taken yet, or the
+sanctuary blacked out). If a screen is open, **Restart to update** asks
+first: the screens close for about a minute while it restarts.
+
+**Betas or full releases.** **⚙ Settings → Updates…** shows the version
+installed and sets what this computer takes:
+
+* **Full releases only:** tested versions. EpiscoPresenter starts this way,
+  because it runs Sunday's services.
+* **Include betas:** new features to try before they're finished.
+  EpiscoPlanner starts this way.
+
+Choosing full releases doesn't go back from a beta already installed; the
+next full release replaces it. **Check now** looks for a newer version
+straight away.
 
 You can also install a new version over the old one by hand, from the
 Releases page. Either way your services, library and settings are kept:

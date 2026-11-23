@@ -1,6 +1,9 @@
 """Writes presenter.json and planner.json: where each app finds its newest
-version (src-tauri/src/updater.rs). Run by the Build installers workflow
-after a release, from the signed update files in `installers/`.
+version (src-tauri/src/updater.rs), betas included; and for a full release
+(a tag with no label, v0.3.0) also presenter-release.json and
+planner-release.json, which computers set to take only full releases read.
+Run by the Build installers workflow after a release, from the signed update
+files in `installers/`.
 
     python3 .github/update-manifests.py installers <owner/repo> <tag>
 """
@@ -43,9 +46,15 @@ for app, product in (("presenter", "EpiscoPresenter"), ("planner", "EpiscoPlanne
         "pub_date": now,
         "platforms": platforms,
     }
-    pathlib.Path(f"{app}.json").write_text(json.dumps(manifest, indent=2) + "\n")
-    wrote.append(f"{app}.json")
-    print(f"{app}.json: {version}, {', '.join(platforms)}")
+    text = json.dumps(manifest, indent=2) + "\n"
+    names = [f"{app}.json"]
+    # A full release (no "-beta.1" or the like) is for every computer.
+    if "-" not in tag.lstrip("v"):
+        names.append(f"{app}-release.json")
+    for name in names:
+        pathlib.Path(name).write_text(text)
+        wrote.append(name)
+        print(f"{name}: {version}, {', '.join(platforms)}")
 
 if not wrote:
     print("No signed update files: the apps' update information is left as it was.")

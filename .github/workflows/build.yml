@@ -196,10 +196,13 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           python3 .github/update-manifests.py installers "$REPO" "$TAG"
-          if ls presenter.json planner.json >/dev/null 2>&1; then
+          # presenter.json and planner.json (betas too), and for a full
+          # release presenter-release.json and planner-release.json.
+          files=$(ls presenter*.json planner*.json 2>/dev/null || true)
+          if [ -n "$files" ]; then
             gh release view updates --repo "$REPO" >/dev/null 2>&1 || \
               gh release create updates --repo "$REPO" --target "$SHA" --prerelease \
                 --title "Update information" --notes "Used by EpiscoPresenter and EpiscoPlanner to find their newest version. Download the apps from the other releases."
-            gh release upload updates presenter.json planner.json --repo "$REPO" --clobber
+            gh release upload updates $files --repo "$REPO" --clobber
           fi
 

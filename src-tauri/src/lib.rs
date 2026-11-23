@@ -171,6 +171,9 @@ fn builder() -> tauri::Builder<tauri::Wry> {
         tauri::generate_handler![
             updater::update_ready,
             updater::update_install,
+            updater::update_status,
+            updater::update_set_betas,
+            updater::update_check_now,
             app_mode,
             bulletin::parish_get,
             bulletin::parish_set,
