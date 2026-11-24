@@ -258,6 +258,10 @@ struct Gather<'a> {
     fresh_at: Pos,
     level: Option<u8>,
     begins: Begins,
+    /// The other screen broke a paragraph in two just here: this screen
+    /// puts the halves back together (a verse split on the sanctuary only
+    /// stays one verse on the stream).
+    rejoin: bool,
     keep: &'a dyn Fn(&Block) -> bool,
 }
 
@@ -307,11 +311,13 @@ fn gather(doc: &LiturgyDocument, output: Output, keep: &dyn Fn(&Block) -> bool) 
         fresh_at: (0, 0, 0),
         level: None,
         begins: Begins::Start,
+        rejoin: false,
         keep,
     };
     // Music carrying its own words: the music or the words, by the item's rule.
     let shown = crate::shows::shown(doc, output.into());
     for (i, block) in doc.blocks.iter().enumerate() {
+        let rejoin = std::mem::take(&mut g.rejoin);
         match block {
             Block::SlideBreak => {
                 let pushed = g.flush();
@@ -321,7 +327,20 @@ fn gather(doc: &LiturgyDocument, output: Output, keep: &dyn Fn(&Block) -> bool) 
                 g.flush();
                 g.begins = Begins::Own;
             }
-            Block::OutputBreak { .. } => {}
+            Block::OutputBreak { .. } => {
+                // Only right after the paragraph it breaks.
+                g.rejoin = i > 0 && g.parts.last().is_some_and(|p| p.at.0 == i - 1);
+            }
+            Block::Paragraph { role, lines } if rejoin && shown[i] && (g.keep)(block) => {
+                g.saw = true;
+                let last = g.parts.last_mut().map(|p| &mut p.block);
+                match last {
+                    Some(Block::Paragraph { role: r, lines: before }) if r == role => {
+                        before.extend(lines.iter().cloned())
+                    }
+                    _ => g.parts.push(Part { block: block.clone(), at: (i, 0, 0) }),
+                }
+            }
             Block::Heading { text, level } => {
                 if !g.parts.is_empty() || g.fresh || g.saw {
                     g.flush();
@@ -716,6 +735,24 @@ mod tests {
         assert_eq!(texts(&f.steps[1]), ["The word of the Lord.", "Thanks be to God."]);
         assert_eq!(texts(&f.stream[2]), ["Thanks be to God.", "x"]);
         assert_eq!(f.stream_at, [0, 1, 2, 2]);
+    }
+
+    #[test]
+    fn a_verse_broken_on_one_screen_stays_one_verse_on_the_other() {
+        let d = doc("[Verse 1] Crown him\nthe Lamb\n--- sanctuary\n[Verse 1] awake, my soul\nand sing\n\n---\n\n[Verse 2] Crown him\n");
+        let f = fit(&d, Capacity::AS_WRITTEN, cap(10.0, 40, true), &|_| true);
+        // The sanctuary: the verse in two, then verse 2.
+        assert_eq!(f.steps.len(), 3);
+        assert_eq!(texts(&f.steps[0]), ["Crown him\nthe Lamb"]);
+        assert_eq!(texts(&f.steps[1]), ["awake, my soul\nand sing"]);
+        // The stream: one verse 1, with verse 2 run on after it.
+        assert_eq!(f.stream.len(), 1);
+        assert_eq!(texts(&f.stream[0]), ["Crown him\nthe Lamb\nawake, my soul\nand sing", "Crown him"]);
+        assert_eq!(f.stream_at, [0, 0, 0]);
+        // A different speaker after the break is not run into the verse.
+        let d = doc("[Priest] A\n--- sanctuary\n[People] **B**\n");
+        let f = fit(&d, Capacity::AS_WRITTEN, cap(10.0, 40, true), &|_| true);
+        assert_eq!(texts(&f.stream[0]), ["A", "B"]);
     }
 
     #[test]

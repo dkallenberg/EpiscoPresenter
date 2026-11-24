@@ -185,7 +185,10 @@ Other empty slides are dropped.
 These are the sanctuary's slides. The live stream runs them together where
 they fit and splits ones too long for its boxes (see
 [layouts.md](layouts.md#how-much-text-a-slide-holds)). `--- stream` and
-`--- sanctuary` break one screen only.
+`--- sanctuary` break one screen only. Put one inside a verse (the same
+label on both halves) and the other screen keeps the verse whole: a long
+hymn verse can take two slides in the sanctuary and stay one verse on the
+stream.
 
 How slides look (background, layout and text colours) is set per cue and per
 output, not in the `.ewm` file. See [backgrounds.md](backgrounds.md).
