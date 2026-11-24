@@ -141,6 +141,22 @@ export const SLIDE_TYPES = [
     },
   },
   {
+    key: "sanctuary.hymn",
+    output: "sanctuary",
+    label: "Hymn",
+    hint: "Hymn verses on the sanctuary: large, bold and centred (on black, or the season's hymn background), with the small caption at the bottom left.",
+    layout: "lyrics",
+    background: "builtin:lyrics",
+    sample: "hymn",
+    elements: {
+      // As the sanctuary has always shown hymns.
+      text: { label: "Verses", x: 110, y: 70, w: 1700, h: 920, size: 76, bold: true, align: "center", valign: "center", font: 'Arial, Helvetica, "Liberation Sans", sans-serif' },
+      title: { label: "Hymn title", x: 110, y: 20, w: 1700, h: 60, size: 44, bold: true, align: "center", valign: "center", hidden: true },
+      reference: { label: "Hymn number", x: 110, y: 20, w: 1700, h: 60, size: 36, align: "right", valign: "center", hidden: true },
+      caption: { label: "Caption (bottom left)", x: 12, y: 1040, w: 1400, h: 34, size: 18, align: "left", valign: "bottom", font: "Arial, sans-serif" },
+    },
+  },
+  {
     key: "sanctuary.psalm",
     output: "sanctuary",
     label: "Psalm",
@@ -173,7 +189,8 @@ export function typeOptions(templates, key) {
   const stream = key?.startsWith("stream.");
   return {
     join: t.line_breaks ? t.line_breaks === "join" : key === "stream.hymn",
-    hanging: t.hanging ?? true,
+    // A hymn's lines are centred on the sanctuary: none hangs.
+    hanging: t.hanging ?? key !== "sanctuary.hymn",
     alternate: t.alternate_verses ?? stream,
     lines: t.max_lines ?? null,
   };
@@ -201,7 +218,9 @@ export { isAntiphonSlide };
  *  (sanctuary hymn lyrics, the welcome bar, full-width stream text). */
 export function slideTypeFor(cue, slide, output, look) {
   if (output === "sanctuary") {
-    if (look.layout === "lyrics" || look.layout === "info_bar" || look.layout === "lower_third") return null;
+    // Hymn verses (a hymn's title slide, with no words, keeps the old way).
+    if (look.layout === "lyrics") return slide?.blocks?.length ? "sanctuary.hymn" : null;
+    if (look.layout === "info_bar" || look.layout === "lower_third") return null;
     if (cue.category === "homily") return "sanctuary.sermon";
     if (!slide || cue.content.kind === "announcements" || !slide.blocks.length) return "sanctuary.title";
     // The music line before the Gospel is laid out like the psalm's.

@@ -576,6 +576,7 @@ function textOptions(type, T) {
   const t = lt.templates[lt.key] ?? {};
   const o = typeOptions(lt.templates, lt.key);
   const stream = type.output === "stream";
+  const asWritten = type.key === "sanctuary.hymn";
   // What the text box holds at its size (line height 1.25), as in fit.rs.
   const holds = Math.max(1, Math.round(T.text.h / (T.text.size * 1.25)));
   const lines = el("input", {
@@ -606,13 +607,16 @@ function textOptions(type, T) {
     "div.lyt-type-opts",
     {},
     el("h4", {}, `Lines, line breaks and indents on ${type.label} slides`),
-    el("label.field", {}, el("span", {}, "Lines per slide"), lines),
+    // The sanctuary's hymn slides are kept as written: a stanza a slide.
+    asWritten ? null : el("label.field", {}, el("span", {}, "Lines per slide"), lines),
     el(
       "p.muted.small",
       {},
-      stream
-        ? "The live stream runs written slides together while they fit and splits longer ones, at the end of a line or the nearest punctuation, keeping a response with the words it answers."
-        : "A slide that would need its text more than about 10% smaller than this many lines allows is split, at the end of a line or the nearest punctuation, keeping a response with the words it answers. Shorter slides keep their larger type.",
+      asWritten
+        ? "Each slide is a stanza as the hymn was laid out (Hymn words → Apply in the Editor sets how many lines a slide holds); its words shrink to fit the box."
+        : stream
+          ? "The live stream runs written slides together while they fit and splits longer ones, at the end of a line or the nearest punctuation, keeping a response with the words it answers."
+          : "A slide that would need its text more than about 10% smaller than this many lines allows is split, at the end of a line or the nearest punctuation, keeping a response with the words it answers. Shorter slides keep their larger type.",
     ),
     el("label.field", {}, el("span", {}, "Line breaks"), breaks),
     check("hanging", o.hanging, "Hanging indent for long lines", "A line too long for the box carries on indented under itself, as in the Prayer Book (the Creed, the Lord's Prayer, psalm verses)"),

@@ -47,7 +47,7 @@ item's own colour in the Editor (**More… → Colour**).
 piece goes and how its text looks. Changes apply to every service and are
 shared through the parish library folder.
 
-1. Pick a slide type on the left (Prayer, Title, Sermon, Psalm on the
+1. Pick a slide type on the left (Prayer, Title, Sermon, Hymn, Psalm on the
    sanctuary; Left side, Bottom Bar, Lower Third, Hymn on the stream). The
    preview uses a slide from the open service.
 2. **Click** a box to select it, **drag** it to move it, drag its **corner**
@@ -61,6 +61,12 @@ shared through the parish library folder.
 
 On slides without a title or section heading (most prayers), the text box
 grows up into their space, even when you've left a gap between the boxes.
+
+The sanctuary's **Hymn** sets out hymn verses: where the verses go, their
+font and size, and the small caption at the bottom left. Its **Hymn title**
+and **Hymn number** start hidden; tick **Show this element** to put them at
+the top of every hymn slide. Each slide stays a stanza, as the hymn was laid
+out in the Editor.
 
 On the stream's **Bottom Bar**, the gold box holds a psalm's title only
 (during the Eucharistic Prayer the camera covers the top of the picture),

@@ -460,6 +460,15 @@ function pieces(key, cue, slide) {
     return p;
   }
 
+  if (key === "sanctuary.hymn") {
+    p.text = slide.blocks.filter((b) => !(b.kind === "paragraph" && b.role === "Rubric"));
+    p.caption = cue.caption;
+    p.title = meta.title || cue.title;
+    const ref = reference(cue);
+    if (ref) p.reference = ref;
+    return p;
+  }
+
   if (key === "sanctuary.sermon") {
     const who = preacher(slide);
     p.subtitle = heading ?? cue.title;
@@ -611,11 +620,16 @@ export function renderTemplated(stage, key, cue, slide, templates) {
     centre(textBox(stage, T, shown, el("div", key === "stream.lower_third" ? "lt-main" : "title-big", p.big), "title-card", {}, key));
   } else if (p.text) {
     const hymn = key === "stream.hymn";
+    // The sanctuary's hymn: the words alone, bold (no labels or verse numbers).
+    const sanctuaryHymn = key === "sanctuary.hymn";
     const stream = key.startsWith("stream.");
     const blocks = p.text;
     const o = typeOptions(templates, key);
     const lines = { reflow: o.join, hanging: o.hanging, psalm: cue.category === "psalm", alternate: o.alternate };
-    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden, ...lines }), "", limits, key);
+    const words = sanctuaryHymn
+      ? { labels: false, numbers: false, rubrics: false, bold: T.text.bold !== false }
+      : { labels: true, numbers: true, rubrics: stream, bold: hymn, peopleLabel: !T.people?.hidden };
+    const box = textBox(stage, T, shown, renderBlocks(blocks, cue, { ...words, ...lines }), "", limits, key);
     if (key === "stream.lower_third") box.classList.toggle("lt-center", !blocks.some((b) => b.kind === "paragraph" && b.role));
     // A psalm's antiphon on the sanctuary: its words in the middle.
     if (p.antiphonOnly) centre(box);

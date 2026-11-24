@@ -14,6 +14,7 @@ sent to the live-stream computer with the service.
 | Sanctuary | Prayer | Prayers and dialogues | Title, Section heading, Text |
 | Sanctuary | Title | Title slides ("The First Reading / Joshua 24:1-3a") | Heading, Main title |
 | Sanctuary | Sermon | The sermon, laid out like a reading's title slide ("The Sermon / The Very Rev. Jane Doe / Rector") | Heading, Preacher, Position |
+| Sanctuary | Hymn | Hymn verses: large, bold and centred on the hymn background, with the caption at the bottom left (slides kept as written, a stanza a slide) | Verses, Hymn title and Hymn number (hidden at first), Caption |
 | Sanctuary | Psalm | Psalm verses and antiphons, and the music line before the Gospel | Psalm title, Verses, Antiphon music, Antiphon words |
 
 Every piece also has **Speaker labels & verse numbers** and **People (bold)

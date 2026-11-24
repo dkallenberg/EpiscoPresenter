@@ -74,7 +74,10 @@ const TEXT_BOXES: &[(&str, f32, f32, f32, bool)] = &[
 pub fn slide_type(output: Output, layout: Layout, category: ElementCategory) -> Option<&'static str> {
     match output {
         Output::Sanctuary => match layout {
-            Layout::Lyrics | Layout::InfoBar | Layout::LowerThird => None,
+            // A hymn's verses: laid out by the Layout tool but kept as
+            // written (a stanza a slide), so not fitted.
+            Layout::Lyrics => Some("sanctuary.hymn"),
+            Layout::InfoBar | Layout::LowerThird => None,
             _ if category == ElementCategory::Homily => Some("sanctuary.sermon"),
             _ if category == ElementCategory::Psalm => Some("sanctuary.psalm"),
             _ => Some("sanctuary.prayer"),
